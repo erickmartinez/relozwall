@@ -31,7 +31,7 @@ class BMEProcedure(Procedure):
     __on_sleep: WindowsInhibitor = None
     port = 'COM3'
 
-    DATA_COLUMNS = ["Time (s)", "Temperature (C)", r"Relative Humidity (percent)", "Pressure (Bar)",
+    DATA_COLUMNS = ["Time (h)", "Temperature (C)", r"Relative Humidity (percent)", "Pressure (Bar)",
                     "Gas Resistance (Ohm)", "Pressure CH1 (Torr)"]
 
     def startup(self):
@@ -93,7 +93,7 @@ class BMEProcedure(Procedure):
         pressure = self.__mx200.pressure(1)  / 1000.
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
-            "Time (s)": dt,
+            "Time (h)": dt / 3600.,
             "Pressure CH1 (Torr)": pressure
         }
 
@@ -128,7 +128,7 @@ class MainWindow(ManagedWindow):
             procedure_class=BMEProcedure,
             inputs=['experiment_time', 'interval'],
             displays=['experiment_time', 'interval'],
-            x_axis="Time (s)",
+            x_axis="Time (h)",
             y_axis="Pressure CH1 (Torr)",
             directory_input=True,
         )
