@@ -13,6 +13,7 @@ from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
 from pymeasure.experiment import IntegerParameter, FloatParameter
 from pymeasure.experiment import unique_filename
+from instruments.mx200 import MX200
 import sched
 import datetime
 from instruments.inhibitor import WindowsInhibitor
@@ -22,19 +23,23 @@ class BMEProcedure(Procedure):
     experiment_time = FloatParameter('Experiment Time', units='h', default=1)
     interval = FloatParameter('Sampling Interval', units='s', default=1)
     __bme: BME = None
+    __mx200: MX200 = None
     __scheduler: sched.scheduler = None
     __time_start: datetime.datetime = None
     __ndata_points: int = 0
     __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
+    port = 'COM3'
 
-    DATA_COLUMNS = ["n", "Time (s)", "Temperature (C)", r"Relative Humidity (percent)", "Pressure (Bar)",
-                    "Gas Resistance (Ohm)"]
+    DATA_COLUMNS = ["Time (s)", "Temperature (C)", r"Relative Humidity (percent)", "Pressure (Bar)",
+                    "Gas Resistance (Ohm)", "Pressure CH1 (Torr)"]
 
     def startup(self):
         log.info("Creating BME680.")
         self.__bme = BME(uri='http://128.54.52.159', username='qwerty', password='12345')
-        log.info("Setting up the scheduler")
+        log.info("Setting up Televac MX200")
+        self.__mx200 = MX200(address=self.port)
+        self.__mx200_delay = self.__mx200.delay
 
     def execute(self):
         self.__ndata_points = int(self.experiment_time * 3600 / self.interval)
@@ -47,12 +52,12 @@ class BMEProcedure(Procedure):
         n = 1
         while delay <= self.experiment_time * 3600:
             # event_id = self.__scheduler.enter(delay=delay, priority=1, action=self.get_bme_data, argument=(n,))
-            event_id = self.__scheduler.enterabs(
+            bme_event_id = self.__scheduler.enterabs(
                 time=self.__time_start.timestamp() + delay, priority=1,
-                action=self.get_bme_data, argument=(n,)
+                action=self.acquire_data, argument=(n,)
             )
             delay += self.interval
-            events.append(event_id)
+            events.append(bme_event_id)
             n += 1
 
         self.__thread = threading.Thread(target=self.__scheduler.run)
@@ -72,7 +77,7 @@ class BMEProcedure(Procedure):
                     pass
         self.unhinibit_sleep()
 
-    def get_bme_data(self, n):
+    def acquire_data(self, n):
         if self.should_stop():
             log.warning("Caught the stop flag in the procedure")
             for e in self.__scheduler.queue:
@@ -85,10 +90,11 @@ class BMEProcedure(Procedure):
             return
 
         bme_data = self.__bme.read_env()
+        pressure = self.__mx200.pressure(1)  / 1000.
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
-            "n": n,
-            "Time (s)": dt
+            "Time (s)": dt,
+            "Pressure CH1 (Torr)": pressure
         }
 
         for row in bme_data:
@@ -123,10 +129,10 @@ class MainWindow(ManagedWindow):
             inputs=['experiment_time', 'interval'],
             displays=['experiment_time', 'interval'],
             x_axis="Time (s)",
-            y_axis="Gas Resistance (Ohm)",
+            y_axis="Pressure CH1 (Torr)",
             directory_input=True,
         )
-        self.setWindowTitle('BME 680 data')
+        self.setWindowTitle('Backing data')
 
     def queue(self):
         directory = self.directory
