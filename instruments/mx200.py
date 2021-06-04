@@ -106,13 +106,12 @@ class MX200:
             if value > 0:
                 self.__delay = value
 
-
     @staticmethod
     def ppsee(string_value: str):
-        mantissa = float(string_value[0:2]) #/ 10
-        sign = -1 if string_value[2] == 0 else 1
+        mantissa = float(string_value[0:2]) / 10
+        s = -1 if string_value[2] == '0' else 1
         exponent = float(string_value[3:5])
-        return mantissa * 10.0 ** (sign * exponent) / 10
+        return mantissa * 10.0 ** (s * exponent)
 
     def write(self, q: str):
         with serial.Serial(

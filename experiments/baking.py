@@ -48,6 +48,7 @@ class BMEProcedure(Procedure):
         self.__ndata_points = int(self.experiment_time * 3600 / self.interval)
         self.__scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
         self.__time_start = datetime.datetime.now()
+        self.__mx200.units = 'mTorr'
         log.info("Starting the loop of {0:d} datapoints.".format(self.__ndata_points))
         log.info("Date time at start of measurement: {dt}.".format(dt=self.__time_start))
         delay = 0
@@ -81,7 +82,6 @@ class BMEProcedure(Procedure):
                 except ValueError:
                     pass
 
-
     def __del__(self):
         self.kill_queue()
 
@@ -91,7 +91,7 @@ class BMEProcedure(Procedure):
             self.kill_queue()
 
         bme_data = self.__bme.read_env()
-        pressure = self.__mx200.pressure(1) / 1000.
+        pressure = self.__mx200.pressure(1)
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
             "Time (h)": dt / 3600.,
@@ -139,7 +139,7 @@ class MainWindow(ManagedWindow):
 
     def queue(self):
         directory = self.directory
-        filename = unique_filename(directory, prefix='BACKING_')
+        filename = unique_filename(directory, prefix='BAKING_')
 
         procedure = self.make_procedure()
         results = Results(procedure, filename)
