@@ -29,17 +29,20 @@ class BMEProcedure(Procedure):
     __ndata_points: int = 0
     __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
+    __mx200_delay: float = 0.001
     port = 'COM3'
+    __keep_alive: bool = False
 
     DATA_COLUMNS = ["Time (h)", "Temperature (C)", r"Relative Humidity (percent)", "Pressure (Bar)",
                     "Gas Resistance (Ohm)", "Pressure CH1 (Torr)"]
 
     def startup(self):
         log.info("Creating BME680.")
-        self.__bme = BME(uri='http://128.54.52.159', username='qwerty', password='12345')
+        self.__bme = BME(uri='http://128.54.52.133', username='qwerty', password='12345')
         log.info("Setting up Televac MX200")
         self.__mx200 = MX200(address=self.port)
         self.__mx200_delay = self.__mx200.delay
+        self.__mx200.units = 'mTorr'
 
     def execute(self):
         self.__ndata_points = int(self.experiment_time * 3600 / self.interval)
@@ -66,31 +69,29 @@ class BMEProcedure(Procedure):
         self.__thread.join()
 
     def shutdown(self):
+        self.kill_queue()
         self.unhinibit_sleep()
 
-    def __del__(self):
+    def kill_queue(self):
+        self.unhinibit_sleep()
         if self.__scheduler is not None:
             for e in self.__scheduler.queue:
                 try:
                     self.__scheduler.cancel(e)
                 except ValueError:
                     pass
-        self.unhinibit_sleep()
+
+
+    def __del__(self):
+        self.kill_queue()
 
     def acquire_data(self, n):
         if self.should_stop():
             log.warning("Caught the stop flag in the procedure")
-            for e in self.__scheduler.queue:
-                try:
-                    self.__scheduler.cancel(e)
-                except ValueError:
-                    pass
-            self.__scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
-            self.unhinibit_sleep()
-            return
+            self.kill_queue()
 
         bme_data = self.__bme.read_env()
-        pressure = self.__mx200.pressure(1)  / 1000.
+        pressure = self.__mx200.pressure(1) / 1000.
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
             "Time (h)": dt / 3600.,
@@ -112,13 +113,15 @@ class BMEProcedure(Procedure):
         log.debug("Emitting results: {0}".format(data))
 
     def inhibit_sleep(self):
-        if os.name == 'nt':
+        if os.name == 'nt' and not self.__keep_alive:
             self.__on_sleep = WindowsInhibitor()
             self.__on_sleep.inhibit()
+            self.__keep_alive = True
 
     def unhinibit_sleep(self):
-        if os.name == 'nt'and self.__on_sleep:
+        if os.name == 'nt' and self.__keep_alive:
             self.__on_sleep.unhinibit()
+            self.__keep_alive = False
 
 
 class MainWindow(ManagedWindow):
@@ -136,7 +139,7 @@ class MainWindow(ManagedWindow):
 
     def queue(self):
         directory = self.directory
-        filename = unique_filename(directory, prefix='Environment')
+        filename = unique_filename(directory, prefix='BACKING_')
 
         procedure = self.make_procedure()
         results = Results(procedure, filename)
