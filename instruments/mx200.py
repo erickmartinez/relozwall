@@ -109,10 +109,10 @@ class MX200:
 
     @staticmethod
     def ppsee(string_value: str):
-        mantissa = float(string_value[0:2]) / 10
+        mantissa = float(string_value[0:2]) #/ 10
         sign = -1 if string_value[2] == 0 else 1
         exponent = float(string_value[3:5])
-        return mantissa * 10.0 ** (sign * exponent)
+        return mantissa * 10.0 ** (sign * exponent) / 10
 
     def write(self, q: str):
         with serial.Serial(
