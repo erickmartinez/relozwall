@@ -32,6 +32,8 @@ class BMEProcedure(Procedure):
     __mx200_delay: float = 0.001
     port = 'COM3'
     __keep_alive: bool = False
+    __failed_readings = 0
+    __max_attempts = 3
 
     DATA_COLUMNS = ["Time (h)", "Temperature (C)", r"Relative Humidity (percent)", "Pressure (Bar)",
                     "Gas Resistance (Ohm)", "Pressure CH1 (Torr)"]
@@ -49,6 +51,8 @@ class BMEProcedure(Procedure):
         self.__scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
         self.__time_start = datetime.datetime.now()
         self.__mx200.units = 'mTorr'
+        # Reset the counter for failed readings
+        self.__failed_readings = 0
         log.info("Starting the loop of {0:d} datapoints.".format(self.__ndata_points))
         log.info("Date time at start of measurement: {dt}.".format(dt=self.__time_start))
         delay = 0
@@ -92,6 +96,15 @@ class BMEProcedure(Procedure):
 
         bme_data = self.__bme.read_env()
         pressure = self.__mx200.pressure(1)
+        # If the pressure gives a bad reading (e.g. OVERLOAD) try again
+        if type(pressure) == str:
+            if self.__failed_readings < self.__failed_readings:
+                pressure = self.__mx200.pressure(1)
+                self.__failed_readings += 1
+                log.warning('Could not read pressure at time: {0}'.format(datetime.datetime.now().isoformat()))
+            else:
+                log.error('Error reading pressure. Read out: {0}'.format(pressure))
+                return
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
             "Time (h)": dt / 3600.,
