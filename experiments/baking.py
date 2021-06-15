@@ -4,6 +4,7 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 import sys, os
 
+sys.path.append('../')
 sys.modules['cloudpickle'] = None
 import threading
 import time
@@ -99,11 +100,12 @@ class BMEProcedure(Procedure):
         # If the pressure gives a bad reading (e.g. OVERLOAD) try again
         if type(pressure) == str:
             if self.__failed_readings < self.__failed_readings:
-                pressure = self.__mx200.pressure(1)
                 self.__failed_readings += 1
                 log.warning('Could not read pressure at time: {0}'.format(datetime.datetime.now().isoformat()))
+                time.sleep(0.01)
+                self.acquire_data(n)
             else:
-                log.error('Error reading pressure. Read out: {0}'.format(pressure))
+                log.warning('Error reading pressure. Read out: {0}'.format(pressure))
                 return
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
@@ -124,6 +126,7 @@ class BMEProcedure(Procedure):
         self.emit('results', data)
         self.emit('progress', n * 100. / self.__ndata_points)
         log.debug("Emitting results: {0}".format(data))
+        self.__failed_readings = 0
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
@@ -153,6 +156,10 @@ class MainWindow(ManagedWindow):
     def queue(self):
         directory = self.directory
         filename = unique_filename(directory, prefix='BAKING_')
+        log_file = os.path.splitext(filename)[0] + ' .log'
+        fh = logging.FileHandler(log_file)
+        fh.setLevel(logging.DEBUG)
+        log.addHandler(fh)
 
         procedure = self.make_procedure()
         results = Results(procedure, filename)
