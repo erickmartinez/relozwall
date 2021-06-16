@@ -157,7 +157,9 @@ class MainWindow(ManagedWindow):
         directory = self.directory
         filename = unique_filename(directory, prefix='BAKING_')
         log_file = os.path.splitext(filename)[0] + ' .log'
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(log_file)
+        fh.setFormatter(formatter)
         fh.setLevel(logging.DEBUG)
         log.addHandler(fh)
 
