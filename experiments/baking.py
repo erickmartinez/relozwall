@@ -1,6 +1,8 @@
 import logging
 import sys, os
 
+import requests.exceptions
+
 sys.path.append('../')
 sys.modules['cloudpickle'] = None
 
@@ -93,7 +95,16 @@ class BMEProcedure(Procedure):
             log.warning("Caught the stop flag in the procedure")
             self.kill_queue()
 
-        bme_data = self.__bme.read_env()
+        try:
+            bme_data = self.__bme.read_env()
+        except requests.exceptions.ConnectionError:
+            bme_data = [
+                {"type": "temperature", "value": 0.0, "unit": "°C"},
+                {"type": "humidity", "value": 0.0, "unit": "%"},
+                {"type": "pressure", "value": 0.0, "unit": "mBar"},
+                {"type": "gas_resistance", "value": 0.0, "unit": "kOhm"}
+            ]
+            log.warning('Could not access BME680.')
         pressure = self.__mx200.pressure(1)
         # If the pressure gives a bad reading (e.g. OVERLOAD) try again
         if type(pressure) == str:
