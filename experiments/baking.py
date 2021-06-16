@@ -1,11 +1,9 @@
 import logging
-
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
 import sys, os
 
 sys.path.append('../')
 sys.modules['cloudpickle'] = None
+
 import threading
 import time
 from instruments.bme680 import BME
@@ -102,31 +100,31 @@ class BMEProcedure(Procedure):
             if self.__failed_readings < self.__failed_readings:
                 self.__failed_readings += 1
                 log.warning('Could not read pressure at time: {0}'.format(datetime.datetime.now().isoformat()))
-                time.sleep(0.01)
+                time.sleep(0.1)
                 self.acquire_data(n)
             else:
                 log.warning('Error reading pressure. Read out: {0}'.format(pressure))
-                return
-        dt = (datetime.datetime.now() - self.__time_start).total_seconds()
-        data = {
-            "Time (h)": dt / 3600.,
-            "Pressure CH1 (Torr)": pressure
-        }
+        else:
+            dt = (datetime.datetime.now() - self.__time_start).total_seconds()
+            data = {
+                "Time (h)": dt / 3600.,
+                "Pressure CH1 (Torr)": pressure
+            }
 
-        for row in bme_data:
-            if row['type'] == 'temperature':
-                data['Temperature (C)'] = row['value']
-            elif row['type'] == 'humidity':
-                data['Relative Humidity (percent)'] = row['value']
-            elif row['type'] == 'pressure':
-                data['Pressure (Bar)'] = row['value'] / 1000
-            elif row['type'] == 'gas_resistance':
-                data['Gas Resistance (Ohm)'] = row['value'] * 1000
+            for row in bme_data:
+                if row['type'] == 'temperature':
+                    data['Temperature (C)'] = row['value']
+                elif row['type'] == 'humidity':
+                    data['Relative Humidity (percent)'] = row['value']
+                elif row['type'] == 'pressure':
+                    data['Pressure (Bar)'] = row['value'] / 1000
+                elif row['type'] == 'gas_resistance':
+                    data['Gas Resistance (Ohm)'] = row['value'] * 1000
 
-        self.emit('results', data)
-        self.emit('progress', n * 100. / self.__ndata_points)
-        log.debug("Emitting results: {0}".format(data))
-        self.__failed_readings = 0
+            self.emit('results', data)
+            self.emit('progress', n * 100. / self.__ndata_points)
+            log.debug("Emitting results: {0}".format(data))
+            self.__failed_readings = 0
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
@@ -171,6 +169,9 @@ class MainWindow(ManagedWindow):
 
 
 if __name__ == "__main__":
+    log = logging.getLogger(__name__)
+    log.addHandler(logging.NullHandler())
+
     app = QtGui.QApplication(sys.argv)
     window = MainWindow()
     window.show()
