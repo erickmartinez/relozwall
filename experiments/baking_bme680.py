@@ -35,6 +35,7 @@ class BMEProcedure(Procedure):
     __keep_alive: bool = False
     __failed_readings = 0
     __max_attempts = 3
+    __previous_reading: dict = None
 
     DATA_COLUMNS = ["Time (h)", "Temperature (C)", r"Relative Humidity (percent)", "Pressure (Bar)",
                     "Gas Resistance (Ohm)", "Pressure CH1 (Torr)"]
@@ -95,20 +96,10 @@ class BMEProcedure(Procedure):
             log.warning("Caught the stop flag in the procedure")
             self.kill_queue()
 
-        try:
-            bme_data = self.__bme.read_env()
-        except requests.exceptions.ConnectionError:
-            bme_data = [
-                {"type": "temperature", "value": 0.0, "unit": "°C"},
-                {"type": "humidity", "value": 0.0, "unit": "%"},
-                {"type": "pressure", "value": 0.0, "unit": "mBar"},
-                {"type": "gas_resistance", "value": 0.0, "unit": "kOhm"}
-            ]
-            log.warning('Could not access BME680.')
         pressure = self.__mx200.pressure(1)
         # If the pressure gives a bad reading (e.g. OVERLOAD) try again
         if type(pressure) == str:
-            if self.__failed_readings < self.__failed_readings:
+            if self.__failed_readings < self.__max_attempts:
                 self.__failed_readings += 1
                 log.warning('Could not read pressure at time: {0}'.format(datetime.datetime.now().isoformat()))
                 time.sleep(0.1)
@@ -122,6 +113,30 @@ class BMEProcedure(Procedure):
                 "Pressure CH1 (Torr)": pressure
             }
 
+            try:
+                bme_data = self.__bme.read_env()
+            except requests.exceptions.ConnectionError:
+                log.warning('Could not access BME680.')
+                if self.__failed_readings < self.__max_attempts:
+                    self.__failed_readings += 1
+                    log.warning('Attempting to read from BMR680. Attempt number: {0}.'.format(self.__failed_readings))
+                    bme_data = self.__bme.read_env()
+                else:
+                    if self.__previous_reading is not None:
+                        bme_data = [
+                            {"type": "temperature", "value": self.__previous_reading['Temperature (C)'], "unit": "°C"},
+                            {"type": "humidity", "value": self.__previous_reading['Relative Humidity (percent)'], "unit": "%"},
+                            {"type": "pressure", "value": self.__previous_reading['Pressure (Bar)'] * 1000.0, "unit": "mBar"},
+                            {"type": "gas_resistance", "value": self.__previous_reading['Gas Resistance (Ohm)'] / 1000.0, "unit": "kOhm"}
+                        ]
+                    else:
+                        # raise requests.exceptions.ConnectionError('Maximum number of reconnects for BME680')
+                        bme_data = [
+                            {"type": "temperature", "value": 0.0, "unit": "°C"},
+                            {"type": "humidity", "value": 0.0, "unit": "%"},
+                            {"type": "pressure", "value": 0.0, "unit": "mBar"},
+                            {"type": "gas_resistance", "value": 0.0, "unit": "kOhm"}
+                        ]
             for row in bme_data:
                 if row['type'] == 'temperature':
                     data['Temperature (C)'] = row['value']
@@ -131,7 +146,7 @@ class BMEProcedure(Procedure):
                     data['Pressure (Bar)'] = row['value'] / 1000
                 elif row['type'] == 'gas_resistance':
                     data['Gas Resistance (Ohm)'] = row['value'] * 1000
-
+            self.__previous_reading = data
             self.emit('results', data)
             self.emit('progress', n * 100. / self.__ndata_points)
             log.debug("Emitting results: {0}".format(data))
