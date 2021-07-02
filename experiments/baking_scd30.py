@@ -1,6 +1,7 @@
 import logging
 import sys, os
 
+import numpy as np
 import requests.exceptions
 
 sys.path.append('../')
@@ -101,53 +102,56 @@ class BakingProcedure(Procedure):
         if type(pressure) == str:
             if self.__failed_readings < self.__max_attempts:
                 self.__failed_readings += 1
-                log.warning('Could not read pressure at time: {0}'.format(datetime.datetime.now().isoformat()))
+                log.warning("Could not read pressure at time: {0}. Message: {1}".format(
+                    datetime.datetime.now().isoformat(), pressure
+                ))
                 time.sleep(0.1)
                 self.acquire_data(n)
             else:
                 log.warning('Error reading pressure. Read out: {0}'.format(pressure))
-        else:
-            dt = (datetime.datetime.now() - self.__time_start).total_seconds()
-            data = {
-                "Time (h)": dt / 3600.,
-                "Pressure CH1 (Torr)": pressure
-            }
+                pressure = np.NaN
 
-            try:
-                bme_data = self.__scd.read_env()
-            except requests.exceptions.ConnectionError:
-                log.warning('Could not access SCD30.')
-                if self.__failed_readings < self.__max_attempts:
-                    self.__failed_readings += 1
-                    log.warning('Attempting to read from SCD30. Attempt number: {0}.'.format(self.__failed_readings))
-                    bme_data = self.__scd.read_env()
+        dt = (datetime.datetime.now() - self.__time_start).total_seconds()
+        data = {
+            "Time (h)": dt / 3600.,
+            "Pressure CH1 (Torr)": pressure
+        }
+
+        try:
+            scd_data = self.__scd.read_env()
+        except requests.exceptions.ConnectionError:
+            log.warning('Could not access SCD30.')
+            if self.__failed_readings < self.__max_attempts:
+                self.__failed_readings += 1
+                log.warning('Attempting to read from SCD30. Attempt number: {0}.'.format(self.__failed_readings))
+                scd_data = self.__scd.read_env()
+            else:
+                if self.__previous_reading is not None:
+                    scd_data = [
+                        {"type": "temperature", "value": self.__previous_reading['Temperature (C)'], "unit": "°C"},
+                        {"type": "humidity", "value": self.__previous_reading['Relative Humidity (percent)'], "unit": "%"},
+                        {"type": "CO2", "value": self.__previous_reading['CO2 (ppm)'], "unit": "ppm"}
+                    ]
                 else:
-                    if self.__previous_reading is not None:
-                        bme_data = [
-                            {"type": "temperature", "value": self.__previous_reading['Temperature (C)'], "unit": "°C"},
-                            {"type": "humidity", "value": self.__previous_reading['Relative Humidity (percent)'], "unit": "%"},
-                            {"type": "CO2", "value": self.__previous_reading['CO2 (ppm)'], "unit": "ppm"}
-                        ]
-                    else:
-                        # raise requests.exceptions.ConnectionError('Maximum number of reconnects for BME680')
-                        bme_data = [
-                            {"type": "temperature", "value": 0.0, "unit": "°C"},
-                            {"type": "humidity", "value": 0.0, "unit": "%"},
-                            {"type": "CO2", "value": 0.0, "unit": "ppm"}
-                        ]
-            for row in bme_data:
-                if row['type'] == 'temperature':
-                    data['Temperature (C)'] = row['value']
-                elif row['type'] == 'humidity':
-                    data['Relative Humidity (percent)'] = row['value']
-                elif row['type'] == 'CO2':
-                    data['CO2 (ppm)'] = row['value']
+                    # raise requests.exceptions.ConnectionError('Maximum number of reconnects for BME680')
+                    scd_data = [
+                        {"type": "temperature", "value": np.NaN, "unit": "°C"},
+                        {"type": "humidity", "value": np.NaN, "unit": "%"},
+                        {"type": "CO2", "value": np.NaN, "unit": "ppm"}
+                    ]
+        for row in scd_data:
+            if row['type'] == 'temperature':
+                data['Temperature (C)'] = row['value']
+            elif row['type'] == 'humidity':
+                data['Relative Humidity (percent)'] = row['value']
+            elif row['type'] == 'CO2':
+                data['CO2 (ppm)'] = row['value']
 
-            self.__failed_readings = 0
-            self.__previous_reading = data
-            self.emit('results', data)
-            self.emit('progress', n * 100. / self.__ndata_points)
-            log.debug("Emitting results: {0}".format(data))
+        self.__failed_readings = 0
+        self.__previous_reading = data
+        self.emit('results', data)
+        self.emit('progress', n * 100. / self.__ndata_points)
+        log.debug("Emitting results: {0}".format(data))
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
