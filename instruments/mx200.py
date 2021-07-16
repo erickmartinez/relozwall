@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import serial
 from time import sleep
@@ -96,6 +98,37 @@ class MX200:
 
         return sensors
 
+    def read_calibration(self, channel: int, adjustment_point: int) -> int:
+        adjustment_point = int(adjustment_point)
+        channel = int(channel)
+        if 2 < channel < 1:
+            raise Warning(f"Channel '{channel}' is not available.")
+        if 1 <= adjustment_point <= 4:
+            query: str = f"RC{adjustment_point}{str(channel).zfill(2)}"
+            result = self.query(q=query)
+            print(result)
+            return self.baa(result)
+        else:
+            raise Warning(f"Invalid adjustment point: {adjustment_point}.")
+
+    def set_calibration(self, channel: int, adjustment_point: int, set_point: int):
+        adjustment_point = int(adjustment_point)
+        channel = int(channel)
+        if 2 < channel < 1:
+            raise Warning(f"Channel '{channel}' is not available.")
+        if 4 < adjustment_point < 1:
+            raise Warning(f"Invalid adjustment point: {adjustment_point}.")
+        baa = self.integer2baa(set_point)
+        query = f"WC{adjustment_point}{str(channel).zfill(2)}{baa}"
+        print(query)
+        self.write(q=query)
+        # time.sleep(self.__delay)
+        # q = 'S1{0:02d}'.format(channel)
+        # pressure = self.query(q)
+        # pressure = float(pressure)
+        # print(f"Pressure: {pressure:.1e}")
+        # return pressure
+
     @property
     def delay(self):
         return self.__delay
@@ -112,6 +145,20 @@ class MX200:
         s = -1 if string_value[2] == '0' else 1
         exponent = float(string_value[3:5])
         return mantissa * 10.0 ** (s * exponent)
+
+    @staticmethod
+    def baa(string_value: str):
+        s = -1 if string_value[0] == '0' else 1
+        aa = int(string_value[1::])
+        return s*aa
+
+    @staticmethod
+    def integer2baa(value: int):
+        if abs(value) > 99:
+            raise Warning(f"Invalid value: {value}.\nValid range is -99 to 99.")
+        b = '0' if np.sign(value) == -1 else 1
+        aa = str(abs(value)).zfill(2)
+        return f"{b}{aa}"
 
     def write(self, q: str):
         with serial.Serial(

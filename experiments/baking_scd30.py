@@ -37,6 +37,7 @@ class BakingProcedure(Procedure):
     __failed_readings = 0
     __max_attempts = 10
     __previous_reading: dict = None
+    __previous_pressure: float = None
 
     DATA_COLUMNS = ["Time (h)", "Temperature (C)", r"Relative Humidity (percent)", "CO2 (ppm)",
                     "Pressure CH1 (Torr)"]
@@ -109,7 +110,7 @@ class BakingProcedure(Procedure):
                 self.acquire_data(n)
             else:
                 log.warning('Error reading pressure. Read out: {0}'.format(pressure))
-                pressure = np.NaN
+                pressure = self.__previous_pressure if self.__previous_pressure is not None else np.NaN
 
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
@@ -117,10 +118,14 @@ class BakingProcedure(Procedure):
             "Pressure CH1 (Torr)": pressure
         }
 
+
+        self.__previous_pressure = pressure
+
         try:
             scd_data = self.__scd.read_env()
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
             log.warning('Could not access SCD30.')
+            log.warning(e)
             if self.__failed_readings < self.__max_attempts:
                 self.__failed_readings += 1
                 log.warning('Attempting to read from SCD30. Attempt number: {0}.'.format(self.__failed_readings))
@@ -132,6 +137,7 @@ class BakingProcedure(Procedure):
                         {"type": "humidity", "value": self.__previous_reading['Relative Humidity (percent)'], "unit": "%"},
                         {"type": "CO2", "value": self.__previous_reading['CO2 (ppm)'], "unit": "ppm"}
                     ]
+                    self.__failed_readings = 0
                 else:
                     # raise requests.exceptions.ConnectionError('Maximum number of reconnects for BME680')
                     scd_data = [
@@ -139,6 +145,7 @@ class BakingProcedure(Procedure):
                         {"type": "humidity", "value": np.NaN, "unit": "%"},
                         {"type": "CO2", "value": np.NaN, "unit": "ppm"}
                     ]
+                    self.__failed_readings = 0
         for row in scd_data:
             if row['type'] == 'temperature':
                 data['Temperature (C)'] = row['value']
