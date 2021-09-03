@@ -9,7 +9,6 @@ sys.modules['cloudpickle'] = None
 
 import threading
 import time
-from instruments.scd30 import SCD30
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
@@ -24,7 +23,6 @@ from instruments.inhibitor import WindowsInhibitor
 class BakingProcedure(Procedure):
     experiment_time = FloatParameter('Experiment Time', units='h', default=1)
     interval = FloatParameter('Sampling Interval', units='s', default=1)
-    __scd: SCD30 = None
     __mx200: MX200 = None
     __scheduler: sched.scheduler = None
     __time_start: datetime.datetime = None
@@ -39,12 +37,9 @@ class BakingProcedure(Procedure):
     __previous_reading: dict = None
     __previous_pressure: float = None
 
-    DATA_COLUMNS = ["Time (h)", "Temperature (C)", r"Relative Humidity (percent)", "CO2 (ppm)",
-                    "Pressure CH1 (Torr)"]
+    DATA_COLUMNS = ["Time (h)", "Pressure CH1 (Torr)"]
 
     def startup(self):
-        log.info("Creating BME680.")
-        self.__scd = SCD30(uri='http://128.54.52.108', username='qwerty', password='12345')
         log.info("Setting up Televac MX200")
         self.__mx200 = MX200(address=self.port)
         self.__mx200_delay = self.__mx200.delay
@@ -119,40 +114,6 @@ class BakingProcedure(Procedure):
         }
 
         self.__previous_pressure = pressure
-
-        try:
-            scd_data = self.__scd.read_env()
-        except requests.exceptions.ConnectionError as e:
-            log.warning('Could not access SCD30.')
-            log.warning(e)
-            if self.__failed_readings < self.__max_attempts:
-                self.__failed_readings += 1
-                log.warning('Attempting to read from SCD30. Attempt number: {0}.'.format(self.__failed_readings))
-                scd_data = self.__scd.read_env()
-            else:
-                if self.__previous_reading is not None:
-                    scd_data = [
-                        {"type": "temperature", "value": self.__previous_reading['Temperature (C)'], "unit": "°C"},
-                        {"type": "humidity", "value": self.__previous_reading['Relative Humidity (percent)'],
-                         "unit": "%"},
-                        {"type": "CO2", "value": self.__previous_reading['CO2 (ppm)'], "unit": "ppm"}
-                    ]
-                    self.__failed_readings = 0
-                else:
-                    # raise requests.exceptions.ConnectionError('Maximum number of reconnects for BME680')
-                    scd_data = [
-                        {"type": "temperature", "value": np.NaN, "unit": "°C"},
-                        {"type": "humidity", "value": np.NaN, "unit": "%"},
-                        {"type": "CO2", "value": np.NaN, "unit": "ppm"}
-                    ]
-                    self.__failed_readings = 0
-        for row in scd_data:
-            if row['type'] == 'temperature':
-                data['Temperature (C)'] = row['value']
-            elif row['type'] == 'humidity':
-                data['Relative Humidity (percent)'] = row['value']
-            elif row['type'] == 'CO2':
-                data['CO2 (ppm)'] = row['value']
 
         self.__failed_readings = 0
         self.__previous_reading = data
