@@ -50,9 +50,10 @@ class DST44A:
             judgment = self.__judgments[groups[4]]
             return {
                 'reading': reading,
-                'unit': units,
+                'units': units,
                 'mode': mode,
-                'judgement': judgment
+                'judgement': judgment,
+                'judgement_code': groups[4],
             }
         return {}
 
@@ -113,7 +114,7 @@ class DST44A:
                 xonxoff=self.__xonxoff
         ) as ser:
             sleep(self.__delay)
-            ser.write("{0}\r".format(q).encode('utf-8'))
+            ser.write("{0}".format(q).encode('utf-8'))
             sleep(self.__delay)
             line = ser.readline()
             return line.decode('utf-8').rstrip("\r").rstrip(" ")
