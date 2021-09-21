@@ -10,12 +10,12 @@
 #include <SPI.h>
 
 #define MIN_SPEED 0
-#define MAX_SPEED 14000
-#define FULL_SPEED 4000
+#define MAX_SPEED 700
+#define FULL_SPEED 1400
 #define ACCELERATION 10000
 #define DECELERATION 10000
 #define SERIAL_SPEED 57600
-#define SERIAL_TIMEOUT 5000
+#define SERIAL_TIMEOUT 100
 
 AutoDriver translator(0, 10, 7, 8); //(motor position, CS, reset, busy)
 int status;
@@ -33,8 +33,10 @@ void dSPINConfig(void)
   translator.setAcc(ACCELERATION); // steps per second per second
   translator.setDec(DECELERATION); // steps per second per second
   translator.setOCThreshold(OC_6000mA); // 6A is the highest setting
+  translator.setPWMFreq(PWM_DIV_2, PWM_MUL_2); // 31.25kHz PWM freq
   translator.setSlewRate(SR_530V_us); // 180 and 290 are the other options
-  translator.setOCShutdown(OC_SD_DISABLE);
+  translator.setOCShutdown(OC_SD_DISABLE); // don't shutdown on OC
+  translator.setVoltageComp(VS_COMP_ENABLE); // compensate for motor V
   translator.setSwitchMode(SW_HARD_STOP); // CONFIG_SW_USER is other option
   
 
@@ -42,6 +44,7 @@ void dSPINConfig(void)
   translator.setAccKVAL(64); // three quarterts voltage acceleration
   translator.setDecKVAL(64); // three quarterts voltage deceleration
   translator.setHoldKVAL(12); // one twentieth holding voltage (PWM on coil 1)
+
 
   // Reset ABS_POS which counts steps from start or reset. Use for HOME
   //translator.resetPos();
@@ -100,11 +103,13 @@ void loop()
   char dir;
   long curPos;
   String input;
-  long movesteps;
+  long moveSteps;
+  long input_speed;
 
   if(Serial.available())
   {
-    rxChar = Serial.read();
+    input = Serial.readStringUntil(0x0D);
+    rxChar = input[0]; //Serial.read();
     switch(rxChar)
     {
       case 0x66: // 'f'
@@ -124,36 +129,33 @@ void loop()
         break;
 /*      case 0x68: // 'h'
         translator.goHome(); // position to 0
-        break;
-      case 0x70: // 'p'
-        runspeed += 100;
-        Serial.print("New Speed: ");
+        break; */
+      case 0x76: // 'v'
+        input_speed = input.substring(2).toInt();
+        if (input_speed > 0 && input_speed < 1400) {
+          runspeed = input_speed;
+        }
         Serial.print(runspeed);
         Serial.print('\n');
         break;
-*/
       case 0x6D: // 'm' input distance and direction then execute
-        Serial.println("Enter number of steps (negative for reverse)");
-        input = Serial.readStringUntil(0x0D); // reads until 'enter' key
-        movesteps = input.toInt();
-        if(movesteps != 0)
+        moveSteps = input.substring(2).toInt();
+        if(moveSteps != 0)
         {
-          if(movesteps < 0)
+          if(moveSteps < 0)
             dir = REV;
           else
             dir = FWD;
-          movesteps = abs(movesteps) * 128; // correction for microsteps
+          moveSteps = abs(moveSteps) * 128; // correction for microsteps
           Serial.print("Moving ");
           if(dir)
             Serial.print("in ");
           else
             Serial.print("out ");
-          Serial.print(movesteps/128, DEC);
+          Serial.print(moveSteps/128, DEC);
           Serial.print(" steps\n");
-          translator.move(dir, movesteps);
+          translator.move(dir, moveSteps);
         }
-        else
-          Serial.println("Timeout or invalid input");
         break;
       case 0x73: // 's' the status of the system
         status = translator.getStatus();
@@ -170,10 +172,10 @@ void loop()
         Serial.print(rxChar);
         Serial.print("' not found!\n");
     }
-    curPos = translator.getPos();
+    /* curPos = translator.getPos(); */
     /*Serial.print("Position: ");
     Serial.print(curPos);*/
-    clearMessages();
+    /* clearMessages(); */
     /*Serial.print('\n');
     Serial.print("Status: ");
     Serial.print(status, HEX);
