@@ -15,7 +15,7 @@ class LinearTranslator:
     __address = 'COM6'
     __baud_rate = 57600
     __byte_size = serial.EIGHTBITS
-    __timeout = 5
+    __timeout = 0.1
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
@@ -40,31 +40,87 @@ class LinearTranslator:
         print(msg)
         return msg
 
+    def decode_status(self, register_hex: str) -> dict:
+        mot_status_flags = {
+            '00': 'stopped', '01': 'acceleration', '10': 'deceleration', '11': 'constant speed'
+        }
+        status_register = bin(int(register_hex, 16))[2:].zfill(16)[::-1]
+        hiz_bit = int(status_register[0])
+        busy_bit = int(status_register[1])
+        sw_f_bit = int(status_register[2])
+        sw_evn_bit = int(status_register[3])
+        dir_bit = int(status_register[4])
+        mot_status_bit = status_register[5:7]
+        notperf_cmd_bit = int(status_register[7])
+        wrong_cmd_bit = int(status_register[8])
+        uvlo_bit = int(status_register[9])
+        th_wrn_bit = int(status_register[10])
+        th_sd_bit = int(status_register[10])
+        ocd_bit = int(status_register[12])
+        step_loss_a_bit = int(status_register[13])
+        step_loss_b_bit = int(status_register[14])
+        sck_mod_bit = int(status_register[15])
+        status = {
+            'high impedance': bool(hiz_bit),
+            'undervoltage': not bool(uvlo_bit),
+            'thermal warning': not bool(th_wrn_bit),
+            'thermal shutdown': not bool(th_sd_bit),
+            'overcurrent': not bool(ocd_bit),
+            'step loss a': not bool(step_loss_a_bit),
+            'step loss b': not bool(step_loss_b_bit),
+            'cmd not performed': bool(notperf_cmd_bit),
+            'wrong cmd': bool(wrong_cmd_bit),
+            'switch status': bool(sw_f_bit),
+            'switch event': bool(sw_evn_bit),
+            'direction': 'forward' if dir_bit == 1 else 'reverse',
+            'busy': bool(busy_bit),
+            'motor status': mot_status_flags[mot_status_bit],
+            'step clock mode': bool(sck_mod_bit)
+        }
+        return status
+
     @property
     def status(self):
-        msg = self.query('s')
-        print(msg)
-        return msg
+        self.__serial.write(bytes("s\r", 'utf-8'))
+        sleep(self.__delay)
+        line = self.__serial.readline()
+        register_hex = line.decode('utf-8').rstrip("\n")
+        print(line)
+        if register_hex == '':
+            return {}
+        status = self.decode_status(register_hex=register_hex)
+        status['hex_string'] = line  # hex(int(register_hex, 2))
+        return status
+
+    @property
+    def position(self) -> int:
+        x = self.query('p')
+        return int(x)
+
+    @property
+    def run_speed(self) -> int:
+        rs = self.query('v')
+        print(rs)
+        return int(rs)
+
+    @run_speed.setter
+    def run_speed(self, value) -> int:
+        value = abs(int(value))
+        rs = self.query(f"v {value}")
+        print(rs)
+        return int(rs)
 
     def move_steps(self, steps: int):
         steps = int(steps)
-        msg = self.query('m')
-        #print(msg)
-        msg = self.query(f'{steps}')
+        msg = self.query(f"m {steps}")
         print(msg)
         return msg
 
     def stop(self):
-        msg = self.query(' ')
-        print(msg)
-        return msg
+        self.write(' ')
 
     def write(self, q: str):
-        self.__serial.write(bytes(q, 'utf-8'))
-        sleep(self.__delay)
-
-    def write_eol(self, q: str):
-        self.__serial.write("{0}\r".format(q).encode('utf-8'))
+        self.__serial.write(bytes(f"{q}\r", 'utf-8'))
         sleep(self.__delay)
 
     def read(self) -> str:
@@ -73,13 +129,7 @@ class LinearTranslator:
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
 
     def query(self, q: str) -> str:
-        self.__serial.write(bytes(q, 'utf-8'))
-        sleep(self.__delay)
-        return self.read()
-
-    def query_eol(self, q: str) -> str:
-        self.__serial.write("{0}\r".format(q).encode('utf-8'))
-        sleep(self.__delay)
+        self.__serial.write(bytes(f"{q}\r", 'utf-8'))
         return self.read()
 
     def connect(self):
