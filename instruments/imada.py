@@ -17,11 +17,11 @@ class DST44A:
     __address = 'COM5'
     __baud_rate = 256000
     __byte_size = serial.EIGHTBITS
-    __timeout = 0
+    __timeout = 0.01
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.1
+    __delay = 0.01
 
     __D_PATTERN = re.compile(r"(\+|\-)(\d+\.?\d*)([OKN])([TP])([LOHE])")
 
@@ -37,25 +37,26 @@ class DST44A:
 
     def __init__(self, address: str):
         self.__address = address
+        self.zero()
 
     def read(self):
         data_str = self.query("D")
         match = self.__D_PATTERN.match(data_str)
-        if match is not None:
-            groups = match.groups()
-            s = 1 if groups[0] == '+' else -1
-            reading = s * float(groups[1])
-            units = self.__units[groups[2]]
-            mode = self.__modes[groups[3]]
-            judgment = self.__judgments[groups[4]]
-            return {
-                'reading': reading,
-                'units': units,
-                'mode': mode,
-                'judgement': judgment,
-                'judgement_code': groups[4],
-            }
-        return {}
+        if match is None:
+            return {}
+        groups = match.groups()
+        s = 1 if groups[0] == '+' else -1
+        reading = s * float(groups[1])
+        units = self.__units[groups[2]]
+        mode = self.__modes[groups[3]]
+        judgment = self.__judgments[groups[4]]
+        return {
+            'reading': reading,
+            'units': units,
+            'mode': mode,
+            'judgement': judgment,
+            'judgement_code': groups[4],
+        }
 
     def zero(self):
         self.write("Z")
@@ -113,8 +114,7 @@ class DST44A:
                 stopbits=self.__stopbits,
                 xonxoff=self.__xonxoff
         ) as ser:
-            sleep(self.__delay)
-            ser.write("{0}".format(q).encode('utf-8'))
+            ser.write("{0}\r".format(q).encode('utf-8'))
             sleep(self.__delay)
             line = ser.readline()
             return line.decode('utf-8').rstrip("\r").rstrip(" ")
