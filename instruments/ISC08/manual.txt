@@ -3,6 +3,11 @@ Control with ISC08 from stepperonline
 The switch mounted above the Arduino disables the motor. Keep in the down
   position any time you don't want the motor to move.
 
+! IMPORTANT !
+! If the motor switch is active (up) during power-up or restart the motor can
+!  move in unpredictable ways. Reconennecting serial causees the Arduino to
+!  restart. 
+  
 Connect Serial with these settings.
 Baud Rate: 57600 
 Bits: 8
