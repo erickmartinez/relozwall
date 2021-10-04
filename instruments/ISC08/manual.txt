@@ -1,0 +1,31 @@
+Control with ISC08 from stepperonline
+
+The switch mounted above the Arduino disables the motor. Keep in the down
+  position any time you don't want the motor to move.
+
+! IMPORTANT !
+! If the motor switch is active (up) during power-up or restart the motor can
+!  move in unpredictable ways. Reconennecting serial causees the Arduino to
+!  restart. 
+  
+Connect Serial with these settings.
+Baud Rate: 57600 
+Bits: 8
+Parity: none
+Stop Bits: 1
+
+Command Format:
+lddd... (letter; two digits; one or more digits)
+
+The letter is 'f' for forward or 'r' for reverse.
+
+The next two digits are 00 to 99 to set the speed.
+
+The final number is the time in tenths of a second.
+
+Examples:
+r5555<CR>    This will move out at speed 55 for 5.5 seconds
+f109<CR>    This will move in at speed 10 for 0.9 seconds
+
+An additional command is the letter 'q'. Currently it is set to move out
+  at speed 60 for 5 seconds.
