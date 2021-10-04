@@ -29,7 +29,7 @@ class BakingProcedure(Procedure):
     __ndata_points: int = 0
     __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
-    __mx200_delay: float = 0.001
+    __mx200_delay: float = 0.01
     port = 'COM3'
     __keep_alive: bool = False
     __failed_readings = 0

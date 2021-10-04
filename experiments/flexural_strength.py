@@ -20,10 +20,10 @@ from instruments.inhibitor import WindowsInhibitor
 
 
 class FlexuralStressProcedure(Procedure):
-    experiment_time = FloatParameter('Experiment Time', units='s', default=600)
-    interval = FloatParameter('Sampling Interval', units='s', default=1)
-    support_span = FloatParameter('Support span', units='mm', default=40)
-    beam_radius = FloatParameter('Beam radius', units='mm', default=10)
+    experiment_time = FloatParameter('Experiment Time', units='s', default=30)
+    interval = FloatParameter('Sampling Interval', units='s', default=0.2)
+    support_span = FloatParameter('Support Span', units='mm', default=40)
+    beam_diameter = FloatParameter('Beam Diameter', units='mm', default=10)
     __force_gauge: DST44A = None
     __scheduler: sched.scheduler = None
     __time_start: datetime.datetime = None
@@ -55,7 +55,7 @@ class FlexuralStressProcedure(Procedure):
         delay = 0
         events = []
         n = 1
-        while delay <= self.experiment_time :
+        while delay <= self.experiment_time:
             event_id = self.__scheduler.enterabs(
                 time=self.__time_start.timestamp() + delay, priority=1,
                 action=self.acquire_data, argument=(n,)
@@ -95,7 +95,7 @@ class FlexuralStressProcedure(Procedure):
         if force_data['judgement_code'] != 'O':
             logging.warning(f"Reading is {judgment.lower()}.")
         # https://en.wikipedia.org/wiki/Three-point_flexural_test
-        sigma_f = force * self.support_span / np.pi / (self.beam_radius**3.0) * 1E6
+        sigma_f = 8.0 * force * self.support_span / np.pi / (self.beam_diameter ** 3.0) * 1E6
 
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {
@@ -130,8 +130,8 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=FlexuralStressProcedure,
-            inputs=['experiment_time', 'interval', 'support_span', 'beam_radius'],
-            displays=['experiment_time', 'interval', 'support_span', 'beam_radius'],
+            inputs=['experiment_time', 'interval', 'support_span', 'beam_diameter'],
+            displays=['experiment_time', 'interval', 'support_span', 'beam_diameter'],
             x_axis="Time (s)",
             y_axis="Flexural Stress (Pa)",
             directory_input=True,
