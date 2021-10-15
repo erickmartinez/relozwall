@@ -1,10 +1,104 @@
+import time
+
 import serial
 from time import sleep
 
 
-class LinearTranslator:
+class ISC08:
     """
-    Represents the Linear Translator used in the Extrusion system
+    Represents the ISC08 (Integrated Stepper Controller 8 A)
+    used by the linear translator in the extrusion system
+    """
+    __address = 'COM6'
+    __baud_rate = 57600
+    __byte_size = serial.EIGHTBITS
+    __timeout = 0.1
+    __parity = serial.PARITY_NONE
+    __stopbits = serial.STOPBITS_ONE
+    __xonxoff = 1
+    __delay = 0.05
+    __serial: serial.Serial = None
+    __speed: int = 60
+    __direction: str = 'forward'
+
+    def __init__(self, address: str):
+        self.__address = address
+        self.connect()
+
+    @property
+    def speed(self) -> int:
+        return self.__speed
+
+    @property
+    def address(self) -> str:
+        return self.__address
+
+    @address.setter
+    def address(self, value):
+        self.__address = value
+
+    @speed.setter
+    def speed(self, value: int):
+
+        self.set_speed(value)
+
+    def set_speed(self, value: int):
+        value = int(value)
+        self.__direction = 'forward' if value >=0 else 'reverse'
+        value = abs(value)
+        if value <= 100:
+            self.__speed = value
+
+    def move_by_time(self, moving_time: float, **kwargs):
+        speed = kwargs.get('speed', 60)
+        self.set_speed(value=speed)
+        direction = 'f' if self.__direction == 'forward' else 'r'
+        moving_time = abs(moving_time)
+        query = f"{direction}{self.__speed:02d}{moving_time * 10:.0f}"
+        print(query)
+        self.write(q=query)
+
+    def quick_out(self):
+        self.write(q='q')
+
+    def write(self, q: str):
+        self.__serial.write(bytes(f"{q}\r", 'utf-8'))
+        sleep(self.__delay)
+
+    def read(self) -> str:
+        line = self.__serial.readline()
+        # ser.flush()
+        return line.decode('utf-8').rstrip("\n").rstrip(" ")
+
+    def query(self, q: str) -> str:
+        self.__serial.write(bytes(f"{q}\r", 'utf-8'))
+        time.sleep(self.__delay)
+        return self.read()
+
+    def connect(self):
+        self.__serial = serial.Serial(
+            port=self.__address,
+            baudrate=self.__baud_rate,
+            bytesize=self.__byte_size,
+            timeout=self.__timeout,
+            parity=self.__parity,
+            stopbits=self.__stopbits,
+            xonxoff=self.__xonxoff
+        )
+        self.__serial.flush()
+
+    def disconnect(self):
+        if self.__serial is not None:
+            self.__serial.close()
+            self.__serial = None
+
+    def __del__(self):
+        self.disconnect()
+
+
+class L6470:
+    """
+    Represents the L6470 step motor driver used by the Linear Translator in the Extrusion system
 
     Attributes
     ----------
@@ -15,7 +109,7 @@ class LinearTranslator:
     __address = 'COM6'
     __baud_rate = 57600
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.1
+    __timeout = 0.01
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
@@ -29,6 +123,10 @@ class LinearTranslator:
     @property
     def address(self) -> str:
         return self.__address
+
+    @address.setter
+    def address(self, value):
+        self.__address = value
 
     def move_forward(self):
         msg = self.query('f')
