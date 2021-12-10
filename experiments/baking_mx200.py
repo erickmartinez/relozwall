@@ -2,7 +2,6 @@ import logging
 import sys, os
 
 import numpy as np
-import requests.exceptions
 
 sys.path.append('../')
 sys.modules['cloudpickle'] = None

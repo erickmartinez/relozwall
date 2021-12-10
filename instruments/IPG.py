@@ -7,6 +7,8 @@ import serial
 from time import sleep
 import re
 
+EPM_PATTERN = re.compile(r'EPM:(\d+),((\d{2})\=(.*)')
+
 
 class YLR3000:
 
@@ -161,6 +163,74 @@ class YLR3000:
             msg = "Emission is on!"
             self.__log.error(msg)
             raise ResourceWarning(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+
+    def enable_hardware_emission_control(self):
+        r = self.query("ELE")
+        if r == "ELE":
+            self.__log.info("Enabled Hardware Emission Control – Enabled hardware emission "
+                            "control.")
+        elif r == "ERR":
+            msg = "Emission is on!"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+
+    def enable_modulation(self):
+        r = self.query("EMOD")
+        if r == "EMOD":
+            self.__log.info("Enabled modulation mode.")
+        elif r == "ERR":
+            msg = "Emission is on!"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+
+    def emission_off(self):
+        r = self.query("EMOFF")
+        if r == "EMOFF":
+            self.__log.info("Stopped emission.")
+        else:
+            msg = f"Unknown error: {r}"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+
+    def emission_off(self):
+        r = self.query("EMON")
+        if r == "EMON":
+            self.__log.info("Started emission.")
+        else:
+            msg = f"Unknown error: {r}"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+
+    def enable_pulse_mode(self):
+        r = self.query("EPM")
+        if r == "EPM":
+            self.__log.info("Enabled PULSE Mode.")
+        elif r == "ERR":
+            msg = "Emission is on!"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self.__log.error(msg)
+            raise ResourceWarning(msg)
+
+    def read_extended_device_status(self):
+        r = self.query("EPM")
+
+        if r == "EPM":
+            self.__log.info("Enabled PULSE Mode.")
         else:
             msg = f"Unknown error: {r}"
             self.__log.error(msg)
