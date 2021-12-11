@@ -33,6 +33,9 @@ def spectral_radiance(wavelength_nm, temperature: float):
 def temperature_at_radiacnce(radiance: float, wavelength_nm: float):
     """
     Estimates the blackbody temperature in Kelvin for a source at a given wavelength in nm and a known spectral radiance
+    ..math::
+        T(B, \lambda) = \frac{\lambda k}{h c} \{ \ln\left[\frac{hc^2}{\lambda^5 B} + 1\right]\}
+
     Parameters
     ----------
     radiance: float
@@ -49,8 +52,8 @@ def temperature_at_radiacnce(radiance: float, wavelength_nm: float):
     hc = 6.62607015 * 2.99792458  # x 1E -34 (J s) x 1E8 (m/s) = 1E-26 (J m)
     hc2 = hc * 2.99792458  # x 1E -34 (J s) x 1E16 (m/s)^2 = 1E-18 (J m^2 s^{-1})
     arg = 2.0 * hc2 * np.power(wavelength_nm, -5.0)  # 1E-18 (J m^2 s^{-1}) / 1E-45 (m^5) = 1E27 J / (m^3 s)
-    arg /= 1E14 * radiance  # x 1E27 [J / (m^3 s)] / [J / s cm^2 nm ] = 1E27 / 1E13 = 1E14
+    arg /= 1E-14 * radiance  # / 1E27 [J / (m^3 s)] / [J / s cm^2 nm ] = 1E27 / 1E13 = 1E14
     arg += 1.0
     temperature = 1E6 * hc / wavelength_nm / 1.380649  # 1E-26 (J m) / 1E-9 m / 1E-23 J/K
-    temperature *= np.log(arg)
+    temperature /= np.log(arg)
     return temperature
