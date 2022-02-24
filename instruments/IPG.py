@@ -18,7 +18,7 @@ class YLR3000:
     __timeout = 0
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
-    __xonxoff = 1
+    __xonxoff = 0
     __delay = 0.1
     __log: logging.Logger = None
 

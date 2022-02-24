@@ -27,12 +27,12 @@ TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
 ESP32_COM = 'COM10'
 TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
-TRIGGER_LEVEL = 24.0
+TRIGGER_LEVEL = 12.0
 
 
 class LaserProcedure(Procedure):
-    emission_time = FloatParameter('Emission Time', units='s', default=1.0, minimum=0.001, maximum=3.0)
-    measurement_time = FloatParameter('Measurement Time', units='s', default=2.0, minimum=1.0, maximum=3600.0)
+    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=3.0)
+    measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
     __oscilloscope: TBS2000 = None
     __esp32: ESP32Trigger = None
     __keep_alive: bool = False
@@ -51,7 +51,7 @@ class LaserProcedure(Procedure):
         log.info("Setting up Oscilloscope")
         self.__oscilloscope.horizontal_main_scale = self.measurement_time / 8
         self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
-        self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 12.0')
+        self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
         log.info("Setting up Triggers")
         try:
             esp32 = ESP32Trigger(address=ESP32_COM)
@@ -69,13 +69,16 @@ class LaserProcedure(Procedure):
         t1 = datetime.datetime.now()
         self.__oscilloscope.acquire_on()
         esp32.fire()
-        time.sleep(self.measurement_time + 1.0)
+
+        time.sleep(self.measurement_time + et + 0.1)
         # self.__oscilloscope.write('TRIGger FORCe')
         self.__oscilloscope.acquire_off()
         t2 = datetime.datetime.now()
         # log.info(self.__oscilloscope.query('*OPC?'))
-        self.__oscilloscope.write('MEASU:IMMED:TYPE MEAN')
-        log.info(self.__oscilloscope.write('MEASU:IMMED:VALUE?'))
+        # self.__oscilloscope.write('MEASU:IMMED:TYPE MEAN')
+        # log.info(self.__oscilloscope.write('MEASU:IMMED:VALUE?'))
+        dt = t2 - t1
+        log.info(f"t1: {t1.strftime('%Y/%m/%d, %H:%M:%S')}, t2: {t2.strftime('%Y/%m/%d, %H:%M:%S')}, dt: {dt.total_seconds():.3f}")
         time.sleep(0.1)
         log.info(self.__oscilloscope.sesr)
         time.sleep(0.1)
@@ -87,6 +90,15 @@ class LaserProcedure(Procedure):
         # print(reference)
         columns = data.dtype.names
         npoints = len(data)
+        log.info(f'Number of data points: {npoints}')
+        data = data[data[columns[1]] >= 0]
+        t_min = data[columns[0]].min()
+        data = data[data[columns[0]] >= t_min]
+        data[columns[0]] = data[columns[0]] - t_min
+        npoints = len(data)
+        log.info(f'Number of data points with positive voltage: {npoints}')
+        for i in range(len(data)):
+            log.info(f't = {data[columns[0]][i]:5.3f}, {data[columns[1]][i]:8.3E}')
         td = t2 - t1
         td_s = td.total_seconds()
         # time_s = np.linspace(0, td_s, npoints)

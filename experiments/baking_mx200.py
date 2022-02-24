@@ -154,7 +154,7 @@ class MainWindow(ManagedWindow):
         fh.setFormatter(formatter)
         fh.setLevel(logging.DEBUG)
         log.addHandler(fh)
-
+ 
         procedure = self.make_procedure()
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)

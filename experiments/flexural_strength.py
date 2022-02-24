@@ -18,6 +18,16 @@ import sched
 import datetime
 from instruments.inhibitor import WindowsInhibitor
 
+"""
+Check which ports are avilable:
+
+Open Terminal and type:
+
+> python -m serial.tools.list_ports
+
+before connecting probe and after connecting it, to see which port is it attached to.
+"""
+
 
 class FlexuralStressProcedure(Procedure):
     experiment_time = FloatParameter('Experiment Time', units='s', default=30)
@@ -31,7 +41,7 @@ class FlexuralStressProcedure(Procedure):
     __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
     __delay: float = 0.001
-    port = 'COM5'
+    port = 'COM4'
     __keep_alive: bool = False
     __failed_readings = 0
     __max_attempts = 10

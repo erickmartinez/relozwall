@@ -19,20 +19,23 @@ def spectral_radiance(wavelength_nm, temperature: float):
     Returns
     -------
     float:
-        The spectral radiance in J * s / (cm^2 nm sr)
+        The spectral radiance in W / (cm^2 nm sr)
     """
 
     hc = 6.62607015 * 2.99792458  # x 1E -34 (J s) x 1E8 (m/s) = 1E-26 (J m)
     hc2 = hc * 2.99792458  # x 1E -34 (J s) x 1E16 (m/s)^2 = 1E-18 (J m^2 s^{-1})
     hc_by_kt_lambda = 1E6 * hc / 1.380649 / temperature / wavelength_nm
     radiance = 2.0 * hc2 * np.power(wavelength_nm, -5.0)  # 1E-18 (J m^2 s^{-1}) / 1E-45 (m^5) = 1E27 J / (m^3 s)
-    radiance *= 1E18 / (np.exp(hc_by_kt_lambda) - 1.0)  # 1E27 J/m^3 s = 1E18 J / (m^2 nm s)
+    radiance *= 1E14 / (np.exp(hc_by_kt_lambda) - 1.0)  # 1E27 J/m^3 s = 1E18 J / (m^2 nm s) = 1E14 J / cm^2 nm
     return radiance
 
 
-def temperature_at_radiacnce(radiance: float, wavelength_nm: float):
+def temperature_at_radiance(radiance: float, wavelength_nm: float):
     """
     Estimates the blackbody temperature in Kelvin for a source at a given wavelength in nm and a known spectral radiance
+    ..math::
+        T(B, \lambda) = \frac{h c}{\lambda k} \left\{ \ln\left[\frac{hc^2}{\lambda^5 B} + 1\right]\right\}^{-1}
+
     Parameters
     ----------
     radiance: float
@@ -48,9 +51,9 @@ def temperature_at_radiacnce(radiance: float, wavelength_nm: float):
     """
     hc = 6.62607015 * 2.99792458  # x 1E -34 (J s) x 1E8 (m/s) = 1E-26 (J m)
     hc2 = hc * 2.99792458  # x 1E -34 (J s) x 1E16 (m/s)^2 = 1E-18 (J m^2 s^{-1})
-    arg = 2.0 * hc2 * np.power(wavelength_nm, -5.0)  # 1E-18 (J m^2 s^{-1}) / 1E-45 (m^5) = 1E27 J / (m^3 s)
-    arg /= 1E14 * radiance  # x 1E27 [J / (m^3 s)] / [J / s cm^2 nm ] = 1E27 / 1E13 = 1E14
+    arg = 2.0 * hc2 * np.power(wavelength_nm, -5.0)  # 1E18 J / (m^2 nm s)
+    arg = 1.0E14 * arg / radiance  # 1E14 [J / (cm^2 nm s)] / [J / cm^2 nm s] = 1E14
     arg += 1.0
     temperature = 1E6 * hc / wavelength_nm / 1.380649  # 1E-26 (J m) / 1E-9 m / 1E-23 J/K
-    temperature *= np.log(arg)
+    temperature = temperature / np.log(arg)
     return temperature

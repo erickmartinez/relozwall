@@ -44,6 +44,16 @@ class TBS2000:
         self.__instrument: pyvisa.Resource = self.__rm.open_resource(self.__resource_name)
         self.__instrument.read_termination = '\n'
         self.__instrument.write_termination = '\r\n'
+        self.reset()
+
+        for i in range(1, 4):
+            self.write(f'CH{i:d}:PRObe:GAIN 1.0')
+        # time.sleep(self.__delay)
+        # self.horizontal_main_scale = 2.0
+        # self.trigger_channel = 2
+        # self.trigger_level = 24.0
+
+    def reset(self):
         # REM = Remark
         self.write('REM "Check for any messages, and clear them from the queue."')
         time.sleep(self.__delay)
@@ -56,10 +66,8 @@ class TBS2000:
         self.write('FACTORY')
         self.write('HORizontal:RESOlution 2000')
         self.write('HORizontal:POSition 0')
-        # time.sleep(self.__delay)
-        # self.horizontal_main_scale = 2.0
-        # self.trigger_channel = 2
-        # self.trigger_level = 24.0
+        # self.write('ACQUIRE:STOPAFTER RUNStop')
+        # self.write('ACQuire:MODe SAMple')
 
     @property
     def timeout(self) -> int:
@@ -71,9 +79,10 @@ class TBS2000:
 
     def acquire_on(self):
         self.write('ACQUIRE:STOPAFTER RUNStop')
+        self.write('ACQuire:MODe SAMPLE')
         # self.write('ACQUIRE:STOPAFTER SEQUENCE')
         # time.sleep(self.__delay)
-        self.write('ACQUIRE:STATE ON')
+        self.write('ACQUIRE:STATE RUN')
         # time.sleep(self.__delay)
         self.write('REM "Wait for the acquisition to complete."')
         # time.sleep(self.__delay)
@@ -81,8 +90,8 @@ class TBS2000:
                    'handle the wait."')
 
     def acquire_off(self):
-        self.write('ACQUIRE:STATE OFF')
-        # time.sleep(self.__delay)
+        self.write('ACQUIRE:STATE STOP')
+        time.sleep(self.__delay)
         opc = self.query('*OPC?')
         # print(f'OPC: {opc}')
 
@@ -98,23 +107,34 @@ class TBS2000:
         # time.sleep(self.__delay)
         time.sleep(self.__delay)
         # time.sleep(self.__delay)
-        self.write('DATAINT')
+        self.write('DATaINIT')
+        time.sleep(self.__delay)
         self.write('WFMINPRE:NR_PT 2000')
         self.write('DATa:WIDTh 2')
-        self.write('DATA:START 1')
-        self.write('DATA:STOP 2000')
-        self.write('DATa:ENCdg ASCII')
+        # time.sleep(self.__delay)
+
+        time.sleep(self.__delay)
         self.write(f'DATa:SOUrce CH{channel}')
+        time.sleep(self.__delay)
+        self.write('DATA:SNAp')
+        time.sleep(self.__delay)
+        # self.write('DATA:START 1')
+        # time.sleep(self.__delay)
+        # self.write('DATA:STOP 10000')
+        # time.sleep(self.__delay)
+        self.write('DATa:ENCdg ASCII')
+        time.sleep(self.__delay)
         print(self.query('DATA?'))
+        time.sleep(self.__delay)
         preamble_str = self.query('WFMPre?')[8::]
+        time.sleep(self.__delay)
         # preamble_str = self.query('WFMOutpre?')[11::]
         print(preamble_str)
-        # time.sleep(self.__delay)
         self.write("Query out the waveform points, for later analysis on your controller computer.")
         res = self.query('CURVE?')
         # print(res)
         res = res[7::]
-        # time.sleep(self.__delay)
+        time.sleep(self.__delay)
         # print(res)
         curve = np.array(res.split(',')).astype(float)
 
@@ -131,6 +151,7 @@ class TBS2000:
         point_off = preamble['point_off']
 
         # xdata = np.linspace(xstart, no_of_points * xinc + xstart, no_of_points)
+        # xdata = xstart + xinc * (np.arange(no_of_points) - point_off)
         xdata = xinc * (np.arange(no_of_points) - point_off)
         ydata = y_zero + y_mult * (curve - y_off)
 
