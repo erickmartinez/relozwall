@@ -1,6 +1,9 @@
+import io
+
 import serial
 from time import sleep
-
+from io import StringIO
+import pandas as pd
 
 class ArduinoSerial:
     """
@@ -28,6 +31,13 @@ class ArduinoSerial:
             xonxoff=self.__xonxoff
         )
 
+    def close(self):
+        try:
+            print(f'Closing serial connection to ESP32 at {self.__address}.')
+            self.__serial.close()
+        except AttributeError as e:
+            print('Connection already closed')
+
     def __del__(self):
         try:
             print(f'Closing serial connection to ESP32 at {self.__address}.')
@@ -47,7 +57,7 @@ class ArduinoSerial:
         # ) as ser:
         # sleep(self.__delay)
         self.__serial.write(f'{q}\r'.encode('utf-8'))
-        # sleep(self.__delay)
+        sleep(self.__delay)
 
     def query(self, q: str) -> str:
         # with serial.Serial(
@@ -60,7 +70,7 @@ class ArduinoSerial:
         #         xonxoff=self.__xonxoff
         # ) as ser:
         # sleep(self.__delay)
-        self.write(f'{q}')
+        self.write(f"{q}")
         sleep(self.__delay)
         line = self.__serial.readline()
         sleep(self.__delay)
@@ -87,7 +97,7 @@ class ESP32Trigger(ArduinoSerial):
         """
         try:
             res = self.query('t?')
-            pd = float(res) / 1000
+            pd = float(res) / 1000.0
         except AttributeError as e:
             print(res, e)
             raise AttributeError(e)
@@ -105,8 +115,73 @@ class ESP32Trigger(ArduinoSerial):
             raise Warning(msg)
         else:
             interval_ms = value_in_seconds * 1000.0
-            q = f't {interval_ms:.1f}'
+            q = f't {interval_ms:.0f}'
             self.query(q=q)
 
     def fire(self):
         self.write('f')
+
+
+class DualTCLogger(ArduinoSerial):
+    __address = 'COM7'
+
+    def __init__(self, address: str):
+        super().__init__(address=address)
+
+    @property
+    def temperature(self):
+        try:
+            res = self.query('r')
+            temp = [float(x) for x in res.split(',')]
+        except AttributeError as e:
+            print(res, e)
+            raise AttributeError(e)
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+        return temp
+
+    def start_logging(self):
+        self.write('l')
+
+    @property
+    def log_time(self):
+        try:
+            res = self.query('t?')
+            log_time = float(res) / 1000.0
+        except AttributeError as e:
+            print(res, e)
+            raise AttributeError(e)
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+        return log_time
+
+    @log_time.setter
+    def log_time(self, value_in_seconds:float):
+        value_in_seconds = float(value_in_seconds)
+        if 0.0 > value_in_seconds or value_in_seconds > 20:
+            msg = f'Cannot set the log duration to {value_in_seconds}. Value is outside valid range:'
+            msg += f'[0, 20] s.'
+            raise Warning(msg)
+        else:
+            interval_ms = value_in_seconds * 1000.0
+            q = f't {interval_ms:.0f}'
+            self.query(q=q)
+
+    def read_temperature_log(self):
+        header_list = ["Time (s)", "TC1 (C)", "TC2 (C)"]
+        try:
+            res = self.query('r')
+            df = pd.read_csv(io.StringIO(res), sep=',', lineterminator=";", names=header_list)
+            df = df.apply(pd.to_numeric, errors='coerce')
+            df.dropna(inplace=True)
+        except AttributeError as e:
+            print(res, e)
+            raise AttributeError(e)
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+
+        return df
+

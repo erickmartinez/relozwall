@@ -6,6 +6,7 @@ import pyvisa
 from pyvisa.errors import VisaIOError
 from time import sleep
 import re
+from struct import unpack
 
 TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
 
@@ -37,6 +38,7 @@ class TBS2000:
     __instrument: pyvisa.Resource = None
     __rm: pyvisa.ResourceManager = None
     __delay: float = 0.1
+    __preamble_str: str = None
 
     def __init__(self, resource_name: str = TBS2000_RESOURCE_NAME):
         self.__resource_name = resource_name
@@ -48,26 +50,31 @@ class TBS2000:
 
         for i in range(1, 4):
             self.write(f'CH{i:d}:PRObe:GAIN 1.0')
+            sleep(self.__delay)
         # time.sleep(self.__delay)
-        # self.horizontal_main_scale = 2.0
+        self.horizontal_main_scale = 2.0
+        sleep(self.__delay)
         # self.trigger_channel = 2
         # self.trigger_level = 24.0
 
     def reset(self):
         # REM = Remark
         self.write('REM "Check for any messages, and clear them from the queue."')
-        time.sleep(self.__delay)
-        print('*ESR?')
+        print("*** TBS2000B Reset ***")
+        print('*ESR? (Reset)')
         print(self.sesr)
-        print('ALLEV?')
+        print('ALLEV? (Reset)')
         print(self.all_events)
         self.write('REM "Set the instrument to the default state."')
-        time.sleep(self.__delay)
         self.write('FACTORY')
-        self.write('HORizontal:RESOlution 2000')
-        self.write('HORizontal:POSition 0')
-        # self.write('ACQUIRE:STOPAFTER RUNStop')
-        # self.write('ACQuire:MODe SAMple')
+        time.sleep(self.__delay)
+        # self.write('HORizontal:RESOlution 2500')
+        # self.write('HORizontal:POSition 0')
+        self.write('ACQUIRE:STATE 0')
+        self.write('HORizontal:RECOrdlength 2000')
+        self.write('ACQUIRE:STOPAFTER RUNStop')
+        self.write('ACQuire:MODe SAMple')
+        # self.write('ACQuire:NUMAVg 16')
 
     @property
     def timeout(self) -> int:
@@ -78,14 +85,20 @@ class TBS2000:
         self.__instrument.timeout = value_ms
 
     def acquire_on(self):
-        self.write('ACQUIRE:STOPAFTER RUNStop')
-        self.write('ACQuire:MODe SAMPLE')
+        # self.write('ACQUIRE:STOPAFTER RUNStop')
+        # self.write('ACQuire:MODe SAMple')
+        # self.write('ACQuire:NUMAVg 2')
         # self.write('ACQUIRE:STOPAFTER SEQUENCE')
         # time.sleep(self.__delay)
+        self.write('ACQUIRE:STATE 0')
+        self.write('HORizontal:RECOrdlength 2000')
+        self.write('ACQUIRE:STOPAFTER RUNStop')
+        self.write('ACQuire:MODe SAMple')
+
         self.write('ACQUIRE:STATE RUN')
-        # time.sleep(self.__delay)
+        print('ACQuire? Response')
+        print(self.query('ACQuire?'))
         self.write('REM "Wait for the acquisition to complete."')
-        # time.sleep(self.__delay)
         self.write('REM "Note: your controller program time-out must be set long enough to'
                    'handle the wait."')
 
@@ -93,67 +106,82 @@ class TBS2000:
         self.write('ACQUIRE:STATE STOP')
         time.sleep(self.__delay)
         opc = self.query('*OPC?')
-        # print(f'OPC: {opc}')
+        print(f'OPC: {opc}')
 
     def get_curve(self, channel: int):
         self.write('REM "Use the instrument built-in measurements to measure the waveform you acquired."')
-        esr = self.sesr
-        if esr != 0:
-            all_events = self.all_events
-            msg = '\n'.join([f'{e["code"]}: {e["event"]}' for e in all_events])
-            # raise VisaIOError(msg)
-            print(msg)
+        # esr = self.sesr
+        # if esr != 0:
+        #     all_events = self.all_events
+        #     msg = '\n'.join([f'{e["code"]}: {e["event"]}' for e in all_events])
+        #     # raise VisaIOError(msg)
+        #     print(msg)
+
         self.write('REM "Query out the waveform points, for later analysis on your controller computer."')
-        # time.sleep(self.__delay)
-        time.sleep(self.__delay)
-        # time.sleep(self.__delay)
-        self.write('DATaINIT')
-        time.sleep(self.__delay)
-        self.write('WFMINPRE:NR_PT 2000')
-        self.write('DATa:WIDTh 2')
-        # time.sleep(self.__delay)
-
-        time.sleep(self.__delay)
+        # self.write(f'DATa INIT')
         self.write(f'DATa:SOUrce CH{channel}')
-        time.sleep(self.__delay)
-        self.write('DATA:SNAp')
-        time.sleep(self.__delay)
-        # self.write('DATA:START 1')
-        # time.sleep(self.__delay)
-        # self.write('DATA:STOP 10000')
-        # time.sleep(self.__delay)
-        self.write('DATa:ENCdg ASCII')
-        time.sleep(self.__delay)
+        # self.write(f'DATa:DESTination REFA')
+        self.write('WFMINPRE:NR_PT 2000')
+        self.write('DATa:WIDTh 1')
+        self.write('DATA:START 1')
+        self.write('DATA:STOP 2000')
+        # self.write('DATa:ENCdg ASCII')
+        self.write('DATa:ENCdg RPB')
+        print('DATA? Reponse:')
         print(self.query('DATA?'))
-        time.sleep(self.__delay)
-        preamble_str = self.query('WFMPre?')[8::]
-        time.sleep(self.__delay)
+        # wavfrm_str = self.query('WAVFrm?')
+        # print('*********** WAVFrm Response?')
+        # print(wavfrm_str)
+        #
+        # preamble_pattern = re.compile("\:WFMOUTPRE\:(.*?)\:CURVE")
+        # curve_pattern = re.compile("CURVE\s(.*)$")
+        # preamble_str = preamble_pattern.findall(wavfrm_str)[0][0:-1]
+        # curve_str = curve_pattern.findall(wavfrm_str)[0]
         # preamble_str = self.query('WFMOutpre?')[11::]
-        print(preamble_str)
-        self.write("Query out the waveform points, for later analysis on your controller computer.")
-        res = self.query('CURVE?')
-        # print(res)
-        res = res[7::]
-        time.sleep(self.__delay)
-        # print(res)
-        curve = np.array(res.split(',')).astype(float)
 
-        preamble = self._preamble_parser(preamble_str)
+        # self.write('REM "Query out the waveform points, for later analysis on your controller computer."')
+        # res = self.query('CURVE?')
+        # # print(res)
+        # res = res[7::]
+        # time.sleep(self.__delay)
+        # print(res)
+        # curve = np.array(res.split(',')).astype(float)
+        # curve = np.array(curve_str.split(',')).astype(float)
 
-        xstart = preamble['x_zero']
-        xinc = preamble['x_incr']
-        no_of_points = preamble['no_of_points']
-        y_zero = preamble['y_zero']
-        y_mult = preamble['y_multiplier']
-        y_off = preamble['y_offset']
-        x_unit = preamble['x_unit'].strip('"')
-        y_unit = preamble['y_unit'].strip('"')
-        point_off = preamble['point_off']
+        # preamble = self._preamble_parser(preamble_str)
+
+        # xstart = preamble['x_zero']
+        # xinc = preamble['x_incr']
+        # no_of_points = preamble['no_of_points']
+        # y_zero = preamble['y_zero']
+        # y_mult = preamble['y_multiplier']
+        # y_off = preamble['y_offset']
+        # x_unit = preamble['x_unit'].strip('"')
+        # y_unit = preamble['y_unit'].strip('"')
+        # point_off = preamble['point_off']
+
+        ymult = float(self.ask('WFMPRE:YMULT?'))
+        yzero = float(self.ask('WFMPRE:YZERO?'))
+        yoff = float(self.ask('WFMPRE:YOFF?'))
+        xincr = float(self.ask('WFMPRE:XINCR?'))
+
+        self.write('CURVE?')
+        curve = self.__instrument.read_raw()
+        headerlen = 2 + int(curve[1])
+        header = curve[:headerlen]
+        ADC_wave = curve[headerlen:-1]
+        ADC_wave = np.array(unpack('%sB' % len(ADC_wave), ADC_wave))
+
+        ydata = (ADC_wave - yoff) * ymult + yzero
+        xdata = np.arange(0, xincr * len(ydata), xincr)
+
+        x_unit = self.ask('WFMPRE:XUNIT?')
+        y_unit = self.ask('WFMPRE:YUNIT?')
 
         # xdata = np.linspace(xstart, no_of_points * xinc + xstart, no_of_points)
         # xdata = xstart + xinc * (np.arange(no_of_points) - point_off)
-        xdata = xinc * (np.arange(no_of_points) - point_off)
-        ydata = y_zero + y_mult * (curve - y_off)
+        # xdata = xinc * (np.arange(no_of_points) - point_off)
+        # ydata = y_zero + y_mult * (curve - y_off)
 
         data = np.empty(
             ydata.size, dtype=np.dtype([
@@ -162,6 +190,9 @@ class TBS2000:
         )
         data[f'x ({x_unit})'] = xdata
         data[f'y ({y_unit})'] = ydata
+
+        # self.write(f'DATa INIT')
+        # time.sleep(self.__delay)
 
         return data
 
@@ -207,7 +238,7 @@ class TBS2000:
         for i, d in enumerate(display_channels):
             ch = i + 1
             self.write(f'SELect:CH{ch} {d}')
-        time.sleep(self.__delay)
+            time.sleep(self.__delay)
 
     def calculate_set_points(self) -> Tuple[np.ndarray, int]:
         message = self.query('WFMPre')
@@ -291,6 +322,10 @@ class TBS2000:
         time.sleep(self.__delay)
         return r
 
+    def ask(self, q: str) -> str:
+        r = self.query(q)
+        return r[len(q) + 1::]
+
     @property
     def sesr_bit_functions(self) -> dict:
         return {
@@ -313,6 +348,7 @@ class TBS2000:
         if int(r) == 0:
             return 0
         sesr_register = "{0:07b}".format(int(r))
+        # sesr_register = sesr_register[::-1]
         sesr_keys = self.sesr_bit_functions
         sesr = {}
         for i, key in zip(range(len(sesr_register)), sesr_keys.keys()):

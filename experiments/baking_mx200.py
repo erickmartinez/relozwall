@@ -42,13 +42,13 @@ class BakingProcedure(Procedure):
         log.info("Setting up Televac MX200")
         self.__mx200 = MX200(address=self.port)
         self.__mx200_delay = self.__mx200.delay
-        self.__mx200.units = 'mTorr'
+        self.__mx200.units = 'MT'
 
     def execute(self):
         self.__ndata_points = int(self.experiment_time * 3600 / self.interval)
         self.__scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
         self.__time_start = datetime.datetime.now()
-        self.__mx200.units = 'mTorr'
+        self.__mx200.units = 'MT'
         # Reset the counter for failed readings
         self.__failed_readings = 0
         log.info("Starting the loop of {0:d} datapoints.".format(self.__ndata_points))
@@ -154,7 +154,7 @@ class MainWindow(ManagedWindow):
         fh.setFormatter(formatter)
         fh.setLevel(logging.DEBUG)
         log.addHandler(fh)
- 
+
         procedure = self.make_procedure()
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)

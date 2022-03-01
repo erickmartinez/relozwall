@@ -35,16 +35,16 @@ String tc2Str;
 
 
 void lcdTemperature(double t1, double t2) {
-  char buff[28]; // Buffer big enough for 7-character float
+  char buff[25]; // Buffer big enough for 7-character float
   display.clearDisplay();
   display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
   display.setCursor(0, 0);     // Start at top-left corner
-  snprintf(buff, sizeof(buff), "TC1: %4.1f C\nTC2: %4.1f C", t1, t2);
+  snprintf(buff, sizeof(buff), "TC1: %5.1f C\nTC2: %5.1f C", t1, t2);
   display.println(buff);
   display.display();
-  delay(10);
+  delay(5);
 }
 
 void setup() {
@@ -73,19 +73,20 @@ void setup() {
 void loop() {
    // Basic readout test, just print the current temp
    // Serial.print("Temperature:");
-   double c = thermocouple.readCelsius();
+   double c1 = thermocouple.readCelsius();
    delay(10);
    double c2 = thermocouple2.readCelsius();
    
    if (isnan(c)) {
      Serial.println ("Something wrong with thermocouple!");
    } else {
-     Serial.print("TCa: " + String(c) + " °C, ");
+
+     Serial.print("TCa: " + String(c1) + " °C, ");
      //Serial.print("TCb: " + String(c2) + "C, ");
      Serial.println("TCb: " + String(c2) + " °C");
      // Serial.print(String(thermocouple.readFarenheit()) + "F,");
      //Serial.println("TCa: " + String(thermocouple.readInternal()) + "C (internal)");
-     lcdTemperature(c, c2);
+     lcdTemperature(c1, c2);
    }
-   delay(1000);
+   delay(500);
 }

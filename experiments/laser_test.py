@@ -2,61 +2,122 @@ import logging
 import sys, os
 
 import numpy as np
+import pandas as pd
 
 sys.path.append('../')
 sys.modules['cloudpickle'] = None
 
-import threading
 import time
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
-from pymeasure.experiment import IntegerParameter, FloatParameter, ListParameter
+from pymeasure.experiment import IntegerParameter, FloatParameter, ListParameter, Parameter
 from pymeasure.experiment import unique_filename
 from serial.serialutil import SerialException
 from pyvisa.errors import VisaIOError
 import datetime
 from instruments.esp32 import ESP32Trigger
+from instruments.esp32 import DualTCLogger
 from instruments.tektronix import TBS2000
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+from instruments.mx200 import MX200
+# import matplotlib as mpl
+# import matplotlib.pyplot as plt
 from instruments.inhibitor import WindowsInhibitor
-import json
+# import json
+from scipy import interpolate
 
 TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
 ESP32_COM = 'COM10'
+TC_LOGGER_COM = 'COM7'
+MX200_COM = 'COM3'
 TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
-TRIGGER_LEVEL = 12.0
+TRIGGER_LEVEL = 3.3
+SAMPLING_INTERVAL = 0.005
 
 
 class LaserProcedure(Procedure):
     emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=3.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
+    laser_power_setpoint = FloatParameter("Laser Power Setpoint", units='%', default=100, minimum=0.0, maximum=100.0)
+    pd_gain = ListParameter('Photodiode Gain', choices=[0, 10, 20, 30, 40, 50, 60, 70], units='dB', default=0)
+    sample_name = Parameter("Sample Name", default="UNKNOWN")
     __oscilloscope: TBS2000 = None
-    __esp32: ESP32Trigger = None
     __keep_alive: bool = False
     __on_sleep: WindowsInhibitor = None
+    __tc_logger: DualTCLogger = None
+    __mx200: MX200 = None
+    pressure_data: pd.DataFrame = None
+    __tc_data: pd.DataFrame = None
+    __unique_filename: str = None
 
-    DATA_COLUMNS = ["Measurement Time (s)", "Photodiode Voltage (V)", "Trigger (V)"]
+    DATA_COLUMNS = ["Measurement Time (s)", "Photodiode Voltage (V)", "TC1 (C)", "TC2 (C)"]
 
     def startup(self):
+        print('***  Startup ****')
         self.__oscilloscope = TBS2000(resource_name=TBS2000_RESOURCE_NAME)
+        self.__mx200 = MX200(address=MX200_COM)
+        self.__mx200.delay = 0.030
         # self.__oscilloscope.trigger_channel = TRIGGER_CHANNEL
         # self.__oscilloscope.trigger_level = TRIGGER_LEVEL
-        # log.info(self.__oscilloscope.query('TRIGGER?'))
+        # print(self.__oscilloscope.query('TRIGGER?'))
         self.__oscilloscope.display_channel_list((1, 1, 0, 0))
+        print(self.__oscilloscope.sesr)
+        print(self.__oscilloscope.all_events)
+
+    @property
+    def unique_filename(self) -> str:
+        return self.__unique_filename
+
+    @unique_filename.setter
+    def unique_filename(self, val: str):
+        print(f"Storing filepath: {val}")
+        self.__unique_filename = val
+
+    def save_pressure(self):
+        if self.pressure_data is not None:
+            filename = f'{os.path.splitext(self.__unique_filename)[0]}_pressure.csv'
+            self.pressure_data.to_csv(filename, index=False)
+            # time_s = self.pressure_data['Time (s)'].values
+            # pressure = self.pressure_data['Pressure (Torr)'].values
+            # fig, ax = plt.subplots()
+            # ax.plot(time_s, pressure, label='Pressure')
+            # ax.set_xlabel('Time (s)')
+            # ax.set_ylabel('Pressure')
+            # ax.set_title(f'{self.sample_name}, {self.laser_power_setpoint}%, {self.emission_time}')
+            # # ax.legend(loc='best', frameon=True)
+            # # with open('plot_style.json', 'r') as file:
+            # #     json_file = json.load(file)v
+            # #     plot_style = json_file['defaultPlotStyle']
+            # fig.tight_layout()
+            # fig.savefig(os.path.splitext(self.__unique_filename[0])+'.png', dpi=600)
 
     def execute(self):
         log.info("Setting up Oscilloscope")
+        # self.__oscilloscope.write('MEASUrement:GATing OFF')
+        # self.__oscilloscope.write('HORizontal:POSition 0')
+        # time.sleep(0.1)
         self.__oscilloscope.horizontal_main_scale = self.measurement_time / 8
+        # time.sleep(0.1)
         self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
+        # time.sleep(0.1)
         self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
+        # time.sleep(0.1)
+        self.__mx200.units = 'MT'
+        time.sleep(0.5)
+
         log.info("Setting up Triggers")
         try:
             esp32 = ESP32Trigger(address=ESP32_COM)
         except SerialException as e:
-            esp32 = ESP32Trigger(address=ESP32_COM)
+            print("Error initializing ESP32 trigger")
+            raise e
+
+        try:
+            tc_logger = DualTCLogger(address=TC_LOGGER_COM)
+        except SerialException as e:
+            print("Error initializing temperature logger")
+            raise e
 
         esp32.pulse_duration = float(self.emission_time)
         et = esp32.pulse_duration
@@ -65,50 +126,119 @@ class LaserProcedure(Procedure):
         # Prevent computer from going to sleep mode
         # self.inhibit_sleep()
         self.__oscilloscope.timeout = (self.measurement_time + 2.0) * 1000
-        time.sleep(0.1)
-        t1 = datetime.datetime.now()
-        self.__oscilloscope.acquire_on()
+        # time.sleep(0.05)
+        t1 = time.time()
+        tc_logger.log_time = self.measurement_time + 0.1
+        tc_logger.start_logging()
         esp32.fire()
+        self.__oscilloscope.acquire_on()
 
-        time.sleep(self.measurement_time + et + 0.1)
-        # self.__oscilloscope.write('TRIGger FORCe')
+        previous_time = 0.0
+        total_time = 0.0
+
+        elapsed_time = []
+        pressure = []
+        start_time = time.time()
+        while total_time <= self.measurement_time:
+            current_time = time.time()
+            if (current_time - previous_time) >= 0.05:
+                p = self.__mx200.pressure(2)
+                p = 1.0 if p == '' else float(p)
+                pressure.append(p)
+                elapsed_time.append(total_time)
+                total_time = time.time() - start_time
+                previous_time = current_time
+
+        # log.info("elapsed time:")
+        # log.info(elapsed_time)
+        elapsed_time = np.array(elapsed_time, dtype=float) + 0.5
+        pressure = np.array(pressure, dtype=float)
+        self.pressure_data = pd.DataFrame(
+            data={
+                'Time (s)': elapsed_time,
+                f'Pressure (mTorr)': pressure
+            }
+        )
+
+        self.save_pressure()
         self.__oscilloscope.acquire_off()
-        t2 = datetime.datetime.now()
+        t2 = time.time()
         # log.info(self.__oscilloscope.query('*OPC?'))
         # self.__oscilloscope.write('MEASU:IMMED:TYPE MEAN')
         # log.info(self.__oscilloscope.write('MEASU:IMMED:VALUE?'))
         dt = t2 - t1
-        log.info(f"t1: {t1.strftime('%Y/%m/%d, %H:%M:%S')}, t2: {t2.strftime('%Y/%m/%d, %H:%M:%S')}, dt: {dt.total_seconds():.3f}")
-        time.sleep(0.1)
-        log.info(self.__oscilloscope.sesr)
-        time.sleep(0.1)
-        log.info(self.__oscilloscope.all_events)
-        time.sleep(0.1)
+        log.info(f"dt: {dt:.3f}")
+        # time.sleep(0.1)
+        print('*** ACQUISITION OVER ***')
+        print(self.__oscilloscope.sesr)
+        print(self.__oscilloscope.all_events)
         data = self.__oscilloscope.get_curve(channel=THERMOMETRY_CHANNEL)
-        time.sleep(0.1)
-        reference = self.__oscilloscope.get_curve(channel=TRIGGER_CHANNEL)
+        time.sleep(0.01)
+        tc_data: pd.DataFrame = tc_logger.read_temperature_log()
+
+        # reference = self.__oscilloscope.get_curve(channel=TRIGGER_CHANNEL)
         # print(reference)
         columns = data.dtype.names
+        # columns_ref = reference.dtype.names
         npoints = len(data)
-        log.info(f'Number of data points: {npoints}')
-        data = data[data[columns[1]] >= 0]
-        t_min = data[columns[0]].min()
-        data = data[data[columns[0]] >= t_min]
-        data[columns[0]] = data[columns[0]] - t_min
-        npoints = len(data)
-        log.info(f'Number of data points with positive voltage: {npoints}')
-        for i in range(len(data)):
-            log.info(f't = {data[columns[0]][i]:5.3f}, {data[columns[1]][i]:8.3E}')
-        td = t2 - t1
-        td_s = td.total_seconds()
-        # time_s = np.linspace(0, td_s, npoints)
-        columns_ref = reference.dtype.names
-        log.info(f'Data Columns: {columns}')
+        # log.info(f'Number of data points: {npoints}')
+        tc_data['Time (s)'] = tc_data['Time (s)'] - tc_data['Time (s)'].min()
+        time_tc = tc_data['Time (s)'].values
+        tc1 = tc_data['TC1 (C)'].values
+        tc2 = tc_data['TC2 (C)'].values
+
+        filename = f'{os.path.splitext(self.__unique_filename)[0]}_tcdata.csv'
+        tc_data.to_csv(filename, index=False)
+
+        data = data[data[columns[0]] <= time_tc.max()]
+        time_osc = data[columns[0]]
+        print('time_osc:')
+        print(time_osc)
+        print(f'len(time_osc): {len(time_osc)}, time_osc.min = {time_osc.min()}, time_osc.max = {time_osc.max()}')
+
+        print('time_tc:')
+        print(time_tc)
+        print(f'len(time_tc): {len(time_tc)}, time_tc.min = {time_tc.min()}, time_tc.max = {time_tc.max()}')
+
+        # dt_osc = time_osc[-1] - time_osc[-2]
+        # dt_osc_add = time_tc.max() - time_osc.max()
+        # N = int(dt_osc_add / dt_osc)
+        # time_osc_add = np.arange(1, N + 1) * dt_osc + time_osc.max()
+        # pd_voltage = np.concatenate((data[columns[1]], np.zeros(N)))
+        # time_osc = np.concatenate((time_osc, time_osc_add), axis=None)
+
+        # msk_tmin = time_osc >= time_tc.min()
+        # data = data[msk_tmin]
+        # reference = reference[msk_tmin]
+        # time_osc = data[columns[0]]
+        msk_tmax = time_osc <= time_tc.max()
+        data = data[msk_tmax]
+        # reference = reference[msk_tmax]
+        time_osc = data[columns[0]]
+
+        msk_tmin = time_osc >= time_tc.min()
+        data = data[msk_tmin]
+        # reference = reference[msk_tmin]
+        time_osc = data[columns[0]]
+
+        f1 = interpolate.interp1d(time_tc, tc1)
+        f2 = interpolate.interp1d(time_tc, tc2)
+        tc1_interp = f1(time_osc)
+        tc2_interp = f2(time_osc)
+
+        # npoints = len(data)
+        # log.info(f'Number of data points with positive voltage: {npoints}')
+        # for i in range(len(data)):
+        #     log.info(f't = {data[columns[0]][i]:5.3f}, {data[columns[1]][i]:8.3E}')
+
+        # log.info(f'Data Columns: {columns}')
         for i in range(len(data)):
             d = {
                 "Measurement Time (s)": data[columns[0]][i],
                 "Photodiode Voltage (V)": data[columns[1]][i],
-                "Trigger (V)": reference[columns_ref[1]][i]
+                # "Trigger (V)": reference[columns_ref[1]][i],
+                "TC1 (C)": tc1_interp[i],
+                "TC2 (C)": tc2_interp[i]
             }
             self.emit('results', d)
             self.emit('progress', (i + 1) * 100 / len(data))
@@ -116,19 +246,6 @@ class LaserProcedure(Procedure):
 
         # print(data)
         self.__oscilloscope.timeout = 1
-        # # Plot data
-        # with open('../plot_style.json', 'r') as style_file:
-        #     mpl.rcParams.update(json.load(style_file)['defaultPlotStyle'])
-        # fig, ax = plt.subplots()
-        # ax.plot(time_s, reference[columns_ref[1]], label='Trigger')
-        # ax.plot(time_s, data[columns[1]], label='Photodiode')
-        # ax.set_xlabel('Time (s)')
-        # ax.set_ylabel('Voltage (V)')
-        # ax.set_xlim(0, round(td_s/10)*10)
-        # ax.legend(loc='best', frameon=True)
-        # fig.tight_layout()
-        # fig.show()
-        # self.unhinibit_sleep()
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
@@ -147,17 +264,24 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=LaserProcedure,
-            inputs=['emission_time', "measurement_time"],
-            displays=['emission_time', "measurement_time"],
+            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name"],
+            displays=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name"],
             x_axis="Measurement Time (s)",
             y_axis="Photodiode Voltage (V)",
             directory_input=True,
         )
-        self.setWindowTitle('Laser data')
+        self.setWindowTitle('Laser Test')
 
     def queue(self):
         directory = self.directory
-        filename = unique_filename(directory, prefix='LASER_')
+
+        procedure: LaserProcedure = self.make_procedure()
+        sample_name = procedure.sample_name
+        laser_setpoint = procedure.laser_power_setpoint
+        photodiode_gain = procedure.pd_gain
+
+        prefix = f'LT_{sample_name}_{laser_setpoint:03.0f}PCT_{photodiode_gain}GAIN '
+        filename = unique_filename(directory, prefix=prefix)
         log_file = os.path.splitext(filename)[0] + ' .log'
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(log_file)
@@ -165,10 +289,9 @@ class MainWindow(ManagedWindow):
         fh.setLevel(logging.DEBUG)
         log.addHandler(fh)
 
-        procedure = self.make_procedure()
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)
-
+        procedure.unique_filename = filename
         self.manager.queue(experiment)
 
 

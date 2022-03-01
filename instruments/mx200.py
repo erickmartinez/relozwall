@@ -22,7 +22,7 @@ class MX200:
     __xonxoff = 1
     __delay = 0.1
 
-    __units_mapping = {
+    units_mapping = {
         'PA': 'Pascal',
         'TR': 'Torr',
         'MB': 'millibar',
@@ -74,12 +74,14 @@ class MX200:
         return self.query('R1')
 
     @units.setter
-    def units(self, value):
-        if value in self.__units_mapping:
-            q = "W1{0}\r".format(value)
+    def units(self, value: str):
+        if value in self.units_mapping:
+            q = f"W1{value.upper()}"
+            # print(q)
             r = self.query(q)
-            if r != value:
-                raise Warning("Units could not be set.")
+            # print(r)
+            # # if r != value:
+            # #     print(f'Units {value} could not be set.')
 
     @property
     def sensor_types(self) -> dict:
@@ -141,6 +143,8 @@ class MX200:
 
     @staticmethod
     def ppsee(string_value: str):
+        if string_value is None:
+            return -1
         mantissa = float(string_value[0:2]) / 10
         s = -1 if string_value[2] == '0' else 1
         exponent = float(string_value[3:5])
@@ -150,7 +154,7 @@ class MX200:
     def baa(string_value: str):
         s = -1 if string_value[0] == '0' else 1
         aa = int(string_value[1::])
-        return s*aa
+        return s * aa
 
     @staticmethod
     def integer2baa(value: int):
