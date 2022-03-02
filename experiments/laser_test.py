@@ -143,8 +143,8 @@ class LaserProcedure(Procedure):
             current_time = time.time()
             if (current_time - previous_time) >= 0.05:
                 p = self.__mx200.pressure(2)
-                p = 1.0 if p == '' else float(p)
-                pressure.append(p)
+                if p != '':
+                    pressure.append(p)
                 elapsed_time.append(total_time)
                 total_time = time.time() - start_time
                 previous_time = current_time
@@ -156,7 +156,7 @@ class LaserProcedure(Procedure):
         self.pressure_data = pd.DataFrame(
             data={
                 'Time (s)': elapsed_time,
-                f'Pressure (mTorr)': pressure
+                f'Pressure (Torr)': pressure
             }
         )
 
@@ -175,6 +175,7 @@ class LaserProcedure(Procedure):
         data = self.__oscilloscope.get_curve(channel=THERMOMETRY_CHANNEL)
         time.sleep(0.01)
         tc_data: pd.DataFrame = tc_logger.read_temperature_log()
+        time.sleep(5.0)
 
         # reference = self.__oscilloscope.get_curve(channel=TRIGGER_CHANNEL)
         # print(reference)
