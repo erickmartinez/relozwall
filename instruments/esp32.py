@@ -1,4 +1,5 @@
 import io
+import time
 
 import serial
 from time import sleep
@@ -97,14 +98,14 @@ class ESP32Trigger(ArduinoSerial):
         """
         try:
             res = self.query('t?')
-            pd = float(res) / 1000.0
+            pulse_duration = float(res) / 1000.0
         except AttributeError as e:
             print(res, e)
             raise AttributeError(e)
         except ValueError as e:
             print(res, e)
             raise ValueError(e)
-        return pd
+        return pulse_duration
 
     @pulse_duration.setter
     def pulse_duration(self, value_in_seconds):

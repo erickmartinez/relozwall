@@ -27,8 +27,8 @@ from instruments.inhibitor import WindowsInhibitor
 from scipy import interpolate
 
 TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
-ESP32_COM = 'COM10'
-TC_LOGGER_COM = 'COM7'
+ESP32_COM = 'COM6'
+TC_LOGGER_COM = 'COM10'
 MX200_COM = 'COM3'
 TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
@@ -51,16 +51,13 @@ class LaserProcedure(Procedure):
     __tc_data: pd.DataFrame = None
     __unique_filename: str = None
 
-    DATA_COLUMNS = ["Measurement Time (s)", "Photodiode Voltage (V)", "TC1 (C)", "TC2 (C)"]
+    DATA_COLUMNS = ["Measurement Time (s)", "Photodiode Voltage (V)", "Trigger (V)", "TC1 (C)", "TC2 (C)"]
 
     def startup(self):
         print('***  Startup ****')
         self.__oscilloscope = TBS2000(resource_name=TBS2000_RESOURCE_NAME)
         self.__mx200 = MX200(address=MX200_COM)
         self.__mx200.delay = 0.030
-        # self.__oscilloscope.trigger_channel = TRIGGER_CHANNEL
-        # self.__oscilloscope.trigger_level = TRIGGER_LEVEL
-        # print(self.__oscilloscope.query('TRIGGER?'))
         self.__oscilloscope.display_channel_list((1, 1, 0, 0))
         print(self.__oscilloscope.sesr)
         print(self.__oscilloscope.all_events)
@@ -78,33 +75,15 @@ class LaserProcedure(Procedure):
         if self.pressure_data is not None:
             filename = f'{os.path.splitext(self.__unique_filename)[0]}_pressure.csv'
             self.pressure_data.to_csv(filename, index=False)
-            # time_s = self.pressure_data['Time (s)'].values
-            # pressure = self.pressure_data['Pressure (Torr)'].values
-            # fig, ax = plt.subplots()
-            # ax.plot(time_s, pressure, label='Pressure')
-            # ax.set_xlabel('Time (s)')
-            # ax.set_ylabel('Pressure')
-            # ax.set_title(f'{self.sample_name}, {self.laser_power_setpoint}%, {self.emission_time}')
-            # # ax.legend(loc='best', frameon=True)
-            # # with open('plot_style.json', 'r') as file:
-            # #     json_file = json.load(file)v
-            # #     plot_style = json_file['defaultPlotStyle']
-            # fig.tight_layout()
-            # fig.savefig(os.path.splitext(self.__unique_filename[0])+'.png', dpi=600)
 
     def execute(self):
         log.info("Setting up Oscilloscope")
-        # self.__oscilloscope.write('MEASUrement:GATing OFF')
-        # self.__oscilloscope.write('HORizontal:POSition 0')
-        # time.sleep(0.1)
-        self.__oscilloscope.horizontal_main_scale = self.measurement_time / 8
-        # time.sleep(0.1)
         self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
-        # time.sleep(0.1)
         self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
-        # time.sleep(0.1)
+
+        self.__oscilloscope.set_acquisition_time(self.measurement_time + self.emission_time)
         self.__mx200.units = 'MT'
-        time.sleep(0.5)
+        time.sleep(1.0)
 
         log.info("Setting up Triggers")
         try:
@@ -115,23 +94,30 @@ class LaserProcedure(Procedure):
 
         try:
             tc_logger = DualTCLogger(address=TC_LOGGER_COM)
+            if tc_logger.query('i') != 'TCLOGGER':
+                raise SerialException(f"TC logger not found in address '{TC_LOGGER_COM}'.")
         except SerialException as e:
             print("Error initializing temperature logger")
             raise e
 
         esp32.pulse_duration = float(self.emission_time)
+        time.sleep(0.5)
         et = esp32.pulse_duration
         log.info(f'Pulse duration: {et:.2f} s.')
 
         # Prevent computer from going to sleep mode
         # self.inhibit_sleep()
-        self.__oscilloscope.timeout = (self.measurement_time + 2.0) * 1000
+        self.__oscilloscope.timeout = 1000
         # time.sleep(0.05)
         t1 = time.time()
-        tc_logger.log_time = self.measurement_time + 0.1
+        tc_logger.log_time = self.measurement_time + self.emission_time
+        time.sleep(0.1)
         tc_logger.start_logging()
+        self.__oscilloscope.write('ACQUIRE:STATE 0')
+        self.__oscilloscope.write('ACQUIRE:STOPAFTER SEQUENCE')
+        self.__oscilloscope.write('ACQuire:MODe SAMple')
+        self.__oscilloscope.write('ACQUIRE:STATE ON')
         esp32.fire()
-        self.__oscilloscope.acquire_on()
 
         previous_time = 0.0
         total_time = 0.0
@@ -139,19 +125,19 @@ class LaserProcedure(Procedure):
         elapsed_time = []
         pressure = []
         start_time = time.time()
-        while total_time <= self.measurement_time:
+        while total_time <= self.measurement_time + self.emission_time:
             current_time = time.time()
             if (current_time - previous_time) >= 0.05:
                 p = self.__mx200.pressure(2)
                 if p != '':
                     pressure.append(p)
-                elapsed_time.append(total_time)
+                    elapsed_time.append(total_time)
                 total_time = time.time() - start_time
                 previous_time = current_time
 
         # log.info("elapsed time:")
         # log.info(elapsed_time)
-        elapsed_time = np.array(elapsed_time, dtype=float) + 0.5
+        elapsed_time = np.array(elapsed_time, dtype=float)
         pressure = np.array(pressure, dtype=float)
         self.pressure_data = pd.DataFrame(
             data={
@@ -161,28 +147,29 @@ class LaserProcedure(Procedure):
         )
 
         self.save_pressure()
-        self.__oscilloscope.acquire_off()
         t2 = time.time()
-        # log.info(self.__oscilloscope.query('*OPC?'))
-        # self.__oscilloscope.write('MEASU:IMMED:TYPE MEAN')
-        # log.info(self.__oscilloscope.write('MEASU:IMMED:VALUE?'))
+
         dt = t2 - t1
         log.info(f"dt: {dt:.3f}")
-        # time.sleep(0.1)
+
+        while True:
+            busyA = self.__oscilloscope.ask("BUSY?")
+            if busyA == '0':
+                break
+
         print('*** ACQUISITION OVER ***')
-        print(self.__oscilloscope.sesr)
-        print(self.__oscilloscope.all_events)
+        # print(self.__oscilloscope.sesr)
+        # print(self.__oscilloscope.all_events)
         data = self.__oscilloscope.get_curve(channel=THERMOMETRY_CHANNEL)
-        time.sleep(0.01)
+        reference = self.__oscilloscope.get_curve(channel=TRIGGER_CHANNEL)
         tc_data: pd.DataFrame = tc_logger.read_temperature_log()
         time.sleep(5.0)
+        print(tc_data)
 
-        # reference = self.__oscilloscope.get_curve(channel=TRIGGER_CHANNEL)
-        # print(reference)
         columns = data.dtype.names
-        # columns_ref = reference.dtype.names
+        columns_ref = reference.dtype.names
         npoints = len(data)
-        # log.info(f'Number of data points: {npoints}')
+        log.info(f'Number of osc data points: {npoints}')
         tc_data['Time (s)'] = tc_data['Time (s)'] - tc_data['Time (s)'].min()
         time_tc = tc_data['Time (s)'].values
         tc1 = tc_data['TC1 (C)'].values
@@ -201,25 +188,14 @@ class LaserProcedure(Procedure):
         print(time_tc)
         print(f'len(time_tc): {len(time_tc)}, time_tc.min = {time_tc.min()}, time_tc.max = {time_tc.max()}')
 
-        # dt_osc = time_osc[-1] - time_osc[-2]
-        # dt_osc_add = time_tc.max() - time_osc.max()
-        # N = int(dt_osc_add / dt_osc)
-        # time_osc_add = np.arange(1, N + 1) * dt_osc + time_osc.max()
-        # pd_voltage = np.concatenate((data[columns[1]], np.zeros(N)))
-        # time_osc = np.concatenate((time_osc, time_osc_add), axis=None)
-
-        # msk_tmin = time_osc >= time_tc.min()
-        # data = data[msk_tmin]
-        # reference = reference[msk_tmin]
-        # time_osc = data[columns[0]]
         msk_tmax = time_osc <= time_tc.max()
         data = data[msk_tmax]
-        # reference = reference[msk_tmax]
+        reference = reference[msk_tmax]
         time_osc = data[columns[0]]
 
         msk_tmin = time_osc >= time_tc.min()
         data = data[msk_tmin]
-        # reference = reference[msk_tmin]
+        reference = reference[msk_tmin]
         time_osc = data[columns[0]]
 
         f1 = interpolate.interp1d(time_tc, tc1)
@@ -237,7 +213,7 @@ class LaserProcedure(Procedure):
             d = {
                 "Measurement Time (s)": data[columns[0]][i],
                 "Photodiode Voltage (V)": data[columns[1]][i],
-                # "Trigger (V)": reference[columns_ref[1]][i],
+                "Trigger (V)": reference[columns_ref[1]][i],
                 "TC1 (C)": tc1_interp[i],
                 "TC2 (C)": tc2_interp[i]
             }

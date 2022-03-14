@@ -20,7 +20,7 @@ class MX200:
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.1
+    __delay = 0.05
 
     units_mapping = {
         'PA': 'Pascal',
