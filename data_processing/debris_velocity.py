@@ -10,13 +10,14 @@ from scipy import stats
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\Sample_50'
 # csv_file = 'Sample50_debris_distribution_3kW_1s.csv'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\R3N4'
-csv_file = 'R3N4_particle_distribution_2.csv'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander'
+csv_file = 'R3N14_0.5S_3kW_20220302_205803522_distribution.csv'
+units = 'mm'
 
-label = "R3N4 3 kW, 0.5 s"
+label = "4:1 GC to BN - Carbon Black"
 
 height = 5. * 2.54  # cm
-x_center = 19.0 / 2.0  # Assume that the sample holder is at 1/3 of the x position wrt the tray
+x_center = 4.2np.5 * 2.54  # Assume that the sample holder is at 1/3 of the x position wrt the tray
 g = 9.8E2  # cm/s^2
 
 if __name__ == "__main__":
@@ -27,6 +28,8 @@ if __name__ == "__main__":
     ym = df['YM'].values
     ym = ym - ym.min()
     rm = np.sqrt(xm**2.0 + ym**2.0)
+    if units == 'mm':
+        rm *= 0.1
     vx = rm * np.sqrt(0.5 * g / height)
     vx_mean = vx.mean()
     vx_std = vx.std()
@@ -44,7 +47,7 @@ if __name__ == "__main__":
     xfmt.set_powerlimits((-2, 3))
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(5., 4.)
+    fig.set_size_inches(4., 3.)
     number_of_bins = 10
     n, bins, patches = ax.hist(vx, number_of_bins, density=True, facecolor='C0', alpha=0.95)
     ax.set_xlabel(f"Particle Velocity (cm/s)")
@@ -72,7 +75,8 @@ if __name__ == "__main__":
     )
 
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, 'histograms.png'), dpi=600)
+    output_filename = os.path.splitext(csv_file)[0]
+    fig.savefig(os.path.join(base_path, f'{output_filename}_histograms.png'), dpi=600)
     plt.show()
 
 
