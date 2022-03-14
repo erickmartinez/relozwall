@@ -9,11 +9,36 @@ import json
 from matplotlib.ticker import ScalarFormatter
 import re
 
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES"
-filename = 'BINDER_SCAN_PLOT'
-filelist = ['LT_R3N12_100PCT_40GAIN 2022-03-01_1', 'LT_R3N10_100PCT_40GAIN 2022-03-01_1', 'LT_R3N3_100PCT_40GAIN 2022-03-02_1']
-legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder']
+# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES"
+# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS"
+base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
 
+filename = 'R3N18_MULTIPLE_FIRINGS'
+# filelist = ['LT_R3N12_100PCT_40GAIN 2022-03-01_1', 'LT_R3N10_100PCT_40GAIN 2022-03-01_1',
+#             'LT_R3N3_100PCT_40GAIN 2022-03-02_1', 'LT_R3N14_100PCT_40GAIN 2022-03-02_1']
+# filelist = [
+#     'LT_GC_TYPE1_100PCT_40GAIN 2022-03-07_1',  #'LT_GC_TYPE2_100PCT_40GAIN 2022-03-07_1',
+#     'LT_Tidal75_100PCT_40GAIN 2022-03-08_1', 'LT_Graphite_100PCT_40GAIN 2022-03-08_1',
+#     'LT_GRAPHITE_POWDER_100PCT_40GAIN 2022-03-09_1',
+#     'LT_R3N10_100PCT_40GAIN 2022-03-01_1'
+# ]
+filelist = [
+    'LT_R3N18_100PCT_40GAIN 2022-03-09_1',
+    'LT_R3N18_100PCT_40GAIN 2022-03-09_2',
+    'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
+    'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
+    'LT_R3N18_100PCT_50GAIN 2022-03-10_1'
+]
+# legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder', '4:1 GC to BN - Carbon Black']
+# legends = ['GC Type 1',
+#            # 'GC Type 2',
+#            "Matrix Carbon",
+#            "Graphite Rod",
+#            "Graphite Powder",
+#            "70% GC Type 2,\n15% Resin,\n15% Carbon Black"]
+legends = [
+    'First (Same day)', 'Second (Same day)', 'First (Overnight)', 'Second (Overnight)', 'Single Exposure'
+]
 
 def get_experiment_params(base_path: str, filename: str):
     # Read the experiment parameters
@@ -63,6 +88,7 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
         pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(base_path, pressure_csv))
         pressure_data = pressure_data.apply(pd.to_numeric)
         time_s = pressure_data['Time (s)'].values
+        time_s -= time_s.min()
         pressure = 1000*pressure_data['Pressure (Torr)'].values
 
         # title_str = 'Sample ' + params['Sample Name']['value'] + ', '

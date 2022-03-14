@@ -39,6 +39,8 @@ class TBS2000:
     __rm: pyvisa.ResourceManager = None
     __delay: float = 0.1
     __preamble_str: str = None
+    __n_samples: int = None
+    __record_length: int = 2000
 
     def __init__(self, resource_name: str = TBS2000_RESOURCE_NAME):
         self.__resource_name = resource_name
@@ -47,15 +49,11 @@ class TBS2000:
         self.__instrument.read_termination = '\n'
         self.__instrument.write_termination = '\r\n'
         self.reset()
-
+        time.sleep(self.__delay)
         for i in range(1, 4):
             self.write(f'CH{i:d}:PRObe:GAIN 1.0')
             sleep(self.__delay)
-        # time.sleep(self.__delay)
         self.horizontal_main_scale = 2.0
-        sleep(self.__delay)
-        # self.trigger_channel = 2
-        # self.trigger_level = 24.0
 
     def reset(self):
         # REM = Remark
@@ -67,14 +65,36 @@ class TBS2000:
         print(self.all_events)
         self.write('REM "Set the instrument to the default state."')
         self.write('FACTORY')
-        time.sleep(self.__delay)
-        # self.write('HORizontal:RESOlution 2500')
-        # self.write('HORizontal:POSition 0')
-        self.write('ACQUIRE:STATE 0')
-        self.write('HORizontal:RECOrdlength 2000')
-        self.write('ACQUIRE:STOPAFTER RUNStop')
-        self.write('ACQuire:MODe SAMple')
+        time.sleep(1.0)
+        # self.write('ACQUIRE:STATE 0')
+        # self.write('ACQUIRE:STOPAFTER SEQUENCE')
+        # self.write('ACQuire:MODe SAMple')
+
+    def set_acquisition_time(self, t: float):
+        # self.write(f'HORizontal:POSITION = -3.0')
+        self.write(f'HORizontal:RECOrdlength {self.record_length}')
         # self.write('ACQuire:NUMAVg 16')
+        self.horizontal_main_scale = t / 8.0
+        n_samples = int(self.sample_rate * t)
+        # self.write(f'WFMINPRE:NR_PT {n_samples}')
+        self.write(f'DATA INIT')
+        # self.write(f'DATA SNAP')
+        self.write(f'DATA:START {1}')
+        self.write(f'DATA:STOP {self.record_length}')
+
+    @property
+    def sample_rate(self) -> float:
+        sample_rate = float(self.ask('HORizontal:SAMPLERATE?'))
+        return sample_rate
+
+    @property
+    def record_length(self) -> int:
+        return self.__record_length
+
+    @record_length.setter
+    def record_length(self, value):
+        if value in [1000, 2000, 20000, 200000, 2000000, 5000000]:
+            self.__record_length = int(value)
 
     @property
     def timeout(self) -> int:
@@ -85,46 +105,19 @@ class TBS2000:
         self.__instrument.timeout = value_ms
 
     def acquire_on(self):
-        # self.write('ACQUIRE:STOPAFTER RUNStop')
-        # self.write('ACQuire:MODe SAMple')
-        # self.write('ACQuire:NUMAVg 2')
-        # self.write('ACQUIRE:STOPAFTER SEQUENCE')
-        # time.sleep(self.__delay)
-        self.write('ACQUIRE:STATE 0')
-        self.write('HORizontal:RECOrdlength 2000')
-        self.write('ACQUIRE:STOPAFTER RUNStop')
-        self.write('ACQuire:MODe SAMple')
-
         self.write('ACQUIRE:STATE RUN')
-        print('ACQuire? Response')
-        print(self.query('ACQuire?'))
-        self.write('REM "Wait for the acquisition to complete."')
-        self.write('REM "Note: your controller program time-out must be set long enough to'
-                   'handle the wait."')
 
     def acquire_off(self):
         self.write('ACQUIRE:STATE STOP')
-        time.sleep(self.__delay)
         opc = self.query('*OPC?')
         print(f'OPC: {opc}')
 
     def get_curve(self, channel: int):
-        self.write('REM "Use the instrument built-in measurements to measure the waveform you acquired."')
-        # esr = self.sesr
-        # if esr != 0:
-        #     all_events = self.all_events
-        #     msg = '\n'.join([f'{e["code"]}: {e["event"]}' for e in all_events])
-        #     # raise VisaIOError(msg)
-        #     print(msg)
-
-        self.write('REM "Query out the waveform points, for later analysis on your controller computer."')
-        # self.write(f'DATa INIT')
+        # self.write('REM "Use the instrument built-in measurements to measure the waveform you acquired."')
+        # self.write('REM "Query out the waveform points, for later analysis on your controller computer."')
         self.write(f'DATa:SOUrce CH{channel}')
-        # self.write(f'DATa:DESTination REFA')
-        self.write('WFMINPRE:NR_PT 2000')
         self.write('DATa:WIDTh 1')
-        self.write('DATA:START 1')
-        self.write('DATA:STOP 2000')
+        # self.write(f'DATa:DESTination REFA')
         # self.write('DATa:ENCdg ASCII')
         self.write('DATa:ENCdg RPB')
         print('DATA? Reponse:')
@@ -164,16 +157,18 @@ class TBS2000:
         yzero = float(self.ask('WFMPRE:YZERO?'))
         yoff = float(self.ask('WFMPRE:YOFF?'))
         xincr = float(self.ask('WFMPRE:XINCR?'))
+        # xzero = float(self.ask('WFMPRE:XZERO?'))
 
         self.write('CURVE?')
         curve = self.__instrument.read_raw()
+        time.sleep(2.0)
         headerlen = 2 + int(curve[1])
         header = curve[:headerlen]
         ADC_wave = curve[headerlen:-1]
         ADC_wave = np.array(unpack('%sB' % len(ADC_wave), ADC_wave))
 
         ydata = (ADC_wave - yoff) * ymult + yzero
-        xdata = np.arange(0, xincr * len(ydata), xincr)
+        xdata = np.arange(0, xincr * len(ydata), xincr)  # + xzero
 
         x_unit = self.ask('WFMPRE:XUNIT?')
         y_unit = self.ask('WFMPRE:YUNIT?')
@@ -190,9 +185,6 @@ class TBS2000:
         )
         data[f'x ({x_unit})'] = xdata
         data[f'y ({y_unit})'] = ydata
-
-        # self.write(f'DATa INIT')
-        # time.sleep(self.__delay)
 
         return data
 
