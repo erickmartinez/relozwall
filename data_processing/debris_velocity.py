@@ -17,7 +17,7 @@ units = 'mm'
 label = "4:1 GC to BN - Carbon Black"
 
 height = 5. * 2.54  # cm
-x_center = 4.2np.5 * 2.54  # Assume that the sample holder is at 1/3 of the x position wrt the tray
+x_center = 4.25 * 2.54  # Assume that the sample holder is at 1/3 of the x position wrt the tray
 g = 9.8E2  # cm/s^2
 
 if __name__ == "__main__":
