@@ -9,6 +9,9 @@ from matplotlib.ticker import ScalarFormatter
 import numpy as np
 from scipy import constants
 
+window_transmission_at_900 = 0.912
+slide_transmission_at_900 = 0.934
+
 
 def spectral_radiance(wavelength_nm, temperature: float):
     """
@@ -71,10 +74,55 @@ if __name__ == "__main__":
     calibration_df = pd.read_csv('https://raw.githubusercontent.com/erickmartinez/relozwall/main/ir_thermography/photodiode_brightness_calibration_202202.csv')
     calibration_df[:] = calibration_df[:].apply(pd.to_numeric)
     print(calibration_df.columns)
-    brightness = calibration_df['Labsphere Brightness at 900 nm [W/ster/cm^2/nm]'].values
+    brightness = calibration_df['Labsphere Brightness at 900 nm (W/ster/cm^2/nm)'].values #/ window_transmission_at_900 / slide_transmission_at_900
     wavelength_nm = 900.0 * np.ones_like(brightness)
     calibration_df['Temperature at radiance (K)'] = temperature_at_radiance(
         brightness,
         wavelength_nm
     )
+
+
+    calibration_df['Calibration Factor (V/W/ster/cm^2/nm) at 900 nm'] = calibration_df['']
     print(calibration_df)
+
+    with open('plot_style.json', 'r') as file:
+        json_file = json.load(file)
+        plot_style = json_file['defaultPlotStyle']
+    mpl.rcParams.update(plot_style)
+
+    fig1, ax1 = plt.subplots()
+    fig1.set_size_inches(4.5, 3.0)
+
+    color_brightness = 'C0'
+    color_temperature = 'C1'
+
+    ax1.set_yscale('log')
+
+    ax1.tick_params(axis='y', labelcolor=color_brightness)
+
+    ax1.plot(
+        calibration_df['Photodiode Gain [dB]'].values,
+        brightness, color=color_brightness,
+        # ls='none',
+        marker='o', fillstyle='none'
+    )
+
+    ax1.set_xlabel('Photodiode Gain (dB)')
+    ax1.set_ylabel('$B_{\lambda = 900\; \mathregular{nm}}$ (W/ster/cm$^{\mathregular{2}}$/nm)', color=color_brightness)
+
+    ax2 = ax1.twinx()
+    ax2.tick_params(axis='y', labelcolor=color_temperature)
+
+    ax2.plot(
+        calibration_df['Photodiode Gain [dB]'].values,
+        calibration_df['Temperature at radiance (K)'].values, color=color_temperature,
+        # ls='none',
+        marker='s', fillstyle='none'
+    )
+
+    ax2.set_ylabel('Temperature (K)', color=color_temperature)
+
+    fig1.tight_layout()
+
+    ylabel = 'CF$_{\lambda = 900\;\mathregular{nm}}$ (V/W/ster/cm$^{\mathregular{2}}$/nm)'
+    plt.show()
