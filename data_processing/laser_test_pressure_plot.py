@@ -9,36 +9,57 @@ import json
 from matplotlib.ticker import ScalarFormatter
 import re
 
-# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES"
-# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS"
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
+chamber_volume = 34 # L
 
-filename = 'R3N18_MULTIPLE_FIRINGS'
+# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES"
+base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS"
+# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
+
+# filename = 'BINDER_SCAN_PLOT'
+filename = 'STARTING_MATERIALS'
+# filename = 'R3N18_MULTIPLE_FIRINGS'
+
 # filelist = ['LT_R3N12_100PCT_40GAIN 2022-03-01_1', 'LT_R3N10_100PCT_40GAIN 2022-03-01_1',
 #             'LT_R3N3_100PCT_40GAIN 2022-03-02_1', 'LT_R3N14_100PCT_40GAIN 2022-03-02_1']
-# filelist = [
-#     'LT_GC_TYPE1_100PCT_40GAIN 2022-03-07_1',  #'LT_GC_TYPE2_100PCT_40GAIN 2022-03-07_1',
-#     'LT_Tidal75_100PCT_40GAIN 2022-03-08_1', 'LT_Graphite_100PCT_40GAIN 2022-03-08_1',
-#     'LT_GRAPHITE_POWDER_100PCT_40GAIN 2022-03-09_1',
-#     'LT_R3N10_100PCT_40GAIN 2022-03-01_1'
-# ]
 filelist = [
-    'LT_R3N18_100PCT_40GAIN 2022-03-09_1',
-    'LT_R3N18_100PCT_40GAIN 2022-03-09_2',
-    'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
-    'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
-    'LT_R3N18_100PCT_50GAIN 2022-03-10_1'
+    'LT_Tidal75_100PCT_40GAIN 2022-03-08_1',
+    'LT_GC_TYPE1_100PCT_40GAIN 2022-03-07_1',  #'LT_GC_TYPE2_100PCT_40GAIN 2022-03-07_1',
+     #'LT_Graphite_100PCT_40GAIN 2022-03-08_1',
+    'LT_GRAPHITE_POWDER_100PCT_40GAIN 2022-03-09_1',
+    "LT_hBN_100PCT_40GAIN 2022-03-21_1",
+    # 'LT_R3N10_100PCT_40GAIN 2022-03-01_1'
 ]
-# legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder', '4:1 GC to BN - Carbon Black']
-# legends = ['GC Type 1',
-#            # 'GC Type 2',
-#            "Matrix Carbon",
-#            "Graphite Rod",
-#            "Graphite Powder",
-#            "70% GC Type 2,\n15% Resin,\n15% Carbon Black"]
-legends = [
-    'First (Same day)', 'Second (Same day)', 'First (Overnight)', 'Second (Overnight)', 'Single Exposure'
-]
+# filelist = [
+#     'LT_R3N18_100PCT_40GAIN 2022-03-09_1',
+#     'LT_R3N18_100PCT_40GAIN 2022-03-09_2',
+#     'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
+#     'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
+#     # 'LT_R3N18_100PCT_50GAIN 2022-03-10_1',
+#     # 'LT_R3N18_100PCT_40GAIN 2022-03-14_1',
+#     # 'LT_R3N20_100PCT_40GAIN 2022-03-15_1',
+#     # 'LT_R3N20_100PCT_40GAIN 2022-03-15_2'
+# ]
+# legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder', '4:1 GC to BN']
+legends = ["Matrix Carbon",
+           'GC Type 1',
+           # 'GC Type 2',
+           # "Graphite Rod",
+           "Graphite Powder",
+           "hBN",
+           # "70% GC Type 2,\n15% Resin,\n15% Carbon Black"
+           ]
+# legends = [
+#     'First (Same day)',
+#     'Second (Same day)',
+#     'First (Overnight)',
+#     'Second (Overnight)',
+#     # 'Single Exposure',
+#     # 'Second Exposure',
+#     # 'Graphite (First)',
+#     # 'Graphite (Second)'
+# ]
+
+colors = plt.cm.cividis(np.linspace(0, 1, len(filelist)))
 
 def get_experiment_params(base_path: str, filename: str):
     # Read the experiment parameters
@@ -80,8 +101,11 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
     fig, ax = plt.subplots()
     fig.set_size_inches(4.5, 3.0)
 
-    colors = []
-    for fn, leg in zip(filelist, legends):
+    base_pressures = np.empty_like(filelist, dtype=np.float64)
+    peak_pressures = np.empty_like(filelist, dtype=np.float64)
+    peak_dt = np.empty_like(filelist, dtype=np.float64)
+
+    for fn, leg, c, i in zip(filelist, legends, colors, range(len(filelist))):
         params = get_experiment_params(base_path, fn)
         pressure_csv = f'{fn}_pressure.csv'
         print(pressure_csv)
@@ -90,6 +114,11 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
         time_s = pressure_data['Time (s)'].values
         time_s -= time_s.min()
         pressure = 1000*pressure_data['Pressure (Torr)'].values
+        base_pressures[i] = pressure[0]
+        peak_pressures[i] = pressure.max()
+        idx_peak = (np.abs(pressure - peak_pressures[i])).argmin()
+        peak_dt[i] = time_s[idx_peak]
+
 
         # title_str = 'Sample ' + params['Sample Name']['value'] + ', '
         # params_title = params
@@ -100,10 +129,10 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
         #     if i + 1 < len(params_title):
         #         title_str += ', '
 
-        line = ax.plot(time_s, pressure, label=leg)
+        line = ax.plot(time_s, pressure, label=leg, color=c)
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Pressure (mTorr)')
-        colors.append(line[0].get_color())
+        # colors.append(line[0].get_color())
 
     leg = ax.legend(frameon=True, loc='best', fontsize=8)
     for color, text in zip(colors, leg.get_texts()):
@@ -113,7 +142,18 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
     if plot_title is not None:
         ax.set_title(plot_title)
 
+    outgassing_rate = chamber_volume * (peak_pressures - base_pressures) * 1E-3 / peak_dt
 
+    outgas_df = pd.DataFrame(data={
+        'Sample': legends,
+        'Base Pressure (mTorr)': base_pressures,
+        'Peak Pressure (mTorr)': peak_pressures,
+        'Peak dt (s)': peak_dt,
+        'Outgassing Rate (Torr L / s)': outgassing_rate
+    })
+
+    print(outgas_df)
+    outgas_df.to_csv(os.path.join(base_path, f'{output_filename}_OUTGASSING.csv'), index=False)
 
     fig.tight_layout()
     fig.savefig(os.path.join(base_path, f'{output_filename}_PRESSURE.png'), dpi=600)

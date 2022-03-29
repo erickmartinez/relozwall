@@ -28,7 +28,7 @@ class BakingProcedure(Procedure):
     __ndata_points: int = 0
     __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
-    __mx200_delay: float = 0.01
+    __mx200_delay: float = 0.05
     port = 'COM3'
     __keep_alive: bool = False
     __failed_readings = 0
@@ -95,16 +95,19 @@ class BakingProcedure(Procedure):
         pressure = self.__mx200.pressure(1)
         # If the pressure gives a bad reading (e.g. OVERLOAD) try again
         if type(pressure) == str:
-            if self.__failed_readings < self.__max_attempts:
-                self.__failed_readings += 1
-                log.warning("Could not read pressure at time: {0}. Message: {1}".format(
-                    datetime.datetime.now().isoformat(), pressure
-                ))
-                time.sleep(0.1)
-                self.acquire_data(n)
+            if pressure == 'OVER':
+                pressure = np.NaN
             else:
-                log.warning('Error reading pressure. Read out: {0}'.format(pressure))
-                pressure = self.__previous_pressure if self.__previous_pressure is not None else np.NaN
+                if self.__failed_readings < self.__max_attempts:
+                    self.__failed_readings += 1
+                    log.warning("Could not read pressure at time: {0}. Message: {1}".format(
+                        datetime.datetime.now().isoformat(), pressure
+                    ))
+                    time.sleep(0.1)
+                    self.acquire_data(n)
+                else:
+                    log.warning('Error reading pressure. Read out: {0}'.format(pressure))
+                    pressure = self.__previous_pressure if self.__previous_pressure is not None else np.NaN
 
         dt = (datetime.datetime.now() - self.__time_start).total_seconds()
         data = {

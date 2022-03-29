@@ -1,10 +1,12 @@
 import io
 import time
+import numpy as np
 
 import serial
 from time import sleep
 from io import StringIO
 import pandas as pd
+
 
 class ArduinoSerial:
     """
@@ -159,7 +161,7 @@ class DualTCLogger(ArduinoSerial):
         return log_time
 
     @log_time.setter
-    def log_time(self, value_in_seconds:float):
+    def log_time(self, value_in_seconds: float):
         value_in_seconds = float(value_in_seconds)
         if 0.0 > value_in_seconds or value_in_seconds > 20:
             msg = f'Cannot set the log duration to {value_in_seconds}. Value is outside valid range:'
@@ -186,3 +188,49 @@ class DualTCLogger(ArduinoSerial):
 
         return df
 
+
+class ExtruderReadout(ArduinoSerial):
+    __address = 'COM12'
+
+    def __init__(self, address: str):
+        super().__init__(address=address)
+
+    @property
+    def reading(self):
+        try:
+            res = self.query('r')
+            reading = [float(x) for x in res.split(',')]
+        except AttributeError as e:
+            print(res, e)
+            raise AttributeError(e)
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+        return reading
+
+    def zero(self):
+        r = self.query('z')
+        return r
+
+    @property
+    def calibration_factor(self):
+        try:
+            res = self.query('c?')
+            cf = float(res)
+        except AttributeError as e:
+            print(res, e)
+            raise AttributeError(e)
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+        return cf
+
+    @calibration_factor.setter
+    def calibration_factor(self, value: float):
+        value = float(value)
+        if value == 0.0:
+            msg = f'Cannot set the log duration to {value}.'
+            raise Warning(msg)
+        else:
+            q = f'c {value:10.3E}'
+            self.write(q=q)
