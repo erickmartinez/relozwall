@@ -28,7 +28,7 @@ from scipy import interpolate
 
 TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
 ESP32_COM = 'COM6'
-TC_LOGGER_COM = 'COM10'
+TC_LOGGER_COM = 'COM7'
 MX200_COM = 'COM3'
 TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
@@ -92,10 +92,20 @@ class LaserProcedure(Procedure):
             print("Error initializing ESP32 trigger")
             raise e
 
+        failed_tc_connections = 0
         try:
             tc_logger = DualTCLogger(address=TC_LOGGER_COM)
-            if tc_logger.query('i') != 'TCLOGGER':
-                raise SerialException(f"TC logger not found in address '{TC_LOGGER_COM}'.")
+            time.sleep(1.0)
+            tc_logger_id = tc_logger.query('i')
+            print(f"{TC_LOGGER_COM}: {tc_logger_id}")
+            if not tc_logger_id == 'TCLOGGER':
+                msg = f"TC logger not found in address '{TC_LOGGER_COM}'."
+                failed_tc_connections += 1
+                if failed_tc_connections < 2:
+                    tc_logger_id = tc_logger.query('i')
+                    print(f"{TC_LOGGER_COM}: {tc_logger_id}")
+                else:
+                    raise SerialException(msg)
         except SerialException as e:
             print("Error initializing temperature logger")
             raise e
@@ -169,6 +179,16 @@ class LaserProcedure(Procedure):
         columns = data.dtype.names
         columns_ref = reference.dtype.names
         npoints = len(data)
+
+        ir_df = pd.DataFrame(data={
+            'Time (s)': data[columns[0]],
+            'Voltage (V)': data[columns[1]]
+        })
+
+        filename = f'{os.path.splitext(self.__unique_filename)[0]}_irdata.csv'
+        ir_df.to_csv(path_or_buf=filename, index=False)
+
+
         log.info(f'Number of osc data points: {npoints}')
         tc_data['Time (s)'] = tc_data['Time (s)'] - tc_data['Time (s)'].min()
         time_tc = tc_data['Time (s)'].values
@@ -197,6 +217,8 @@ class LaserProcedure(Procedure):
         data = data[msk_tmin]
         reference = reference[msk_tmin]
         time_osc = data[columns[0]]
+
+
 
         f1 = interpolate.interp1d(time_tc, tc1)
         f2 = interpolate.interp1d(time_tc, tc2)
