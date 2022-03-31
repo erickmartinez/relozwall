@@ -1,6 +1,13 @@
 /* Arduino sketch for the ARPA-E extruder motor
 *  Controller is ISC08 from stepperonline
 *  9/30/2021
+*  Update 3/29/2022
+*   Added STOP command and limit switch logic
+*/
+
+
+/* Commands
+*    Read manual.txt!!
 */
 
 #define SERIAL_SPEED 57600
@@ -17,6 +24,10 @@
 #define ILS 2  //inner limit switch
 #define OLS 3  //outer limit switch
 
+// Flags
+volatile bool ilsFlag = true;
+volatile bool olsFlag = true;
+
 void setup()
 {
   Serial.setTimeout(SERIAL_TIMEOUT);
@@ -29,17 +40,23 @@ void setup()
   pinMode(DIRECTION, OUTPUT); // HIGH is IN
   pinMode(ILS, INPUT_PULLUP);
   pinMode(OLS, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ILS), limit_switch, LOW);
-  attachInterrupt(digitalPinToInterrupt(OLS), limit_switch, LOW);
+  attachInterrupt(digitalPinToInterrupt(ILS), ilsFun, RISING);
+  attachInterrupt(digitalPinToInterrupt(OLS), olsFun, RISING);
 
   // Make sure the motor is disabled on startup
   digitalWrite(ENABLE, LOW);
 }
 
-/* Interrupt Service Routine */
-void limit_switch()
+/* Interrupt Service Routines */
+void ilsFun()
 {
-  digitalWrite(ENABLE, LOW);
+  digitalWrite(ENABLE, LOW); // stop motor
+  ilsFlag = true;
+}
+void olsFun()
+{
+  digitalWrite(ENABLE, LOW); // stop motor
+  olsFlag = true;
 }
 
 void run(unsigned char s, unsigned long t)
@@ -63,10 +80,16 @@ void run(unsigned char s, unsigned long t)
 
   analogWrite(SPD, s); // set PWM on analog out 5
   delay(50); // allow time for voltage to settle
-  digitalWrite(ENABLE, HIGH);
-  delay(t);
-  digitalWrite(ENABLE, LOW);
 
+  unsigned long start = millis();
+  digitalWrite(ENABLE, HIGH);
+  while((millis() - start) < t)
+  {
+    if(Serial.available())
+      break;
+  }
+
+  digitalWrite(ENABLE, LOW);
   // Leave motor inputs at a low setting
   digitalWrite(HILO, LOW);
   digitalWrite(SPD, 0);
@@ -74,28 +97,41 @@ void run(unsigned char s, unsigned long t)
 
 void loop()
 {
-  String input;
-  char dir;
-  char speed;
-  unsigned long run_time;
+  // reset limit switches
+  if(digitalRead(ILS))
+    ilsFlag = false;
+  if(digitalRead(OLS))
+    olsFlag = false;
 
   if(Serial.available())
   {
     /* readStringUntil will take the entire string up to but excluding
      * the designated characther. 0x0D is <CR> and is sent by the RETURN
      * or ENTER key of many terminal programs */
-    input = Serial.readStringUntil(0x0D);
-    dir = input[0];
-    speed = input.substring(1,3).toInt();
-    run_time = input.substring(3).toInt();
+
+    String input = Serial.readStringUntil(0x0D);
+    char dir = input[0];
+    unsigned int speed = input.substring(1,3).toInt();
+    unsigned long run_time = input.substring(3).toInt();
 
     switch(dir)
     {
+      case 0x69: // i as in id
+        Serial.print("TRANSLATOR\n");
+        break;
       case 0x66: // 'f' forward or in
+        if(ilsFlag){
+          Serial.println("ERROR_MOVE_IN");
+          break;
+        }
         digitalWrite(DIRECTION, HIGH);
         run(speed, run_time);
         break;
       case 0x72: // 'r' reverse or out
+        if(olsFlag){
+          Serial.println("ERROR_MOVE_OUT");
+          break;
+        }
         digitalWrite(DIRECTION, LOW);
         run(speed, run_time);
         break;
@@ -103,8 +139,11 @@ void loop()
         digitalWrite(DIRECTION, LOW);
         run(Q_SPEED, Q_TIME);
         break;
+      case 0x73: // 's' STOP
+        // We don't need to do anything here, just skip default
+        break;
       default:
-        Serial.println("Input Not Valid");
+        Serial.println("ERROR_CMD");
         break;
     }
   }
