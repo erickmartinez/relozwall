@@ -27,5 +27,11 @@ Examples:
 r5555<CR>    This will move out at speed 55 for 5.5 seconds
 f109<CR>    This will move in at speed 10 for 0.9 seconds
 
-An additional command is the letter 'q'. Currently it is set to move out
-  at speed 60 for 5 seconds.
+Additional commands are the letter 'i', 'q' and 's'. Currently 'i' returns device ID,
+  's' is STOP and 'q' is set to move out at speed 60 for 5 seconds.
+These commands do not need any other characters to work
+Any key will stop the motors current movement but anything other than 's'
+  will begin a new command or return an error.
+
+Everything is Expert Mode so there is almost no error checking.
+If 'f' or 'r' is entered without speed and time results will be unpredictable.
