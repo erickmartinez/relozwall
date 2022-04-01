@@ -5,6 +5,8 @@ import serial
 from time import sleep
 import re
 
+from serial import SerialException
+
 PATTERN = re.compile(r'(\d{2})\=(.*)')
 
 
@@ -32,6 +34,21 @@ class MX200:
 
     def __init__(self, address: str):
         self.__address = address
+        check_connection = self.check_id()
+        if not check_connection:
+            msg = f"MX200 not found in port {self.__address}"
+            raise SerialException(msg)
+
+    def check_id(self, attempt: int = 0) -> bool:
+        check_id = self.query('SN')
+        if check_id != '406714':
+            if attempt <= 3:
+                attempt += 1
+                return self.check_id(attempt=attempt)
+            else:
+                return False
+        else:
+            return True
 
     @property
     def pressures(self) -> dict:

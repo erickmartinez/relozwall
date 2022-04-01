@@ -6,6 +6,7 @@ import serial
 from time import sleep
 from io import StringIO
 import pandas as pd
+from serial import SerialException
 
 
 class ArduinoSerial:
@@ -194,6 +195,21 @@ class ExtruderReadout(ArduinoSerial):
 
     def __init__(self, address: str):
         super().__init__(address=address)
+        check_connection = self.check_id()
+        if not check_connection:
+            msg = f"EXTRUDER_READOUT not found in port {self.address}"
+            raise SerialException(msg)
+
+    def check_id(self, attempt: int = 0) -> bool:
+        check_id = self.query('i')
+        if check_id != 'EXTRUDER_READOUT':
+            if attempt <= 3:
+                attempt += 1
+                return self.check_id(attempt=attempt)
+            else:
+                return False
+        else:
+            return True
 
     @property
     def reading(self):

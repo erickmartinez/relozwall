@@ -3,6 +3,8 @@ import time
 import serial
 from time import sleep
 
+from serial import SerialException
+
 
 class ISC08:
     """
@@ -20,10 +22,62 @@ class ISC08:
     __serial: serial.Serial = None
     __speed: int = 60
     __direction: str = 'forward'
+    __calibration_m: float = 0.052
+    __calibration_b: float = -2.3
 
-    def __init__(self, address: str):
+    def __init__(self, address: str, m: float = None, b: float = None):
         self.__address = address
         self.connect()
+        check_connection = self.check_id()
+        if not check_connection:
+            msg = f"ISC08 not found in port {self.address}"
+            raise SerialException(msg)
+        if m is not None:
+            self.__calibration_m = float(m)
+        if b is not None:
+            self.__calibration_b = float(b)
+
+    def check_id(self, attempt: int = 0) -> bool:
+        check_id = self.query('i')
+        if check_id != 'TRANSLATOR':
+            if attempt <= 3:
+                attempt += 1
+                return self.check_id(attempt=attempt)
+            else:
+                return False
+        else:
+            return True
+
+    def set_speed_cms(self, value):
+        value = abs(value)
+        voltage_setting = (value - self.__calibration_b) / self.__calibration_m
+        if (10.0 < voltage_setting) and (voltage_setting < 90.0):
+            self.speed = voltage_setting
+        else:
+            self.speed = 60.0
+        print(f"Input Speed: {value:.2f} cm/s, Voltage Setting: {self.speed:02.0f}")
+
+    def move_by_cm(self, distance: float, speed: float = 2.0):
+        speed = abs(speed)
+        if distance < 0:
+            speed = -speed
+        self.set_speed_cms(speed)
+        translation_time = distance / speed
+        direction = 'f' if distance >= 0 else 'r'
+        query = f"{direction}{self.__speed:02d}{translation_time * 10:.0f}"
+        print(query)
+        self.write(q=query)
+
+    def move_by_in(self, distance: float, speed: float = 0.5):
+        speed_cm = speed * 2.54
+        distance_cm = distance * 2.54
+        self.move_by_cm(distance=distance_cm, speed=speed_cm)
+
+    def load_calibration(self, m: float, b: float):
+        if m is not None:
+            self.__calibration_m = float(m)
+        if b is not None:
+            self.__calibration_b = float(b)
 
     @property
     def speed(self) -> int:
@@ -36,21 +90,28 @@ class ISC08:
     @address.setter
     def address(self, value):
         self.__address = value
+        self.connect()
+        check_id = self.query('i')
+        if check_id != 'TRANSLATOR':
+            msg = f"ISC08 not found in port {self.address}"
+            raise SerialException(msg)
 
     @speed.setter
     def speed(self, value: int):
-
         self.set_speed(value)
 
     def set_speed(self, value: int):
         value = int(value)
-        self.__direction = 'forward' if value >=0 else 'reverse'
+        self.__direction = 'forward' if value >= 0 else 'reverse'
         value = abs(value)
         if value <= 100:
             self.__speed = value
 
+    def stop(self):
+        self.write('s')
+
     def move_by_time(self, moving_time: float, **kwargs):
-        speed = kwargs.get('speed', 60)
+        speed = kwargs.get('speed_setting', 60)
         self.set_speed(value=speed)
         direction = 'f' if self.__direction == 'forward' else 'r'
         moving_time = abs(moving_time)
