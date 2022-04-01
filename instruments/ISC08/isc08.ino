@@ -1,7 +1,7 @@
 /* Arduino sketch for the ARPA-E extruder motor
 *  Controller is ISC08 from stepperonline
 *  9/30/2021
-*  Update 3/29/2022
+*  Update 4/1/2022
 *   Added STOP command and limit switch logic
 */
 
@@ -98,9 +98,9 @@ void run(unsigned char s, unsigned long t)
 void loop()
 {
   // reset limit switches
-  if(digitalRead(ILS))
+  if(!digitalRead(ILS))
     ilsFlag = false;
-  if(digitalRead(OLS))
+  if(!digitalRead(OLS))
     olsFlag = false;
 
   if(Serial.available())
