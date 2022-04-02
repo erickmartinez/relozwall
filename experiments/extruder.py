@@ -68,6 +68,9 @@ class ExtrusionProcedure(Procedure):
         start_time = time.time()
         while total_time <= (self.experiment_time * 60) + dt:
             current_time = time.time()
+            if self.should_stop():
+                log.warning("Caught the stop flag in the procedure")
+                break
             if (current_time - previous_time) >= dt:
                 pressures = self.__mx200.pressures
                 for k, p in pressures.items():

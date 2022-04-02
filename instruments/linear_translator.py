@@ -117,7 +117,11 @@ class ISC08:
         moving_time = abs(moving_time)
         query = f"{direction}{self.__speed:02d}{moving_time * 10:.0f}"
         print(query)
-        self.write(q=query)
+        response = self.query(q=query)
+        if response == 'ERROR_MOVE_IN':
+            raise Exception('Cannot move forward. Reached limit')
+        if response == 'ERROR_MOVE_OUT':
+            raise Exception('Cannot move back. Reached limit')
 
     def quick_out(self):
         self.write(q='q')
