@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import os
 import json
 from matplotlib.ticker import ScalarFormatter
+from scipy import integrate
 
 import numpy as np
 from scipy import constants
@@ -13,7 +13,8 @@ window_transmission_at_900 = 0.912
 slide_transmission_at_900 = 0.934
 
 calibration_temperature = 2900 # K
-calibration_wavelength = 900 # nm
+calibration_wavelength = 900.0 # nm
+labsphere_brightness_at_900 = 5.16E-5 # W/s/cm^2/ster/nm
 
 
 def spectral_radiance(wavelength_nm, temperature: float):
@@ -43,6 +44,14 @@ def spectral_radiance(wavelength_nm, temperature: float):
     radiance *= 1E14 / (np.exp(hc_by_kt_lambda) - 1.0)  # 1E27 J/m^3 s = 1E18 J / (m^2 nm s) = 1E14 J / cm^2 nm
     return radiance
 
+def latex_float(f):
+    float_str = f"{f:5.4g}".lower()
+    if "e" in float_str:
+        base, exponent = float_str.split("e")
+        # return r"{0} \times 10^{{{1}}}".format(base, int(exponent))
+        return f"{base} \\times 10^{{{int(exponent):2d}}}"
+    else:
+        return float_str
 
 def temperature_at_radiance(radiance: float, wavelength_nm: float):
     """
@@ -88,11 +97,12 @@ if __name__ == "__main__":
     #     wavelength_nm
     # )
 
-
+    labsphere_aperture = calibration_brightness_900 / labsphere_brightness_at_900
+    print(f"Labsphere aperture: {labsphere_aperture:6.3E}")
     # calibration_df['Calibration Factor (V/W/ster/cm^2/nm) at 900 nm'] = calibration_df['Signal out (V)'] / calibration_df['Labsphere Brightness at 900 nm (W/ster/cm^2/nm)']
     calibration_df['Aperture Factor'] = brightness / calibration_brightness_900
 
-    calibration_df['Calibration Factor (W/ster/cm^2/nm/V) at 900 nm and 2900 K'] = calibration_brightness_900 / calibration_df['Signal out (V)']
+    calibration_df['Calibration Factor (W/ster/cm^2/nm/V) at 900 nm and 2900 K'] = brightness / calibration_df['Signal out (V)']
 
     print(calibration_df)
 
@@ -105,7 +115,7 @@ if __name__ == "__main__":
     fig1.set_size_inches(4.5, 3.0)
 
     color_brightness = 'C0'
-    color_aperture = 'C1'
+    color_temperature = 'C1'
 
     ax1.set_yscale('log')
 
@@ -122,18 +132,18 @@ if __name__ == "__main__":
     ax1.set_ylabel('$B_{\lambda = 900\; \mathregular{nm}}$ (W/ster/cm$^{\mathregular{2}}$/nm)', color=color_brightness)
 
     ax2 = ax1.twinx()
-    ax2.tick_params(axis='y', labelcolor=color_aperture)
-    ax2.set_yscale('log')
+    ax2.tick_params(axis='y', labelcolor=color_temperature)
+    # ax2.set_yscale('log')
 
     ax2.plot(
         calibration_df['Photodiode Gain (dB)'].values,
-        calibration_df['Aperture Factor'].values,
-        color=color_aperture,
+        temperature_at_radiance(brightness, calibration_wavelength),
+        color=color_temperature,
         # ls='none',
         marker='s', fillstyle='none'
     )
 
-    ax2.set_ylabel('Aperture Factor', color=color_aperture)
+    ax2.set_ylabel('Temperature (K)', color=color_temperature)
 
     fig1.tight_layout()
 
@@ -146,7 +156,7 @@ if __name__ == "__main__":
     ax1.set_yscale('log')
     ax1.tick_params(axis='y', labelcolor=color_cf)
     ax2 = ax1.twinx()
-    # ax2.set_yscale('log')
+    ax2.set_yscale('log')
     ax2.tick_params(axis='y', labelcolor=color_cb)
 
     ax1.plot(
@@ -199,5 +209,78 @@ if __name__ == "__main__":
     fig3.savefig('gain_vs_cf_eh.png', dpi=600)
 
     calibration_df.to_csv('pd_brightness_processed.csv', index=False, float_format='%8.4g')
+
+    calibration_df = pd.read_csv(
+        'https://raw.githubusercontent.com/erickmartinez/relozwall/main/ir_thermography/optronics_OL_455-12-2_SN_96203007_calibration_table.csv'
+    )
+
+    calibration_wl = calibration_df['Wavelength (nm)'].values
+    calibration_radiance = calibration_df['Spectral Radiance (W/(sr cm^2 nm))'].values
+    wl_sim = np.linspace(calibration_wl.min(), calibration_wl.max(), 500)
+    B = spectral_radiance(wl_sim, calibration_temperature)
+
+    radiated_power_bb = integrate.simps(B, wl_sim)
+    radiated_power_cal = integrate.simps(calibration_radiance, calibration_wl)
+
+    aperture_factor = radiated_power_bb / radiated_power_cal
+
+    fig4, ax1 = plt.subplots()
+    fig4.set_size_inches(4.75, 3.5)
+
+    ax1.plot(
+        calibration_wl / 1000.0, calibration_radiance * labsphere_aperture, color='C0',
+        label=rf'${latex_float(labsphere_aperture)} \times $ LabSphere'
+    )
+
+    ax1.plot(
+        wl_sim / 1000.0, B, color='C1', ls='--', lw=1.25,
+        label=f'Planck'
+    )
+
+    # ax2 = ax1.twinx()
+
+    ax1.set_xlabel('Wavelength ($\mathregular{\mu}$m)')
+    ax1.set_ylabel('$B_{\lambda}$ (W /sr cm$^2$ nm)')#, color='C0')
+    # ax2.set_ylabel('$B_{\lambda}$ (Lab sphere) (W /sr cm$^2$ nm)', color='C1')
+    ax1.ticklabel_format(useMathText=True, axis='y')
+    # ax2.ticklabel_format(useMathText=True, axis='y')
+
+    # ax2.plot(
+    #     calibration_wl / 1000.0, calibration_radiance , color='C1',
+    #     label=f'LabSphere'
+    # )
+    # ax2.legend(loc='lower right', frameon=False)
+
+    ymin, ymax = ax1.get_ylim()
+    idx_sim = (np.abs(wl_sim - calibration_wavelength)).argmin()
+    ax1.set_ylim(ymin, ymax)
+    ax1.legend(loc='upper left', frameon=False)
+
+    wl_sim_ref = wl_sim[idx_sim] / 1000.0
+    B_sim_ref = B[idx_sim]
+
+    x1 = calibration_wavelength / 1000.0
+    y1 = calibration_brightness_900
+    xdisplay, ydisplay = ax1.transData.transform_point((x1, y1))
+
+    offset = 50
+    connectionstyle = "angle3,angleA=0,angleB=90"
+    bbox = dict(boxstyle="round", fc="0.8")
+    arrowprops = dict(
+        arrowstyle="->", color="0.5",
+        shrinkA=5, shrinkB=5,
+        patchA=None, patchB=None,
+        connectionstyle=connectionstyle
+    )
+    ax1.annotate(
+        f"$P_{{\mathrm{{cal}}}} = {latex_float(radiated_power_cal)}$\n$P_{{\mathrm{{Planck}}}} = {latex_float(radiated_power_bb)}$",
+        xy=(x1, y1), xycoords='data',  # 'figure pixels', #data',
+        xytext=(offset, -2 * offset), textcoords='offset points',  # 'data',
+        arrowprops=arrowprops,
+        bbox=bbox,
+        ha='left'
+    )
+
+    fig4.tight_layout()
 
     plt.show()
