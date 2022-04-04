@@ -3,7 +3,7 @@ import pandas as pd
 import sys
 sys.path.append('../')
 
-DEFAULT_CALIBRATION = '../ir_thermography/pd_brightness_processed.csv'
+DEFAULT_CALIBRATION = 'https://raw.githubusercontent.com/erickmartinez/relozwall/main/ir_thermography/pd_brightness_processed.csv'
 TRANSMISSION_WINDOW = 0.912
 TRANSMISSION_SLIDE = 0.934
 
