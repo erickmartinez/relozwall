@@ -60,7 +60,7 @@ if __name__ == "__main__":
     thermometry.gain = pd_gain
     print(thermometry.calibration_factor)
     time_s = ir_df['Measurement Time (s)'].values
-    voltage = 0.5*(ir_df['Photodiode Voltage (V)'].values)
+    voltage = ir_df['Photodiode Voltage (V)'].values
     temperature = thermometry.get_temperature(voltage=voltage) - 273.15
 
     with open('plot_style.json', 'r') as file:

@@ -39,8 +39,9 @@ def temperature_at_radiance(radiance: float, wavelength_nm: float):
 
 class PDThermometer:
     __calibration_df: pd.DataFrame
-    __gain: int = 0
+    __gain: int = 0.0
     __valid_gains = None
+    __emissivity = 0.8
     __wavelength: float = 900.0
     __transmission_factor: float = TRANSMISSION_WINDOW
 
@@ -48,16 +49,34 @@ class PDThermometer:
         self.__calibration_df = pd.read_csv(calibration_url).apply(pd.to_numeric)
         self.__valid_gains = self.__calibration_df['Photodiode Gain (dB)'].unique()
         self.__transmission_factor = TRANSMISSION_WINDOW * TRANSMISSION_SLIDE
-        print(self.__calibration_df)
+        self.__gain = 0
+
+    @property
+    def emissivity(self) -> float:
+        return self.__emissivity
+
+    @emissivity.setter
+    def emissivity(self, value):
+        value = float(value)
+        if 0.0 < value < 1.0:
+            self.__emissivity = value
+
+    @property
+    def valid_gains(self):
+        gains = self.__calibration_df['Photodiode Gain (dB)'].unique()
+        return [int(g) for g in gains]
 
     @property
     def gain(self) -> float:
         return self.__gain
 
     @gain.setter
-    def gain(self, value):
-        if value in self.__valid_gains:
-            self.__gain == value
+    def gain(self, value: int):
+        value = int(value)
+        if value in self.valid_gains:
+            self.__gain = value
+        else:
+            print(f"{value} is an invalid gain.")
 
     @property
     def transmission_factor(self) -> float:
@@ -74,9 +93,8 @@ class PDThermometer:
         df = self.__calibration_df[self.__calibration_df['Photodiode Gain (dB)'] == self.gain]
         # brightness = df['Labsphere Brightness at 900 nm (W/ster/cm^2/nm)'].mean()
         # return brightness / df['Signal out (V)'].mean()
-        print(df['Calibration Factor (W/ster/cm^2/nm/V) at 900 nm and 2900 K'].values)
         return df['Calibration Factor (W/ster/cm^2/nm/V) at 900 nm and 2900 K'].mean()
 
     def get_temperature(self, voltage: np.ndarray) -> np.ndarray:
-        brightness = voltage * self.calibration_factor / self.transmission_factor
+        brightness = voltage * self.calibration_factor / self.transmission_factor / self.emissivity
         return temperature_at_radiance(radiance=brightness, wavelength_nm=self.__wavelength)
