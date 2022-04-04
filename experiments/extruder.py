@@ -44,30 +44,10 @@ class ExtrusionProcedure(Procedure):
     def startup(self):
         log.info("Setting up Televac MX200")
         self.__mx200 = MX200(address=MX200_COM)
-        self.__mx200.units = 'MT'
         time.sleep(1.0)
-
-    def get_readout(self, attempts: int = 0) -> ExtruderReadout:
-        error_msg = f"EXTRUDER_READOUT not found in {EXT_READOUT_COM}"
-        if attempts < 10:
-            i = attempts + 1
-            log.info(f"Trying to connect EXTRUDER_READOUT to {EXT_READOUT_COM}. Attempt {i} of 10.")
-            try:
-                extruder_readout = ExtruderReadout(address=EXT_READOUT_COM)
-                response = extruder_readout.query('i')
-                log.info(f"{EXT_READOUT_COM} 'i' query response: {response}")
-                time.sleep(1.0)
-                if response != 'EXTRUDER_READOUT':
-                    log.info(error_msg)
-                    attempts += 1
-                    return self.get_readout(attempts)
-                return extruder_readout
-            except Exception as e:
-                attempts += 1
-                log.warning(e)
-                return self.get_readout(attempts)
-        else:
-            raise SerialException(error_msg)
+        self.__mx200.units = 'MT'
+        # time.sleep(3.0)
+        # print(f"Pressures: {self.__mx200.pressures}")
 
     def execute(self):
         self.__mx200.units = 'MT'
@@ -77,9 +57,8 @@ class ExtrusionProcedure(Procedure):
         n = int(self.experiment_time * 60 / dt) + 1
 
         log.info(f"Starting the loop of {n:d} datapoints.")
-
-        extruder_readout: ExtruderReadout = self.get_readout()
-
+        extruder_readout = ExtruderReadout(address=EXT_READOUT_COM)
+        time.sleep(3.0)
         self.inhibit_sleep()
 
         previous_time = 0.0
@@ -89,6 +68,9 @@ class ExtrusionProcedure(Procedure):
         start_time = time.time()
         while total_time <= (self.experiment_time * 60) + dt:
             current_time = time.time()
+            if self.should_stop():
+                log.warning("Caught the stop flag in the procedure")
+                break
             if (current_time - previous_time) >= dt:
                 pressures = self.__mx200.pressures
                 for k, p in pressures.items():

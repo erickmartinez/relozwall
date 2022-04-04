@@ -41,7 +41,7 @@ class FlexuralStressProcedure(Procedure):
     __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
     __delay: float = 0.001
-    port = 'COM4'
+    port = 'COM5'
     __keep_alive: bool = False
     __failed_readings = 0
     __max_attempts = 10
