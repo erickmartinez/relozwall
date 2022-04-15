@@ -50,8 +50,9 @@ class TBS2000:
         self.__instrument.write_termination = '\r\n'
         self.reset()
         time.sleep(self.__delay)
-        for i in range(1, 4):
+        for i in range(1, 3):
             self.write(f'CH{i:d}:PRObe:GAIN 1.0')
+            self.write(f'CH{i:d}:COUPling DC')
             sleep(self.__delay)
         self.horizontal_main_scale = 2.0
 

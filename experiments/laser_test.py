@@ -28,7 +28,7 @@ from scipy import interpolate
 
 TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
 ESP32_COM = 'COM6'
-TC_LOGGER_COM = 'COM7'
+TC_LOGGER_COM = 'COM10'
 MX200_COM = 'COM3'
 TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
@@ -40,7 +40,8 @@ class LaserProcedure(Procedure):
     emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=3.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
     laser_power_setpoint = FloatParameter("Laser Power Setpoint", units='%', default=100, minimum=0.0, maximum=100.0)
-    pd_gain = ListParameter('Photodiode Gain', choices=[0, 10, 20, 30, 40, 50, 60, 70], units='dB', default=0)
+    pd_gain = ListParameter('Photodiode Gain', choices=('0', '10', '20', '30', '40', '50', '60', '70'), units='dB',
+                            default='30')
     sample_name = Parameter("Sample Name", default="UNKNOWN")
     __oscilloscope: TBS2000 = None
     __keep_alive: bool = False
@@ -79,9 +80,9 @@ class LaserProcedure(Procedure):
     def execute(self):
         log.info("Setting up Oscilloscope")
         self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
-        self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
-
-        self.__oscilloscope.set_acquisition_time(self.measurement_time + self.emission_time)
+        self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 4.0')
+        total_time = self.measurement_time + self.emission_time
+        self.__oscilloscope.set_acquisition_time(total_time)
         self.__mx200.units = 'MT'
         time.sleep(1.0)
 
@@ -92,23 +93,8 @@ class LaserProcedure(Procedure):
             print("Error initializing ESP32 trigger")
             raise e
 
-        failed_tc_connections = 0
-        try:
-            tc_logger = DualTCLogger(address=TC_LOGGER_COM)
-            time.sleep(1.0)
-            tc_logger_id = tc_logger.query('i')
-            print(f"{TC_LOGGER_COM}: {tc_logger_id}")
-            if not tc_logger_id == 'TCLOGGER':
-                msg = f"TC logger not found in address '{TC_LOGGER_COM}'."
-                failed_tc_connections += 1
-                if failed_tc_connections < 2:
-                    tc_logger_id = tc_logger.query('i')
-                    print(f"{TC_LOGGER_COM}: {tc_logger_id}")
-                else:
-                    raise SerialException(msg)
-        except SerialException as e:
-            print("Error initializing temperature logger")
-            raise e
+        tc_logger = DualTCLogger(address=TC_LOGGER_COM)
+        time.sleep(2.0)
 
         esp32.pulse_duration = float(self.emission_time)
         time.sleep(0.5)
@@ -136,6 +122,9 @@ class LaserProcedure(Procedure):
         pressure = []
         start_time = time.time()
         while total_time <= self.measurement_time + self.emission_time:
+            if self.should_stop():
+                log.warning("Caught the stop flag in the procedure")
+                break
             current_time = time.time()
             if (current_time - previous_time) >= 0.05:
                 p = self.__mx200.pressure(2)
@@ -188,7 +177,6 @@ class LaserProcedure(Procedure):
         filename = f'{os.path.splitext(self.__unique_filename)[0]}_irdata.csv'
         ir_df.to_csv(path_or_buf=filename, index=False)
 
-
         log.info(f'Number of osc data points: {npoints}')
         tc_data['Time (s)'] = tc_data['Time (s)'] - tc_data['Time (s)'].min()
         time_tc = tc_data['Time (s)'].values
@@ -217,8 +205,6 @@ class LaserProcedure(Procedure):
         data = data[msk_tmin]
         reference = reference[msk_tmin]
         time_osc = data[columns[0]]
-
-
 
         f1 = interpolate.interp1d(time_tc, tc1)
         f2 = interpolate.interp1d(time_tc, tc2)

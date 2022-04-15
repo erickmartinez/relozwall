@@ -17,7 +17,7 @@ class ArduinoSerial:
     __address = None
     __baud_rate = 115200
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.5
+    __timeout = 0.1
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
@@ -25,6 +25,9 @@ class ArduinoSerial:
 
     def __init__(self, address: str):
         self.__address = address
+        self.connect()
+
+    def connect(self):
         self.__serial = serial.Serial(
             port=self.__address,
             baudrate=self.__baud_rate,
@@ -34,6 +37,27 @@ class ArduinoSerial:
             stopbits=self.__stopbits,
             xonxoff=self.__xonxoff
         )
+        sleep(self.__delay)
+
+    @property
+    def timeout(self):
+        return self.__timeout
+
+    @timeout.setter
+    def timeout(self, value: float):
+        value = abs(float(value))
+        self.__timeout = value
+        self.__serial.timeout = value
+
+    @property
+    def delay(self) -> float:
+        return self.__delay
+
+    @delay.setter
+    def delay(self, value):
+        value = float(value)
+        if value > 0:
+            self.__delay = value
 
     def close(self):
         try:
@@ -43,11 +67,7 @@ class ArduinoSerial:
             print('Connection already closed')
 
     def __del__(self):
-        try:
-            print(f'Closing serial connection to ESP32 at {self.__address}.')
-            self.__serial.close()
-        except AttributeError as e:
-            print('Connection already closed')
+        self.close()
 
     def write(self, q: str):
         # with serial.Serial(
@@ -79,6 +99,12 @@ class ArduinoSerial:
         line = self.__serial.readline()
         sleep(self.__delay)
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
+
+    def flush_output(self):
+        self.__serial.reset_output_buffer()
+
+    def flush_input(self):
+        self.__serial.reset_input_buffer()
 
 
 class ESP32Trigger(ArduinoSerial):
@@ -127,10 +153,26 @@ class ESP32Trigger(ArduinoSerial):
 
 
 class DualTCLogger(ArduinoSerial):
-    __address = 'COM7'
+    __address = 'COM10'
 
     def __init__(self, address: str):
         super().__init__(address=address)
+        check_connection = self.check_id()
+        if not check_connection:
+            msg = f"EXTRUDER_READOUT not found in port {self.address}"
+            raise SerialException(msg)
+
+    def check_id(self, attempt: int = 0) -> bool:
+        time.sleep(1.0)
+        check_id = self.query('i')
+        if check_id != 'TCLOGGER':
+            if attempt <= 3:
+                attempt += 1
+                return self.check_id(attempt=attempt)
+            else:
+                return False
+        else:
+            return True
 
     @property
     def temperature(self):
@@ -176,7 +218,10 @@ class DualTCLogger(ArduinoSerial):
     def read_temperature_log(self):
         header_list = ["Time (s)", "TC1 (C)", "TC2 (C)"]
         try:
+            old_delay = self.delay
+            self.delay = 3.0
             res = self.query('r')
+            self.delay = old_delay
             df = pd.read_csv(io.StringIO(res), sep=',', lineterminator=";", names=header_list)
             df = df.apply(pd.to_numeric, errors='coerce')
             df.dropna(inplace=True)
@@ -195,14 +240,19 @@ class ExtruderReadout(ArduinoSerial):
 
     def __init__(self, address: str):
         super().__init__(address=address)
+        self.delay = 0.2
+        self.timeout = 0.2
         check_connection = self.check_id()
+
         if not check_connection:
-            msg = f"EXTRUDER_READOUT not found in port {self.address}"
+            msg = f"EXTRUDER_READOUT not found in port {self.__address}"
             raise SerialException(msg)
 
     def check_id(self, attempt: int = 0) -> bool:
+        time.sleep(1.0)
         check_id = self.query('i')
         if check_id != 'EXTRUDER_READOUT':
+            print(f"Error checking id at {self.__address}. Response: '{check_id}'")
             if attempt <= 3:
                 attempt += 1
                 return self.check_id(attempt=attempt)
@@ -222,10 +272,23 @@ class ExtruderReadout(ArduinoSerial):
         except ValueError as e:
             print(res, e)
             raise ValueError(e)
+        time.sleep(0.01)
         return reading
 
     def zero(self):
+        old_delay = self.delay
+        old_timeout = self.timeout
+        self.delay = 1.0
+        self.timeout = 1.0
         r = self.query('z')
+
+        if r == '':
+            print('Error taring')
+            return self.zero()
+        self.timeout = old_timeout
+        self.delay = old_delay
+        self.flush_input()
+        sleep(1.0)
         return r
 
     @property
