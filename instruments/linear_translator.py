@@ -22,8 +22,8 @@ class ISC08:
     __serial: serial.Serial = None
     __speed: int = 60
     __direction: str = 'forward'
-    __calibration_m: float = 0.052
-    __calibration_b: float = -2.3
+    __calibration_m: float = 0.034
+    __calibration_b: float = -1.0
 
     def __init__(self, address: str, m: float = None, b: float = None):
         self.__address = address
@@ -51,10 +51,10 @@ class ISC08:
     def set_speed_cms(self, value):
         value = abs(value)
         voltage_setting = (value - self.__calibration_b) / self.__calibration_m
-        if (10.0 < voltage_setting) and (voltage_setting < 90.0):
+        if (5.0 < voltage_setting) and (voltage_setting < 90.0):
             self.speed = voltage_setting
         else:
-            self.speed = 60.0
+            self.speed = 50.0
         print(f"Input Speed: {value:.2f} cm/s, Voltage Setting: {self.speed:02.0f}")
 
     def move_by_cm(self, distance: float, speed: float = 2.0):
@@ -150,6 +150,7 @@ class ISC08:
             stopbits=self.__stopbits,
             xonxoff=self.__xonxoff
         )
+        sleep(self.__delay)
         self.__serial.flush()
 
     def disconnect(self):

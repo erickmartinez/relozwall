@@ -23,6 +23,8 @@ class MX200:
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
     __delay = 0.05
+    __keep_alive: bool = False
+    __serial: serial.Serial = None
 
     units_mapping = {
         'PA': 'Pascal',
@@ -32,8 +34,19 @@ class MX200:
         'MT': 'mTorr'
     }
 
-    def __init__(self, address: str):
+    def __init__(self, address: str, keep_alive: bool = False):
         self.__address = address
+        self.__keep_alive = bool(keep_alive)
+        if self.__keep_alive:
+            self.__serial = serial.Serial(
+                port=self.__address,
+                baudrate=self.__baud_rate,
+                bytesize=self.__byte_size,
+                timeout=self.__timeout,
+                parity=self.__parity,
+                stopbits=self.__stopbits,
+                xonxoff=self.__xonxoff
+            )
         check_connection = self.check_id()
         if not check_connection:
             msg = f"MX200 not found in port {self.__address}"
@@ -182,31 +195,40 @@ class MX200:
         return f"{b}{aa}"
 
     def write(self, q: str):
-        with serial.Serial(
-                port=self.__address,
-                baudrate=self.__baud_rate,
-                bytesize=self.__byte_size,
-                timeout=self.__timeout,
-                parity=self.__parity,
-                stopbits=self.__stopbits,
-                xonxoff=self.__xonxoff
-        ) as ser:
+        if self.__keep_alive:
+            self.__serial.write("{0}\r".format(q).encode('utf-8'))
             sleep(self.__delay)
-            ser.write("{0}\r".format(q).encode('utf-8'))
-            sleep(self.__delay)
+        else:
+            with serial.Serial(
+                    port=self.__address,
+                    baudrate=self.__baud_rate,
+                    bytesize=self.__byte_size,
+                    timeout=self.__timeout,
+                    parity=self.__parity,
+                    stopbits=self.__stopbits,
+                    xonxoff=self.__xonxoff
+            ) as ser:
+                sleep(self.__delay)
+                ser.write("{0}\r".format(q).encode('utf-8'))
+                sleep(self.__delay)
 
     def query(self, q: str) -> str:
-        with serial.Serial(
-                port=self.__address,
-                baudrate=self.__baud_rate,
-                bytesize=self.__byte_size,
-                timeout=self.__timeout,
-                parity=self.__parity,
-                stopbits=self.__stopbits,
-                xonxoff=self.__xonxoff
-        ) as ser:
+        if self.__keep_alive:
+            self.__serial.write("{0}\r".format(q).encode('utf-8'))
             sleep(self.__delay)
-            ser.write("{0}\r".format(q).encode('utf-8'))
-            sleep(self.__delay)
-            line = ser.readline()
-            return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
+            line = self.__serial.readline()
+        else:
+            with serial.Serial(
+                    port=self.__address,
+                    baudrate=self.__baud_rate,
+                    bytesize=self.__byte_size,
+                    timeout=self.__timeout,
+                    parity=self.__parity,
+                    stopbits=self.__stopbits,
+                    xonxoff=self.__xonxoff
+            ) as ser:
+                sleep(self.__delay)
+                ser.write("{0}\r".format(q).encode('utf-8'))
+                sleep(self.__delay)
+                line = ser.readline()
+        return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
