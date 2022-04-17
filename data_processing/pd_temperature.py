@@ -54,14 +54,18 @@ if __name__ == "__main__":
     file_tag = os.path.splitext(ir_file)[0]
     ir_df = pd.read_csv(os.path.join(base_path, ir_file), comment='#').apply(pd.to_numeric)
     ir_df = ir_df[ir_df['Measurement Time (s)'] <= 2.0]
+    ir_df = ir_df[ir_df['Photodiode Voltage (V)'] > 0.0]
     params = get_experiment_params(base_path=base_path, filename=file_tag)
     pd_gain = int(params['Photodiode Gain']['value'])
     print(pd_gain)
-    thermometry.gain = pd_gain
+    thermometry.gain = int(pd_gain)
     print(thermometry.calibration_factor)
+    print(thermometry.emissivity)
+    print(thermometry.get_temperature(2))
     time_s = ir_df['Measurement Time (s)'].values
     voltage = ir_df['Photodiode Voltage (V)'].values
-    temperature = thermometry.get_temperature(voltage=voltage) - 273.15
+    temperature_c = thermometry.get_temperature(voltage=voltage) - 273.15
+    
 
     with open('plot_style.json', 'r') as file:
         json_file = json.load(file)
@@ -86,13 +90,14 @@ if __name__ == "__main__":
 
     ax2.plot(
         time_s,
-        temperature,
+        temperature_c,
         color=color_temperature,
         # ls='none',
     )
 
     ax2.set_ylabel('Temperature (°C)', color=color_temperature)
+    ax2.set_ylim(bottom=20)
 
     fig1.tight_layout()
-
+    fig1.savefig(os.path.join(base_path, file_tag + '.png'), dpi=600)
     plt.show()

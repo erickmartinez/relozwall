@@ -11,13 +11,13 @@ from scipy import stats
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\Sample_50'
 # csv_file = 'Sample50_debris_distribution_3kW_1s.csv'
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander'
-csv_file = 'R3N14_0.5S_3kW_20220302_205803522_distribution.csv'
-units = 'mm'
+csv_file = 'R3N21_debris_distribution_3kW_0.5s.csv'
+units = 'cm'
 
-label = "4:1 GC to BN - Carbon Black"
+label = "70% GC - 30% Binder"
 
 height = 5. * 2.54  # cm
-x_center = 4.25 * 2.54  # Assume that the sample holder is at 1/3 of the x position wrt the tray
+x_center = 4.25 * 2.54  #
 g = 9.8E2  # cm/s^2
 
 if __name__ == "__main__":
