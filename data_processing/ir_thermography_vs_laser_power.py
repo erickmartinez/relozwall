@@ -144,6 +144,8 @@ if __name__ == '__main__':
     ax1 = fig.add_subplot(gs[0])
     ax2 = fig.add_subplot(gs[1])
 
+    laser_power_setpoint_list = []
+
     for i, file in enumerate(filelist):
         file = file.strip()
         csv_file = file + '_irdata.csv'
@@ -151,6 +153,7 @@ if __name__ == '__main__':
         experiment_params = get_experiment_params(relative_path=base_path, filename=file)
         photodiode_gain = experiment_params['Photodiode Gain']['value']
         laser_power_setting = experiment_params['Laser Power Setpoint']['value']
+        laser_power_setpoint_list.append(laser_power_setting)
         ir_df = pd.read_csv(os.path.join(base_path, csv_file)).apply(pd.to_numeric)
         ir_df = ir_df[ir_df['Time (s)'] <= max_time]
         ir_df = ir_df[ir_df['Voltage (V)'] > 0.0]
@@ -184,7 +187,7 @@ if __name__ == '__main__':
         idx_peak = (np.abs(pressure - peak_pressures[i])).argmin()
         peak_dt[i] = time_s[idx_peak]
 
-        ax2.plot(time_s, pressure, label=lbl, color=colors[i])
+        ax2.plot(time_s, pressure, label=lbl, color=colors[i], lw=1.75)
 
     ax2.set_xlabel('Time (s)')
     ax2.set_ylabel('Pressure (mTorr)')
@@ -218,6 +221,21 @@ if __name__ == '__main__':
     ax1.set_title('IR Thermography')
     ax2.set_title('Chamber Pressure')
     filetag = os.path.splitext(csv_database)[0]
+
+    outgassing_rate = chamber_volume * (peak_pressures - base_pressures) * 1E-3 / peak_dt
+
+    outgas_df = pd.DataFrame(data={
+        'Laser Power Setpoint': laser_power_setpoint_list,
+        'Base Pressure (mTorr)': base_pressures,
+        'Peak Pressure (mTorr)': peak_pressures,
+        'Peak dt (s)': peak_dt,
+        'Outgassing Rate (Torr L / s)': outgassing_rate
+    })
+
+    print(outgas_df)
+    outgas_df.to_csv(os.path.join(base_path, f'{filetag}_OUTGASSING.csv'), index=False)
+
+
     fig.savefig(os.path.join(base_path, filetag + "_ir-pressure_plot.png"), dpi=600)
     fig.savefig(os.path.join(base_path, filetag + "_ir-pressure_plot.eps"), dpi=600)
     fig.savefig(os.path.join(base_path, filetag + "_ir-pressure_plot.svg"), dpi=600)

@@ -10,11 +10,11 @@ from scipy import stats
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\Sample_50'
 # csv_file = 'Sample50_debris_distribution_3kW_1s.csv'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander'
-csv_file = 'R3N21_debris_distribution_3kW_0.5s.csv'
-units = 'cm'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
+csv_file = r'R3N21_100PCT_POWER_20220415_160521140_RESULTS.csv'
+units = 'mm'
 
-label = "70% GC - 30% Binder"
+label = "100% Laser Power"
 
 height = 5. * 2.54  # cm
 x_center = 4.25 * 2.54  #
@@ -30,9 +30,13 @@ if __name__ == "__main__":
     rm = np.sqrt(xm**2.0 + ym**2.0)
     if units == 'mm':
         rm *= 0.1
+
     vx = rm * np.sqrt(0.5 * g / height)
     vx_mean = vx.mean()
     vx_std = vx.std()
+
+    print(f"Velocity Mean: {vx_mean:5.1f} cm/s")
+
 
 
     # Load plotting style
@@ -49,9 +53,9 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     fig.set_size_inches(4., 3.)
     number_of_bins = 10
-    n, bins, patches = ax.hist(vx, number_of_bins, density=True, facecolor='C0', alpha=0.95)
+    n, bins, patches = ax.hist(vx, number_of_bins, density=False, facecolor='C0', alpha=0.95)
     ax.set_xlabel(f"Particle Velocity (cm/s)")
-    ax.set_ylabel(f"Probability")
+    ax.set_ylabel(f"Counts")
     ax.set_title(f"{label}")
     ax.yaxis.set_major_formatter(xfmt)
 
@@ -61,7 +65,8 @@ if __name__ == "__main__":
     print(vx_mode)
     results = f'$v_{{\\mathrm{{mean}}}} = {vx_mean:.0f}$ cm/s\n' \
               f'$v_{{\\mathrm{{std}}}}  \\quad= {vx_std:.0f}$ cm/s\n' \
-              f'$v_{{\\mathrm{{mode}}}} = {vx_mode:.0f}$ cm/s'
+              f'$v_{{\\mathrm{{mode}}}} = {vx_mode:.0f}$ cm/s\n' \
+              f'$N    = {vx.size}$'
 
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
     ax.text(
