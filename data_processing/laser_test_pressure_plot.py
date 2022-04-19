@@ -12,52 +12,52 @@ import re
 chamber_volume = 34 # L
 
 # base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES"
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS"
-# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
+# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS"
+base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
 
 # filename = 'BINDER_SCAN_PLOT'
-filename = 'STARTING_MATERIALS'
-# filename = 'R3N18_MULTIPLE_FIRINGS'
+# filename = 'STARTING_MATERIALS'
+filename = 'R3N18_MULTIPLE_FIRINGS'
 
 # filelist = ['LT_R3N12_100PCT_40GAIN 2022-03-01_1', 'LT_R3N10_100PCT_40GAIN 2022-03-01_1',
 #             'LT_R3N3_100PCT_40GAIN 2022-03-02_1', 'LT_R3N14_100PCT_40GAIN 2022-03-02_1']
-filelist = [
-    'LT_Tidal75_100PCT_40GAIN 2022-03-08_1',
-    'LT_GC_TYPE1_100PCT_40GAIN 2022-03-07_1',  #'LT_GC_TYPE2_100PCT_40GAIN 2022-03-07_1',
-     #'LT_Graphite_100PCT_40GAIN 2022-03-08_1',
-    'LT_GRAPHITE_POWDER_100PCT_40GAIN 2022-03-09_1',
-    "LT_hBN_100PCT_40GAIN 2022-03-21_1",
-    # 'LT_R3N10_100PCT_40GAIN 2022-03-01_1'
-]
 # filelist = [
-#     'LT_R3N18_100PCT_40GAIN 2022-03-09_1',
-#     'LT_R3N18_100PCT_40GAIN 2022-03-09_2',
-#     'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
-#     'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
-#     # 'LT_R3N18_100PCT_50GAIN 2022-03-10_1',
-#     # 'LT_R3N18_100PCT_40GAIN 2022-03-14_1',
-#     # 'LT_R3N20_100PCT_40GAIN 2022-03-15_1',
-#     # 'LT_R3N20_100PCT_40GAIN 2022-03-15_2'
+#     'LT_Tidal75_100PCT_40GAIN 2022-03-08_1',
+#     'LT_GC_TYPE1_100PCT_40GAIN 2022-03-07_1',  #'LT_GC_TYPE2_100PCT_40GAIN 2022-03-07_1',
+#      #'LT_Graphite_100PCT_40GAIN 2022-03-08_1',
+#     'LT_GRAPHITE_POWDER_100PCT_40GAIN 2022-03-09_1',
+#     "LT_hBN_100PCT_40GAIN 2022-03-21_1",
+#     # 'LT_R3N10_100PCT_40GAIN 2022-03-01_1'
 # ]
+filelist = [
+    'LT_R3N18_100PCT_40GAIN 2022-03-09_1',
+    'LT_R3N18_100PCT_40GAIN 2022-03-09_2',
+    'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
+    'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
+    # 'LT_R3N18_100PCT_50GAIN 2022-03-10_1',
+    # 'LT_R3N18_100PCT_40GAIN 2022-03-14_1',
+    # 'LT_R3N20_100PCT_40GAIN 2022-03-15_1',
+    # 'LT_R3N20_100PCT_40GAIN 2022-03-15_2'
+]
 # legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder', '4:1 GC to BN']
-legends = ["Matrix Carbon",
-           'GC Type 1',
-           # 'GC Type 2',
-           # "Graphite Rod",
-           "Graphite Powder",
-           "hBN",
-           # "70% GC Type 2,\n15% Resin,\n15% Carbon Black"
-           ]
-# legends = [
-#     'First (Same day)',
-#     'Second (Same day)',
-#     'First (Overnight)',
-#     'Second (Overnight)',
-#     # 'Single Exposure',
-#     # 'Second Exposure',
-#     # 'Graphite (First)',
-#     # 'Graphite (Second)'
-# ]
+# legends = ["Matrix Carbon",
+#            'GC Type 1',
+#            # 'GC Type 2',
+#            # "Graphite Rod",
+#            "Graphite Powder",
+#            "hBN",
+#            # "70% GC Type 2,\n15% Resin,\n15% Carbon Black"
+#            ]
+legends = [
+    'First (Same day)',
+    'Second (Same day)',
+    'First (Overnight)',
+    'Second (Overnight)',
+    # 'Single Exposure',
+    # 'Second Exposure',
+    # 'Graphite (First)',
+    # 'Graphite (Second)'
+]
 
 colors = plt.cm.cividis(np.linspace(0, 1, len(filelist)))
 
@@ -157,6 +157,8 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
 
     fig.tight_layout()
     fig.savefig(os.path.join(base_path, f'{output_filename}_PRESSURE.png'), dpi=600)
+    fig.savefig(os.path.join(base_path, f'{output_filename}_PRESSURE.svg'), dpi=600)
+    fig.savefig(os.path.join(base_path, f'{output_filename}_PRESSURE.eps'), dpi=600)
     if display:
         fig.show()
 
