@@ -111,7 +111,7 @@ class ISC08:
         self.write('s')
 
     def move_by_time(self, moving_time: float, **kwargs):
-        speed = kwargs.get('speed_setting', 60)
+        speed = kwargs.get('speed_setting', 55)
         self.set_speed(value=speed)
         direction = 'f' if self.__direction == 'forward' else 'r'
         moving_time = abs(moving_time)

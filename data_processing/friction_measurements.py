@@ -13,17 +13,18 @@ import matplotlib.ticker as ticker
 
 EXT_READOUT_COM = 'COM12'
 ISC08_COM = 'COM4'
-SPEED_CMS = 0.11
-SPEED_SETTING = 20
+SPEED_CMS = 1.1
+speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
 
 base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
 sample = 'R3N32_1000C'
 plot_csv = True
-csv_file = 'FRICTION_R3N32_1000C_0.11CMPS_20220415-102839.csv'
+csv_file = 'FRICTION_R3N32_1000C_1.10CMPS_20220419-113439.csv'
 
 
 def move_forward_by_distance(distance_cm):
-    m_time = distance_cm /0.57
+    import instruments.linear_translator as lnt
+    m_time = distance_cm / 0.57
     if '__translator' not in locals():
         __translator = lnt.ISC08(address=ISC08_COM)
     __translator.move_by_time(moving_time=m_time, speed_setting=55)
@@ -31,11 +32,13 @@ def move_forward_by_distance(distance_cm):
 
 
 def move_back_by_distance(distance_cm):
-    m_time = distance_cm /0.57
+    import instruments.linear_translator as lnt
+    m_time = distance_cm / 0.57
     if '__translator' not in locals():
         __translator = lnt.ISC08(address=ISC08_COM)
     __translator.move_by_time(moving_time=m_time, speed_setting=-55)
     del __translator
+
 
 class FrictionExperiment:
     __translator: lnt.ISC08 = None
@@ -97,6 +100,10 @@ def cm2in(value):
 
 
 if __name__ == "__main__":
+    if SPEED_CMS not in speed_setting_map:
+        msg = f"Speed {SPEED_CMS} not defined! Valid values are: {[k for k in speed_setting_map.keys()]}"
+        raise ValueError(msg)
+    SPEED_SETTING = speed_setting_map[SPEED_CMS]
     if plot_csv:
         file_tag = os.path.splitext(csv_file)[0]
 
@@ -169,7 +176,7 @@ if __name__ == "__main__":
         ax1.xaxis.set_minor_locator(ticker.MaxNLocator(6))
         #
         ax1.yaxis.set_major_locator(ticker.MaxNLocator(6))
-        ax1.yaxis.set_minor_locator(ticker.MaxNLocator(12))
+        # ax1.yaxis.set_minor_locator(ticker.MaxNLocator(12))
 
         fig.tight_layout()
         fig.savefig(os.path.join(base_path, file_tag + '.png'), dpi=600)
@@ -201,7 +208,6 @@ if __name__ == "__main__":
 
         dt = moving_time / n
 
-        t0 = time.time()
         elapsed_time = []
         force = []
         position = []
@@ -209,6 +215,7 @@ if __name__ == "__main__":
         previous_time = 0.0
         total_time = 0.0
         moving = False
+        t0 = time.time()
         # experiment.readout.zero()
         # time.sleep(5.0)
 
@@ -224,7 +231,7 @@ if __name__ == "__main__":
                 elapsed_time.append(total_time)
                 position.append(d)
                 force.append(fi)
-                print(f"{total_time:8.3f} s, ADC: {pot_adc:5d} -> {d:4.1f} cm, {fi:4.1f} N")
+                print(f"{total_time:8.3f} s, ADC: {pot_adc:5.0f} -> {d:4.1f} cm, {fi:4.1f} N")
                 previous_time = current_time
 
         elapsed_time = np.array(elapsed_time)
@@ -250,5 +257,3 @@ if __name__ == "__main__":
 
         print(friction_df)
         friction_df.to_csv(path_or_buf=os.path.join(base_path, file_tag + '.csv'), index=False)
-
-
