@@ -80,7 +80,7 @@ class LaserProcedure(Procedure):
     def execute(self):
         log.info("Setting up Oscilloscope")
         self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
-        self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 4.0')
+        self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
         total_time = self.measurement_time + self.emission_time
         self.__oscilloscope.set_acquisition_time(total_time)
         self.__mx200.units = 'MT'
