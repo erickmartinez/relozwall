@@ -26,21 +26,24 @@ tc_error_pct = 2.0
 T_ss = 408
 make_fit = True
 csv_file = 'TC00120220427-164143'
-left_cut = 2.27
+left_cut = 1.33#2.27
+right_cut = 120.0
 
 
 def model(x, b):
-    return b[0] * (1.0 - np.exp(-x / b[1]))
+    return b[0] * (1.0 - np.exp(-(x - b[1]) / b[2]))
 
 
 def model_obj(beta: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return model(x, beta) - y
 
 
-def model_jac(beta: np.ndarray, x: np.ndarray, y: np.ndarray):
+def model_jac(b: np.ndarray, x: np.ndarray, y: np.ndarray):
     identity = np.ones_like(x)
-    b_inv = 1.0 / (beta[1] ** 3.0)
-    return np.array([(identity - np.exp(-x / beta[1])), -beta[0] * b_inv * np.exp(-x / beta[1])]).T
+    xb = x - b[1]
+    ee = np.exp(-xb / b[2])
+    b_inv = 1.0 / (b[2] ** 2.0)
+    return np.array([(1.0 - ee), -b[0] / b[2] * ee, -b[0] * b_inv * ee * xb]).T
 
 
 def get_pcov(res: OptimizeResult) -> np.ndarray:
@@ -100,7 +103,6 @@ def lighten_color(color, amount=0.5):
     return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
 
 
-
 if __name__ == '__main__':
     if not make_fit:
         print('Connecting to temperature logger...')
@@ -117,7 +119,7 @@ if __name__ == '__main__':
         input('Place the thermocouple to be calibrated on the hotplate.')
         tc_logger.log_time = max_time
         tc_logger.start_logging()
-        time.sleep(max_time+10.0)
+        time.sleep(max_time + 10.0)
         tc_data: pd.DataFrame = tc_logger.read_temperature_log()
 
     else:
@@ -126,28 +128,29 @@ if __name__ == '__main__':
         tc1 = tc_data['TC1 (C)'].values
         tc2 = tc_data['TC2 (C)'].values
         t0 = tc1[0]
-        idx_min = measured_time >= left_cut
-        measured_time = measured_time[idx_min]
-        tc1 = tc1[idx_min]
-        tc2 = tc2[idx_min]
-        dT = tc1 - t0
-        measured_time = measured_time - 0.5# measured_time.min()
+
+        idx_fit = (measured_time >= left_cut) & (measured_time <= right_cut)
+        measured_time_fit = measured_time[idx_fit]
+        tc1_fit = tc1[idx_fit]
+        tc2_fit = tc2[idx_fit]
+        dT_fit = tc1_fit - t0
+        # measured_time = measured_time  # - 0.5  # measured_time.min()
 
         resolution_error = 0.25
         tc1_err = tc1 * tc_error_pct * 0.01
         for i in range(len(tc1_err)):
             tc1_err[i] = max(tc1_err[i], resolution_error)
         n = len(measured_time)
-        b_guess = np.array([dT.max(), 0.5 * measured_time.max()])
+        b_guess = np.array([dT_fit.max(), measured_time_fit[0], 0.5 * measured_time_fit.max()])
         all_tol = np.finfo(np.float64).eps
         res = least_squares(
-            model_obj, b_guess, args=(measured_time, dT),
+            model_obj, b_guess, args=(measured_time_fit, dT_fit),
             jac=model_jac,
             xtol=all_tol,
             ftol=all_tol,
             gtol=all_tol,
-            max_nfev=10000*n,
-            # loss='soft_l1', f_scale=0.1,
+            max_nfev=10000 * n,
+            loss='soft_l1', f_scale=0.1,
             verbose=2
         )
         popt = res.x
@@ -155,18 +158,36 @@ if __name__ == '__main__':
 
         ci = cf.confint(n, popt, pcov)
 
+        xpred = np.linspace(measured_time_fit.min(), measured_time_fit.max(), num=200)
+        ypred, lpb, upb = cf.predint(xpred, measured_time_fit, tc1_fit, model, res)
+
         tss = popt[0]
-        time_constant = popt[1]
-        time_constant_ci = ci[1]
+        time_constant = popt[2]
+        time_constant_ci = ci[2]
 
         print(time_constant, '95% CI', time_constant_ci)
         print(tss, '95% CI', ci[0])
 
-        model_txt = f'$\\tau$ = {time_constant:.3f} s\n95% CI: [{ci[1][0]:.4f}, {ci[1][1]:.4f}] s'
-        # model_txt += f'\n$\Delta T_{{\mathrm{{ss}}}} = {latex_float(tss,significant_digits=3)} °C 95% CI: [{ci[0][0]:.4f}, {ci[0][1]:.4f}] °C$'
+        model_results_df = pd.DataFrame(
+            data={
+                'Parameter': ['Delta T (K)', 'T0 (s)', 'Time Constant (s)'],
+                'Value': [tss, popt[1], time_constant],
+                'Lower 95% CI': [ci[0, 0], ci[1, 0], ci[2, 0]],
+                'Upper 95% CI': [ci[0, 1], ci[1, 1], ci[2, 1]]
+            }
+        )
 
-        xpred = np.linspace(measured_time.min(), measured_time.max(), num=200)
-        ypred, lpb, upb = cf.predint(xpred, measured_time, tc1, model, res)
+        model_results_df.to_csv(os.path.join(base_path, csv_file + '_model_results.csv'), index=False)
+        prediction_df = pd.DataFrame(data={
+            'Time (s)': xpred,
+            'Temperature (°C)': ypred,
+            'Lower Prediction Band (°C)': lpb,
+            'Upper Prediction Band (°C)': upb
+        })
+        prediction_df.to_csv(os.path.join(base_path, csv_file + '_prediction.csv'), index=False)
+
+        model_txt = f'$\\tau$ = {time_constant:.3f} s\n95% CI: [{ci[2][0]:.4f}, {ci[2][1]:.4f}] s'
+        # model_txt += f'\n$\Delta T_{{\mathrm{{ss}}}} = {latex_float(tss,significant_digits=3)} °C 95% CI: [{ci[0][0]:.4f}, {ci[0][1]:.4f}] °C$'
 
         with open('plot_style.json', 'r') as file:
             json_file = json.load(file)
@@ -177,7 +198,7 @@ if __name__ == '__main__':
         fig.set_size_inches(4.5, 3.25)
 
         ax1.errorbar(
-            measured_time, dT, yerr=tc1_err,
+            measured_time, tc1, yerr=tc1_err,
             capsize=2.75, mew=1.25, marker='o', ms=8, elinewidth=1.25,
             color='C0', fillstyle='none',
             ls='none',
@@ -186,12 +207,12 @@ if __name__ == '__main__':
         )
 
         ax1.fill_between(
-            xpred, lpb, upb, color=lighten_color('C0', 0.2),
+            xpred, lpb+t0, upb+t0, color=lighten_color('C0', 0.2),
             label='Prediction Bands', zorder=0
         )
 
         ax1.plot(
-            xpred, ypred, color='k', label='Model', zorder=2
+            xpred, ypred+t0, color='k', label='Model', zorder=2
         )
 
         leg = ax1.legend(
