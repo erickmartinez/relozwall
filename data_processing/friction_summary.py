@@ -40,7 +40,7 @@ if __name__ == "__main__":
     )
     average_speeds = background_df['Average Speed (cm/s)'].values
     background_df.reset_index(inplace=True)
-    sample_colors = plt.cm.Set1(np.linspace(0, 1, len(samples_df)))
+    sample_colors = plt.cm.tab10(np.linspace(0, 1, len(samples_df)))
     bgd_colors = plt.cm.Blues(np.linspace(0.5, 1, len(background_df)))
     # sample_colors = plt.cm.brg(mpl.colors.Normalize(vmin=average_speeds.min(), vmax=average_speeds.max()))
     markers = ['o', 's', '^']
@@ -57,6 +57,8 @@ if __name__ == "__main__":
 
         position = position[:-1]
         force = force[:-1]
+
+        position -= position.min()
 
         speed = row['Average Speed (cm/s)']
         temperature = row['Baking Temperature (C)']
@@ -79,6 +81,7 @@ if __name__ == "__main__":
         position = data_df['Position (cm)'].values
         force = data_df['Force (N)'].values
         position = position[:-1]
+        position -= position.min()
         force = force[:-1]
         speed = row['Target Speed (cm/s)']
         lbl = f'{speed} cm/s'
@@ -100,6 +103,23 @@ if __name__ == "__main__":
 
     ax3.set_ylim(-2.0, 1.0)
 
+
+    ax1.ticklabel_format(useMathText=True)
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax2.xaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax3.xaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    ax2.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    ax3.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    #
+    ax1.yaxis.set_major_locator(ticker.MaxNLocator(6))
+    ax2.yaxis.set_major_locator(ticker.MaxNLocator(5))
+    ax3.yaxis.set_major_locator(ticker.MaxNLocator(4))
+
+    ax1.yaxis.set_minor_locator(ticker.MultipleLocator(4))
+    ax2.yaxis.set_minor_locator(ticker.MultipleLocator(2))
+    ax3.yaxis.set_minor_locator(ticker.MultipleLocator(0.4))
+
     ax1.legend(loc="upper left", prop={'size': 9}, frameon=False, ncol=3)
     ax2.legend(loc="upper right", prop={'size': 9}, frameon=False, ncol=3)
     ax3.legend(loc="upper left", prop={'size': 9}, frameon=False, ncol=3)
@@ -108,5 +128,7 @@ if __name__ == "__main__":
     today = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     filetag = f"friction_measurements_{today}"
     fig.savefig(os.path.join(base_path, filetag + '.png'), dpi=600)
+    fig.savefig(os.path.join(base_path, filetag + '.svg'), dpi=600)
+    fig.savefig(os.path.join(base_path, filetag + '.eps'), dpi=600)
     plt.show()
 

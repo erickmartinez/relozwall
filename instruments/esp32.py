@@ -206,9 +206,9 @@ class DualTCLogger(ArduinoSerial):
     @log_time.setter
     def log_time(self, value_in_seconds: float):
         value_in_seconds = float(value_in_seconds)
-        if 0.0 > value_in_seconds or value_in_seconds > 20:
+        if 0.0 > value_in_seconds or value_in_seconds > 120:
             msg = f'Cannot set the log duration to {value_in_seconds}. Value is outside valid range:'
-            msg += f'[0, 20] s.'
+            msg += f'[0, 120] s.'
             raise Warning(msg)
         else:
             interval_ms = value_in_seconds * 1000.0
@@ -219,9 +219,11 @@ class DualTCLogger(ArduinoSerial):
         header_list = ["Time (s)", "TC1 (C)", "TC2 (C)"]
         try:
             old_delay = self.delay
+            old_timeout = self.timeout
             self.delay = 3.0
+            self.timeout = 3.0
             res = self.query('r')
-            self.delay = old_delay
+
             df = pd.read_csv(io.StringIO(res), sep=',', lineterminator=";", names=header_list)
             df = df.apply(pd.to_numeric, errors='coerce')
             df.dropna(inplace=True)
@@ -231,6 +233,9 @@ class DualTCLogger(ArduinoSerial):
         except ValueError as e:
             print(res, e)
             raise ValueError(e)
+        finally:
+            self.delay = old_delay
+            self.timeout = old_timeout
 
         return df
 
