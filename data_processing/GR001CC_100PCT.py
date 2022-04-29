@@ -13,24 +13,17 @@ from scipy.signal import savgol_filter
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
 # data_file = 'LT_GR001CC_7mTorr_100PCT_60GAIN 2022-04-22_1'
 data_file = 'LT_GR001CC_150mT_1cm_100PCT_60GAIN 2022-04-26_1'
-time_constant_1, time_constant_2 = 2.9, 2.9
+time_constant_1, time_constant_2 = 2.1148, 2.1148
 
 
-def correct_thermocouple_response(
-        measured_time: np.ndarray, measured_temperature: np.ndarray, time_constant: float = 1.0,
-):
-    dts = np.diff(measured_time)
-    dTs = np.diff(measured_temperature)
-    T0 = measured_temperature[0]
-    output_temperature = np.empty_like(measured_temperature, dtype=np.float64)
-    output_temperature[0] = T0
-    t_sum = T0
-    for i in range(1, len(measured_temperature)):
-        j = i - 1
-        dT_correction = dTs[j] / (1.0 - np.exp(-dts[j] / time_constant))
-        t_sum += dT_correction
-        output_temperature[i] = t_sum
-    return output_temperature
+def correct_thermocouple_response(measured_temperature, measured_time, time_constant):
+    n = len(measured_time)
+    k = int(n/6)
+    k = k + 1 if k % 2 == 0 else k
+    # k = min(81, k)
+    T = savgol_filter(measured_temperature, k, 3)
+    dTdt = np.gradient(T, measured_time)
+    return T + time_constant * dTdt
 
 
 def get_experiment_params(relative_path: str, filename: str):
