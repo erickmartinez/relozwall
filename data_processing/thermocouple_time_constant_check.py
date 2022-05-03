@@ -26,21 +26,21 @@ def model(temperature, t, tau):
     return temperature + tau * dTdt
 
 
-def correct_thermocouple_response(
-        measured_time: np.ndarray, measured_temperature: np.ndarray, time_constant: float = 1.0,
-):
-    dts = np.diff(measured_time)
-    dTs = np.diff(measured_temperature)
-    T0 = measured_temperature[0]
-    output_temperature = np.empty_like(measured_temperature, dtype=np.float64)
-    output_temperature[0] = T0
-    t_sum = T0
-    for i in range(1, len(measured_temperature)):
-        j = i - 1
-        dT_correction = dTs[j] / (1.0 - np.exp(-(dts[j] - 1.339) / time_constant))
-        t_sum += dT_correction
-        output_temperature[i] = t_sum
-    return output_temperature
+def correct_thermocouple_response(measured_temperature, measured_time, time_constant, order=1):
+    n = len(measured_time)
+    k = int(n / 10)
+    k = k + 1 if k % 2 == 0 else k
+    T = savgol_filter(measured_temperature, k, 3)
+    dTdt = np.gradient(T, measured_time, edge_order=2)
+    r = T + time_constant * dTdt
+
+    if order >= 1:
+        d2Tdt2 = np.gradient(dTdt, measured_time, edge_order=2)
+        r += 0.5 * (time_constant ** 2.0) * d2Tdt2
+    if order >= 2:
+        d3Tdt3 = np.gradient(d2Tdt2, measured_time, edge_order=2)
+        r += (1.0 / 6.0) * (time_constant ** 3.0) * d3Tdt3
+    return savgol_filter(r, k, 3)
 
 
 if __name__ == '__main__':
@@ -51,19 +51,21 @@ if __name__ == '__main__':
     # Time (s),TC1 (C),TC2 (C)
     measured_time = data_df['Time (s)'].values
     tc1 = data_df['TC1 (C)'].values
+    measured_time -= t0
 
-    tc1_smooth = savgol_filter(tc1, 81, 3)
+    idx_positive = (measured_time >= 0.0)  # & (measured_time <= 20.0)
+    measured_time = measured_time[idx_positive]
+    tc1 = tc1[idx_positive]
 
-    msk = (0.5 <= measured_time) & (measured_time <= 100)
+    # tc1_smooth = savgol_filter(tc1, 81, 3)
 
-    T0 = tc1_smooth[0]
-    dT = tc1_smooth[msk] - T0
+    msk = (0.0 <= measured_time) & (measured_time <= 10.0)
 
-    tc_ss = model(tc1_smooth, measured_time, tau)
+    # tc_ss = correct_thermocouple_response(tc1_smooth, measured_time, tau)
     # tc_ss = correct_thermocouple_response(
     #     measured_time=measured_time, measured_temperature=tc1, time_constant=tau
     # )
-    print(tc_ss)
+    # print(tc_ss)
 
     with open('plot_style.json', 'r') as file:
         json_file = json.load(file)
@@ -73,12 +75,20 @@ if __name__ == '__main__':
     fig, ax1 = plt.subplots()
     fig.set_size_inches(4.5, 3.25)
 
-    ax1.plot(measured_time, tc1)
+    ax1.plot(measured_time[msk], tc1[msk], label='Data', marker='o', fillstyle='none', ls='none')
 
-    ax1.plot(measured_time, tc_ss)
+    for i in range(4):
+        corrected_t = correct_thermocouple_response(
+            measured_time=measured_time, measured_temperature=tc1, time_constant=tau+0.5,
+            order=i
+        )
+        ax1.plot(
+            measured_time[msk], corrected_t[msk], label=f'Corrected, order {i}'
+        )
 
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel('Steady State Temperature (°C)')
+    ax1.legend(loc='best')
 
     fig.tight_layout()
     plt.show()

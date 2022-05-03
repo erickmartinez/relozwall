@@ -40,8 +40,10 @@ def simulate_1d_temperature(
     debug = bool(kwargs.get('debug', False))
     z_tc_1 = float(kwargs.get('z_tc_1', 1.0))
     cp = float(kwargs.get('cp', 710.0))
+    probe_size = float(kwargs.get('probe_size_mm', 2.0))
     Zprobe = [0, z_tc_1]
 
+    sb = 5.670374419E-8  # W m^{-2} K^{-4}
     q0mks = q0 * 1e6  # front surface heat flux [W/m2]
     chi = k0 / (cp * rho)  # thermal diffusivity [m^2/s]
     dt = t_max / M  # step size in t [s]
@@ -51,6 +53,8 @@ def simulate_1d_temperature(
     zV = dz * np.arange(0.0, N + 1, dtype=np.float64)
     TA = np.zeros((M + 1, N + 1), dtype=np.float64)
     TAdum = TA.copy()
+    probe_size_idx = int(probe_size * 1E-3 / dz)
+    probe_idx_delta = int(0.5 * probe_size_idx)
 
     if debug:
         print(f"L: {length} cm")
@@ -76,8 +80,13 @@ def simulate_1d_temperature(
         idx_probes[i] = (np.abs(zV - v * 1E-2)).argmin()
 
     if debug:
+        print("Probing temperature at positions:")
+        for ip in idx_probes:
+            print(f'z = {zV[ip] * 100.0:3.2f} cm')
+
+    if debug:
         check_probe_idx = [zV[i] for i in idx_probes]
-        # print(check_probe_idx)
+        print(check_probe_idx)
 
     iit0 = (np.abs(tV - pulse_length)).argmin()
     for iit in range(1, M + 1):
@@ -88,6 +97,11 @@ def simulate_1d_temperature(
 
     result = np.empty((idx_probes.size, M + 1), dtype=np.float64)
     for i, v in enumerate(Zprobe):
-        result[i, :] = TA[:, idx_probes[i]] + T0 - 273.15
+        if i > 0:
+            idx_1 = idx_probes[i] - probe_idx_delta
+            idx_2 = idx_probes[i] + probe_idx_delta
+            result[i, :] = TA[:, idx_1:idx_2].mean(axis=1) + T0 - 273.15
+        else:
+            result[i, :] = TA[:, idx_probes[i]] + T0 - 273.15
 
     return tV, result
