@@ -1,5 +1,5 @@
 """
-Copyright 2021 Erick R Martinez Loran
+Copyright 2022 Erick R Martinez Loran
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
@@ -15,17 +15,11 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER I
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 import numpy as np
-import matplotlib.pylab as plt
 import scipy as sp
 import scipy.sparse
-from scipy.sparse.linalg import spsolve
-import pandas as pd
 import h5py
 import time
 from scipy.sparse.linalg import factorized
-import os
-
-base_path = '/content/drive/MyDrive/python/ADI_ROD'
 
 
 def gaussian_beam(r: np.ndarray, beam_diameter: float, beam_power: float):
