@@ -346,7 +346,7 @@ def simulate_adi_temp(laser_power: float, r_holder: float, r_sample: float,
     while t_now <= t_max:
         if count % (report_every - 1) == 0 and debug:
             print(
-                f'Time: {t_now:4.3f} s, T(r={r[0]:3.3f}, x={x[0]:3.3f}) = {U_k1[0, 0]:5.1f}, T(r={r[idx_r]:3.3f}, x={x[idx_x1]:3.3f}) = {U_k1[idx_r, idx_x1-probe_idx_delta:idx_x1+probe_idx_delta].mean():5.1f}, T(r={r[-1]:3.3f}, x={x[idx_h]:3.3f}) = {U_k1[-1, idx_h]:5.1f}, Wall Time: {(time.time() - start_time) / 60.0:8.2f} min, Step Time: {(time.time() - step_time):6.3E} s')
+                f'Time: {t_now:4.3f} s, T(r={r[0]:3.3f}, x={x[0]:3.3f}) = {U_k1[0, 0]:6.1f}, T(r={r[idx_r]:3.3f}, x={x[idx_x1]:3.3f}) = {U_k1[idx_r, idx_x1-probe_idx_delta:idx_x1+probe_idx_delta].mean():6.1f}, T(r={r[-1]:3.3f}, x={x[idx_h]:3.3f}) = {U_k1[-1, idx_h]:5.1f}, Wall Time: {(time.time() - start_time) / 60.0:8.2f} min, Step Time: {(time.time() - step_time):6.3E} s')
 
         temperature_p1[count] = U_k1[idx_r, idx_x1-probe_idx_delta:idx_x1+probe_idx_delta].mean()
         temperature_p2[count] = U_k1[idx_r, idx_x2]

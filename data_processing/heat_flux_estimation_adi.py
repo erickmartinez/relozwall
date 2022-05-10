@@ -13,16 +13,24 @@ import json
 import ir_thermography.thermometry as irt
 import re
 import shutil
+import platform
+from scipy.optimize import OptimizeResult
+from scipy.optimize import least_squares
+from scipy.linalg import svd
+from scipy import interpolate
 
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
-csv_file = 'GR001C_1cm_probe_smoothed_temperature_data'
-data_file = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\LT_GR001CC_150mT_1cm_100PCT_60GAIN 2022-04-26_1.csv'
-load_model = False
-saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P4.50E+03'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
+# data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
+data_file = 'LT_GR008G_5mTorr_contact_shield_050PCT_60GAIN 2022-05-04_1'
+load_model = True
+saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P5.70E+03'
+saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P3.61E+03'
 
 time_constant = 2.1148
-qmax = 4.5E3
-emissivity = 1.0 - (36.9/100)
+# time_constant = 0.5
+qmax = 5.55E3 * 0.65
+emissivity = 1.0 - (36.9 / 100)
 reflectance = 40.4
 
 M = 200  # number of intervals in r
@@ -33,7 +41,7 @@ L = 5.0  # the length of the cylinder
 holder_thickness = 1.27
 dt = 1.0E-3
 beam_diameter = 1.5 * 0.8165  # cm
-probe_size = 3.0 # mm
+probe_size = 1.0  # mm
 
 thermography_spot_diameter = 0.4  # cm
 # thermography_spot_diameter = R_sample
@@ -54,6 +62,7 @@ https://poco.entegris.com/content/dam/poco/resources/reference-materials/brochur
 specific_heat_g = 0.6752  # Markelov, Volga, et al., 1973
 # k0_1 = 85E-2 # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=6310&c=4343521&h=Tz5uoWvr-nhJ13GL1b1lG8HrmYUqV1M_1bOTFQ2MMuiQapxt # GR001C
 k0_1 = 130E-2  # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=7164&c=4343521&h=8qpl24Kn0sh2rXtzPvd5WxQIPQumdO8SE5m3VRfVBFvLJZtj # GR008G
+# k0_1 = 200E-2
 k0_2 = 16.2E-2  # W / (cm K)
 
 # kappa_1 = 1.11 # Thermal diffusivity of copper in cm^2/s
@@ -68,6 +77,7 @@ t_max = 2.01
 x_tc_1 = 1.0
 x_tc_2 = 2.0
 
+
 # Kim Argonne National Lab 1965
 def cp_ss304l(temperature):
     return 4.184 * (0.1122 + 3.222E-5 * temperature)
@@ -80,10 +90,11 @@ def rho_ss304l(temperature):
 def thermal_conductivity_ss304l(temperature):
     return 8.11E-2 + 1.618E-4 * temperature
 
-k0_2 = thermal_conductivity_ss304l(T_a+273.15)
-cp_2 = cp_ss304l(T_a+273.15)
-rho_2 = rho_ss304l(T_a+273.15)
-kappa_2 = k0_2 / (cp_2*rho_2)
+
+k0_2 = thermal_conductivity_ss304l(T_a + 273.15)
+cp_2 = cp_ss304l(T_a + 273.15)
+rho_2 = rho_ss304l(T_a + 273.15)
+kappa_2 = k0_2 / (cp_2 * rho_2)
 
 
 def get_experiment_params(relative_path: str, filename: str):
@@ -117,13 +128,41 @@ def get_experiment_params(relative_path: str, filename: str):
     return params
 
 
-def correct_thermocouple_response(measured_temperature, measured_time, time_constant):
+def correct_thermocouple_response(measured_temperature, measured_time, tau):
     n = len(measured_time)
-    k = int(n / 6)
+    k = int(n / 10)
     k = k + 1 if k % 2 == 0 else k
-    T = savgol_filter(measured_temperature, k, 3)
+    T = savgol_filter(measured_temperature, k, 2)
     dTdt = np.gradient(T, measured_time, edge_order=2)
-    return savgol_filter(T + time_constant * dTdt, k - 2, 3)
+    # dTdt = savgol_filter(dTdt, k - 2, 3)
+    r = T + tau * dTdt
+    return savgol_filter(r, k - 4, 3)
+
+
+def fobj(beta: np.ndarray, tc: np.ndarray, tc_time: np.ndarray, y: np.ndarray) -> np.ndarray:
+    return correct_thermocouple_response(tc, tc_time, beta[0]) - y
+
+
+def get_pcov(res: OptimizeResult) -> np.ndarray:
+    popt = res.x
+    ysize = len(res.fun)
+    cost = 2 * res.cost  # res.cost is half sum of squares!
+    s_sq = cost / (ysize - popt.size)
+
+    # Do Moore-Penrose inverse discarding zero singular values.
+    _, s, VT = svd(res.jac, full_matrices=False)
+    threshold = np.finfo(float).eps * max(res.jac.shape) * s[0]
+    s = s[s > threshold]
+    VT = VT[:s.size]
+    pcov = np.dot(VT.T / s ** 2, VT)
+    pcov = pcov * s_sq
+
+    if pcov is None:
+        # indeterminate covariance
+        print('Failed estimating pcov')
+        pcov = np.zeros((len(popt), len(popt)), dtype=float)
+        pcov.fill(np.inf)
+    return pcov
 
 
 if __name__ == "__main__":
@@ -134,50 +173,31 @@ if __name__ == "__main__":
         plot_style = json_file['defaultPlotStyle']
     mpl.rcParams.update(plot_style)
 
-    measurements_df = pd.read_csv(data_file, comment='#').apply(pd.to_numeric)
-    data_filetag = os.path.splitext(data_file)[0]
-    experiment_params = get_experiment_params(relative_path=os.path.dirname(data_file), filename=data_filetag)
+    data_filetag = data_file
+    print(data_filetag)
+    experiment_params = get_experiment_params(relative_path=data_path, filename=data_filetag)
     photodiode_gain = experiment_params['Photodiode Gain']['value']
     laser_power_setting = experiment_params['Laser Power Setpoint']['value']
+    sample_name = experiment_params['Sample Name']['value']
+
+    temperature_path = os.path.join(data_path, 'temperature_data', f'{sample_name.upper()}_{laser_power_setting}')
+    if platform.system() == 'Windows':
+        temperature_path = r'\\?\\' + temperature_path
 
     thermometry = irt.PDThermometer()
 
-    measurement_time = measurements_df['Measurement Time (s)'].values
-    trigger_voltage = measurements_df['Trigger (V)'].values
-    photodiode_voltage = measurements_df['Photodiode Voltage (V)'].values
-    temperature_a = measurements_df['TC1 (C)'].values
-    temperature_b = measurements_df['TC2 (C)'].values
+    surface_temperature_df = pd.read_csv(os.path.join(temperature_path, f'{data_file}_surface_temp.csv'),
+                                         comment='#').apply(pd.to_numeric)
+    measurement_time = surface_temperature_df['Time (s)'].values
+    surface_temperature = surface_temperature_df['Surface Temperature (°C)'].values
 
-    t_max_idx = measurement_time <= 3.0
 
-    measurement_time = measurement_time[t_max_idx]
-    trigger_voltage = trigger_voltage[t_max_idx]
-    photodiode_voltage = photodiode_voltage[t_max_idx]
-    temperature_a = temperature_a[t_max_idx]
-    temperature_b = temperature_b[t_max_idx]
 
-    irradiation_time_idx = trigger_voltage > 0.5
-    irradiation_time = measurement_time[irradiation_time_idx]
-    reflection_signal = np.zeros_like(photodiode_voltage)
+    # thermocouple_df = pd.read_csv(os.path.join(temperature_path, f'{data_file}_corrected_temperature_data.csv'), comment='#').apply(pd.to_numeric)
+    # tc_time = thermocouple_df['Time (s)']
+    # temperature_a = thermocouple_df['Temperature A (C)'].values
 
-    t0 = irradiation_time.min()
-    irradiation_time -= t0
-    measurement_time -= t0
-    reflective_signal_zero_idx = (np.abs(measurement_time)).argmin()
-    base_line_msk = (0.0 < measurement_time) & (measurement_time < 0.5)
-    # print(base_line_msk)
-    reflection_signal[irradiation_time_idx] = photodiode_voltage[reflective_signal_zero_idx + 2]
-
-    print(f"Baseline signal: {photodiode_voltage[reflective_signal_zero_idx + 1]:.3f} V")
-    thermometry.gain = int(photodiode_gain)
-    print(f"Calibration Factor: {thermometry.calibration_factor}")
     thermometry.emissivity = emissivity
-
-    photodiode_corrected = photodiode_voltage - reflection_signal
-    time_pd_idx = photodiode_corrected > 0.0
-    measurement_time_pd = measurement_time[time_pd_idx]
-    photodiode_voltage_positive = photodiode_corrected[time_pd_idx]
-    temperature_pd = thermometry.get_temperature(voltage=photodiode_voltage_positive) - 273.15
 
     if not load_model:
         hf_file = simulate_adi_temp(
@@ -240,37 +260,76 @@ if __name__ == "__main__":
         ds_name = f'data/T_{i:d}'
         with h5py.File(hf_file_path, 'r') as hf:
             u = np.array(hf.get(ds_name))
-            tp1[i] = u[idx_r, idx_p1-probe_idx_delta:idx_p1+probe_idx_delta].mean()
+            tp1[i] = u[idx_r, idx_p1 - probe_idx_delta:idx_p1 + probe_idx_delta].mean()
             tp2[i] = u[idx_r, idx_p2]
             t_front[i] = u[0:idx_pd_spot, 0:3].mean()
             radiated_power[i] = sb * emissivity * ((t_front[i] + 273.15) ** 4.0 - (T_a + 273.15) ** 4.0)
             t_back[i] = u[0, -1]
 
-    tc_data_df = pd.read_csv(os.path.join(base_path, csv_file + '.csv')).apply(pd.to_numeric)
-    ta = tc_data_df['Temperature A (C)'].values
-    time_tc = tc_data_df['Time (s)'].values
-    idx_range = time_tc <= 2.0
-    t_steps = ta.size
-    ta -= ta.min() - 20.0
-    time_tc = time_tc[idx_range]
-    ta = ta[idx_range]
+    tc_csv = os.path.join(data_path, data_filetag + '_tcdata.csv')
+    tc_df = pd.read_csv(tc_csv, comment='#').apply(pd.to_numeric)
+    tc_time = tc_df['Time (s)'].values
+    temperature_a = tc_df['TC1 (C)'].values
+
+    b_guess = np.array([time_constant])
+    all_tol = np.finfo(np.float64).eps
+    # f = interpolate.interp1d(elapsed_time, tp1)
+    # msk_time = tc_time <= 2.0
+    # print('tc_time', tc_time)
+    # print('elapsed_time', elapsed_time)
+    # y = f(tc_time[msk_time])
+    # res = least_squares(
+    #     fobj, b_guess, args=(temperature_a[msk_time], tc_time[msk_time], y),
+    #     jac='3-point',
+    #     xtol=all_tol,
+    #     ftol=all_tol,
+    #     gtol=all_tol,
+    #     max_nfev=10000 * len(tc_time),
+    #     loss='soft_l1', f_scale=0.1,
+    #     verbose=2
+    # )
+    # popt = res.x
+    # print(f'time constant: {popt[0]}')
 
     ta_corrected = correct_thermocouple_response(
-        measured_time=time_tc, measured_temperature=ta, time_constant=time_constant
+        measured_time=tc_time, measured_temperature=temperature_a, tau=time_constant
     )
+
+    tol = 0.5
+    tc_0 = temperature_a[0]
+    print(f'TC[t=0]: {tc_0:4.2f} °C')
+    msk_onset = (temperature_a - tc_0) > tol
+    time_onset = tc_time[msk_onset]
+    time_onset = time_onset[0]
+    idx_onset = (np.abs(tc_time - time_onset)).argmin() - 5
+    # print(idx_onset)
+
+    tc_time = tc_time[idx_onset::]
+    tc_time -= tc_time.min()
+    temperature_a = temperature_a[idx_onset::]
+    ta_corrected = ta_corrected[idx_onset::]
+    tc_time_positive_idx = tc_time > 0
+    tc_time = tc_time[tc_time_positive_idx]
+    temperature_a = temperature_a[tc_time_positive_idx]
+    ta_corrected = ta_corrected[tc_time_positive_idx]
 
     fig, ax = plt.subplots(ncols=1)  # , constrained_layout=True)
     fig.set_size_inches(5.0, 3.5)
+
+    p0 = 0.5 * np.pi * qmax * (0.5 * beam_diameter) ** 2.0
+    estimated_power_density = p0 * (1.0 - np.exp(-2.0 * (2.0 * R_sample / beam_diameter) ** 2.0))
     ax.plot(
-        measurement_time_pd, temperature_pd, ls='none', label=f'Photodiode',
+        measurement_time, surface_temperature, ls='none', label=f'Photodiode',
         c='tab:red', marker='o', fillstyle='none'
     )
-    ax.plot(time_tc, ta, label='T(x=1.0 cm)', ls='none', color='tab:green', marker='s', fillstyle='none')
-    ax.plot(time_tc, ta_corrected, label=f'T(x=1.0 cm) (corrected)', ls='none',
+    ax.plot(tc_time, temperature_a, label='T(x=1.0 cm)', ls='none', color='tab:green', marker='s', fillstyle='none')
+    ax.plot(tc_time, ta_corrected, label=f'T(x=1.0 cm) (corrected)', ls='none',
             color='tab:olive', marker='^', fillstyle='none')
-    ax.plot(elapsed_time, t_front, label=f'Q={qmax * 0.01:.1f} MW/m$^{{\\mathregular{{2}}}}$, x=0.0 cm', c='tab:red',
+    ax.plot(elapsed_time, t_front,
+            label=f'Q={estimated_power_density * 0.01:.1f} MW/m$^{{\\mathregular{{2}}}}$, x=0.0 cm', c='tab:red',
             ls='-')
-    ax.plot(elapsed_time, tp1, label=f'Q={qmax * 0.01:.1f} MW/m$^{{\\mathregular{{2}}}}$, x=1.0 cm', c='tab:green',
+    ax.plot(elapsed_time, tp1, label=f'Q={estimated_power_density * 0.01:.1f} MW/m$^{{\\mathregular{{2}}}}$, x=1.0 cm',
+            c='tab:green',
             ls='-')
 
     leg = ax.legend(
@@ -280,16 +339,16 @@ if __name__ == "__main__":
     ax.tick_params(axis='y', right=True, zorder=10, which='both')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Temperature (°C)')
-    ax.set_title('3D Model')
+    ax.set_title(f'3D Model, {laser_power_setting} % Power')
     ax.set_xlim((0., 2.0))
-    ax.set_ylim((0., 1600.0))
+    ax.set_ylim(bottom=0.0)
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.125))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(400))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(100))
 
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, 'adi_raw_fit.eps'), dpi=600)
-    fig.savefig(os.path.join(base_path, 'adi_raw_fit.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, 'adi_raw_fit.png'), dpi=600)
+    fig.savefig(os.path.join(base_path, f'{data_filetag}_adi_raw_fit.eps'), dpi=600)
+    fig.savefig(os.path.join(base_path, f'{data_filetag}_adi_raw_fit.svg'), dpi=600)
+    fig.savefig(os.path.join(base_path, f'{data_filetag}_adi_raw_fit.png'), dpi=600)
     print(f"Filename: {hf_file}")
     plt.show()

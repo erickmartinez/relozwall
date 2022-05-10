@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import erfinv, erfc
 
 
 # Eric Hollmann's model
@@ -105,3 +106,5 @@ def simulate_1d_temperature(
             result[i, :] = TA[:, idx_probes[i]] + T0 - 273.15
 
     return tV, result
+
+

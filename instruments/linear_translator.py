@@ -10,6 +10,12 @@ class ISC08:
     """
     Represents the ISC08 (Integrated Stepper Controller 8 A)
     used by the linear translator in the extrusion system
+
+    Attributes
+    ----------
+    __address: str
+        The physical address of the motor driver
+
     """
     __address = 'COM6'
     __baud_rate = 57600
