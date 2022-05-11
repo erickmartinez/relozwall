@@ -24,7 +24,7 @@ data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firin
 # data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
 data_file = 'LT_GR008G_5mTorr_contact_shield_050PCT_60GAIN 2022-05-04_1'
 load_model = True
-saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P5.70E+03'
+# saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P5.70E+03'
 saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P3.61E+03'
 
 time_constant = 2.1148
@@ -130,12 +130,15 @@ def get_experiment_params(relative_path: str, filename: str):
 
 def correct_thermocouple_response(measured_temperature, measured_time, tau):
     n = len(measured_time)
-    k = int(n / 10)
+    k = int(n / 15)
     k = k + 1 if k % 2 == 0 else k
-    T = savgol_filter(measured_temperature, k, 2)
-    dTdt = np.gradient(T, measured_time, edge_order=2)
+    k = max(k, 5)
+    # T = savgol_filter(measured_temperature, k, 3)
+    # dTdt = np.gradient(T, measured_time, edge_order=2)
+    delta = measured_time[1] - measured_time[0]
+    dTdt = savgol_filter(x=measured_temperature, window_length=k, polyorder=4, deriv=1, delta=delta)
     # dTdt = savgol_filter(dTdt, k - 2, 3)
-    r = T + tau * dTdt
+    r = measured_temperature + tau * dTdt
     return savgol_filter(r, k - 4, 3)
 
 
@@ -295,13 +298,13 @@ if __name__ == "__main__":
         measured_time=tc_time, measured_temperature=temperature_a, tau=time_constant
     )
 
-    tol = 0.5
-    tc_0 = temperature_a[0]
+    tol = 0.25
+    tc_0 = temperature_a[0:5].mean()
     print(f'TC[t=0]: {tc_0:4.2f} °C')
     msk_onset = (temperature_a - tc_0) > tol
     time_onset = tc_time[msk_onset]
     time_onset = time_onset[0]
-    idx_onset = (np.abs(tc_time - time_onset)).argmin() - 5
+    idx_onset = (np.abs(tc_time - time_onset)).argmin() - 10
     # print(idx_onset)
 
     tc_time = tc_time[idx_onset::]
