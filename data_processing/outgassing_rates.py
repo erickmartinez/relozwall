@@ -1,6 +1,10 @@
 import numpy as np
 import os
 
+tube_furnace_base_pressure = 35E-3  # Torr
+tube_furnace_outgas_pressure = 39E-3  # Torr
+tube_furnace_outgas_time = 60.0  # s
+
 
 """
 Volume and surface of the laser chamber
@@ -31,4 +35,19 @@ print( '********* Extruder Chamber *********')
 print(f'V = {volume_extruder_chamber:.2f} cm^3 = {volume_extruder_chamber*1E-3:.2f} L')
 print(f'S = {surface_extruder_chamber:.2f} cm^2 = {surface_extruder_chamber*1E-4:.2f} m^2')
 
+"""
+24" Tube Furnace
+"""
+d, L = 2.54 * np.array([0.866, 29.0])  # cm
+r = 0.5 * d  # cm
+volume_tube_furnace = np.pi * r * r * L
+surface_tube_furnace = np.pi * (d * L + 2.0 * r * r)
+dP = tube_furnace_outgas_pressure - tube_furnace_base_pressure
+outgassing_rate_tube_furnace = dP * volume_tube_furnace * 1E-3 / (tube_furnace_outgas_time * surface_tube_furnace)
+
+print( '********* Tube Furnace *********')
+print(f'V = {volume_tube_furnace:.2f} cm^3 = {volume_tube_furnace*1E-3:.2f} L')
+print(f'S = {surface_tube_furnace:.2f} cm^2 = {surface_tube_furnace*1E-4:.2f} m^2')
+print(f'Outgassing Rate: {outgassing_rate_tube_furnace:.3E} Torr * L / (s * cm^2) = '
+      f'{outgassing_rate_tube_furnace*1E4:.3E} Torr * L / (s * m^2)')
 
