@@ -110,10 +110,26 @@ class ArduinoSerial:
 class ESP32Trigger(ArduinoSerial):
     __address = 'COM10'
     __pulse_duration_min = 40E-6
-    __pulse_duration_max = 3
+    __pulse_duration_max = 5
 
     def __init__(self, address: str):
         super().__init__(address=address)
+        check_connection = self.check_id()
+        if not check_connection:
+            msg = f"TRIGGER not found in port {self.address}"
+            raise SerialException(msg)
+
+    def check_id(self, attempt: int = 0) -> bool:
+        time.sleep(1.0)
+        check_id = self.query('i')
+        if check_id != 'TRIGGER':
+            if attempt <= 3:
+                attempt += 1
+                return self.check_id(attempt=attempt)
+            else:
+                return False
+        else:
+            return True
 
     @property
     def pulse_duration(self) -> float:
@@ -185,7 +201,7 @@ class DualTCLogger(ArduinoSerial):
         except ValueError as e:
             print(res, e)
             raise ValueError(e)
-        return temp
+        return np.array(temp, dtype=np.float64)
 
     def start_logging(self):
         self.write('l')
@@ -215,28 +231,38 @@ class DualTCLogger(ArduinoSerial):
             q = f't {interval_ms:.0f}'
             self.query(q=q)
 
-    def read_temperature_log(self):
+    def read_temperature_log(self, attempts=0):
         header_list = ["Time (s)", "TC1 (C)", "TC2 (C)"]
+        error_empty = False
         try:
             old_delay = self.delay
             old_timeout = self.timeout
-            self.delay = 3.0
-            self.timeout = 3.0
+            self.delay = 5.0
+            self.timeout = 5.0
             res = self.query('r')
-
+            print(res)
+            if (len(res) == 0) or (';' not in res) or res == '':
+                print('Error reading the temperatre log. Response:')
+                print(res)
+                print('Trying again...')
+                attempts += 1
+                if attempts < 10:
+                    return self.read_temperature_log(attempts=attempts)
+                else:
+                    error_empty == True
             df = pd.read_csv(io.StringIO(res), sep=',', lineterminator=";", names=header_list)
             df = df.apply(pd.to_numeric, errors='coerce')
             df.dropna(inplace=True)
-        except AttributeError as e:
-            print(res, e)
-            raise AttributeError(e)
         except ValueError as e:
             print(res, e)
             raise ValueError(e)
         finally:
             self.delay = old_delay
             self.timeout = old_timeout
-
+        if error_empty:
+            msg = 'Could not retrieve the temperature log or the response was incomplete:\n'
+            msg += res
+            raise SerialException(msg)
         return df
 
 

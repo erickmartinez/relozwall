@@ -11,7 +11,7 @@ import time
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
-from pymeasure.experiment import IntegerParameter, FloatParameter
+from pymeasure.experiment import IntegerParameter, FloatParameter, Parameter
 from pymeasure.experiment import unique_filename
 from instruments.imada import DST44A
 import sched
@@ -34,11 +34,13 @@ class FlexuralStressProcedure(Procedure):
     interval = FloatParameter('Sampling Interval', units='s', default=0.2)
     support_span = FloatParameter('Support Span', units='mm', default=40)
     beam_diameter = FloatParameter('Beam Diameter', units='mm', default=10)
+    sample_name = Parameter("Sample Name", default="UNKNOWN")
+
     __force_gauge: DST44A = None
-    __scheduler: sched.scheduler = None
+    # __scheduler: sched.scheduler = None
     __time_start: datetime.datetime = None
     __ndata_points: int = 0
-    __thread: threading.Thread = None
+    # __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
     __delay: float = 0.001
     port = 'COM5'
@@ -56,8 +58,8 @@ class FlexuralStressProcedure(Procedure):
 
     def execute(self):
         self.__ndata_points = int(self.experiment_time / self.interval)
-        self.__scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
-        self.__time_start = datetime.datetime.now()
+        # self.__scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
+        # self.__time_start = datetime.datetime.now()
 
         self.__failed_readings = 0
         log.info("Starting the loop of {0:d} datapoints.".format(self.__ndata_points))
@@ -65,37 +67,47 @@ class FlexuralStressProcedure(Procedure):
         delay = 0
         events = []
         n = 1
-        while delay <= self.experiment_time:
-            event_id = self.__scheduler.enterabs(
-                time=self.__time_start.timestamp() + delay, priority=1,
-                action=self.acquire_data, argument=(n,)
-            )
-            delay += self.interval
-            events.append(event_id)
-            n += 1
+        previous_time = 0.0
+        total_time = 0.0
 
-        self.__thread = threading.Thread(target=self.__scheduler.run)
+        start_time = time.time()
+        self.__time_start = start_time
+        while total_time <= self.experiment_time:
+            if self.should_stop():
+                log.warning("Caught the stop flag in the procedure")
+                break
+            current_time = time.time()
+            if (current_time - previous_time) >= self.interval:
+                self.acquire_data(n, current_time)
+                n += 1
+                total_time = time.time() - start_time
+                previous_time = current_time
+
+        # # log.info("elapsed time:")
+        # # log.info(elapsed_time)
+        # elapsed_time = np.array(elapsed_time, dtype=float)
+        # pressure = np.array(pressure, dtype=float)
+        #
+        # while delay <= self.experiment_time:
+        #     event_id = self.__scheduler.enterabs(
+        #         time=self.__time_start.timestamp() + delay, priority=1,
+        #         action=self.acquire_data, argument=(n,)
+        #     )
+        #     delay += self.interval
+        #     events.append(event_id)
+        #     n += 1
+        #
+        # self.__thread = threading.Thread(target=self.__scheduler.run)
         self.inhibit_sleep()
-        self.__thread.start()
-        self.__thread.join()
+        # self.__thread.start()
+        # self.__thread.join()
 
     def shutdown(self):
-        self.kill_queue()
         self.unhinibit_sleep()
 
-    def kill_queue(self):
-        self.unhinibit_sleep()
-        if self.__scheduler is not None:
-            for e in self.__scheduler.queue:
-                try:
-                    self.__scheduler.cancel(e)
-                except ValueError:
-                    pass
-
-    def acquire_data(self, n):
+    def acquire_data(self, n, current_time):
         if self.should_stop():
             log.warning("Caught the stop flag in the procedure")
-            self.kill_queue()
 
         force_data = self.__force_gauge.read()
         force = force_data['reading']
@@ -107,7 +119,8 @@ class FlexuralStressProcedure(Procedure):
         # https://en.wikipedia.org/wiki/Three-point_flexural_test
         sigma_f = 8.0 * force * self.support_span / np.pi / (self.beam_diameter ** 3.0) * 1E6
 
-        dt = (datetime.datetime.now() - self.__time_start).total_seconds()
+        # dt = (datetime.datetime.now() - self.__time_start).total_seconds()
+        dt = current_time - self.__time_start
         data = {
             "Time (s)": float(dt),
             "Force (N)": force,
@@ -132,7 +145,7 @@ class FlexuralStressProcedure(Procedure):
             self.__keep_alive = False
 
     def __del__(self):
-        self.kill_queue()
+        pass
 
 
 class MainWindow(ManagedWindow):
@@ -140,8 +153,8 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=FlexuralStressProcedure,
-            inputs=['experiment_time', 'interval', 'support_span', 'beam_diameter'],
-            displays=['experiment_time', 'interval', 'support_span', 'beam_diameter'],
+            inputs=['experiment_time', 'interval', 'support_span', 'beam_diameter', "sample_name"],
+            displays=['experiment_time', 'interval', 'support_span', 'beam_diameter', "sample_name"],
             x_axis="Time (s)",
             y_axis="Flexural Stress (Pa)",
             directory_input=True,
@@ -149,18 +162,21 @@ class MainWindow(ManagedWindow):
         self.setWindowTitle('3-Point Bend Test')
 
     def queue(self):
+        procedure: FlexuralStressProcedure = self.make_procedure()
+        sample_name = procedure.sample_name
         directory = self.directory
-        filename = unique_filename(directory, prefix='3PBT_')
-        log_file = os.path.splitext(filename)[0] + ' .log'
+        prefix = f'3PBT_{sample_name}_'
+        filename = unique_filename(directory, prefix=prefix)
+        log_file = os.path.splitext(filename)[0] + '.log'
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(log_file)
         fh.setFormatter(formatter)
         fh.setLevel(logging.DEBUG)
         log.addHandler(fh)
 
-        procedure = self.make_procedure()
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)
+        procedure.unique_filename = filename
 
         self.manager.queue(experiment)
 

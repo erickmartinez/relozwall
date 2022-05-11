@@ -59,11 +59,13 @@ class TBS2000:
     def reset(self):
         # REM = Remark
         self.write('REM "Check for any messages, and clear them from the queue."')
-        print("*** TBS2000B Reset ***")
-        print('*ESR? (Reset)')
-        print(self.sesr)
+        # print("*** TBS2000B Reset ***")
+        # print('*ESR? (Reset)')
+        sesr = self.sesr
+        # print(sesr)
         print('ALLEV? (Reset)')
-        print(self.all_events)
+        all_events = self.all_events
+        # print(all_events)
         self.write('REM "Set the instrument to the default state."')
         self.write('FACTORY')
         time.sleep(1.0)
@@ -75,7 +77,7 @@ class TBS2000:
         # self.write(f'HORizontal:POSITION = -3.0')
         self.write(f'HORizontal:RECOrdlength {self.record_length}')
         # self.write('ACQuire:NUMAVg 16')
-        self.horizontal_main_scale = t / 8.0
+        self.horizontal_main_scale = t / 12.0
         n_samples = int(self.sample_rate * t)
         # self.write(f'WFMINPRE:NR_PT {n_samples}')
         self.write(f'DATA INIT')
@@ -121,8 +123,8 @@ class TBS2000:
         # self.write(f'DATa:DESTination REFA')
         # self.write('DATa:ENCdg ASCII')
         self.write('DATa:ENCdg RPB')
-        print('DATA? Reponse:')
-        print(self.query('DATA?'))
+        # print('DATA? Reponse:')
+        # print(self.query('DATA?'))
         # wavfrm_str = self.query('WAVFrm?')
         # print('*********** WAVFrm Response?')
         # print(wavfrm_str)
