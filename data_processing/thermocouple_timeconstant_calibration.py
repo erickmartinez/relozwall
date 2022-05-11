@@ -17,7 +17,8 @@ import json
 from scipy import interpolate
 import confidence as cf
 
-base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\thermocouple time constant'
+# base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\thermocouple time constant'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
 tc_id = 'TC001'
 
 TC_LOGGER_COM = 'COM10'
@@ -241,4 +242,6 @@ if __name__ == '__main__':
 
         fig.tight_layout()
         fig.savefig(os.path.join(base_path, csv_file + '.png'), dpi=600)
+        fig.savefig(os.path.join(base_path, csv_file + '.eps'), dpi=600)
+        fig.savefig(os.path.join(base_path, csv_file + '.svg'), dpi=600)
         plt.show()

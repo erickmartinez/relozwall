@@ -10,6 +10,12 @@ class ISC08:
     """
     Represents the ISC08 (Integrated Stepper Controller 8 A)
     used by the linear translator in the extrusion system
+
+    Attributes
+    ----------
+    __address: str
+        The physical address of the motor driver
+
     """
     __address = 'COM6'
     __baud_rate = 57600
@@ -22,8 +28,7 @@ class ISC08:
     __serial: serial.Serial = None
     __speed: int = 60
     __direction: str = 'forward'
-    __calibration_m: float = 0.034
-    __calibration_b: float = -1.0
+    __calibration: {'a0': 0.5377032793, 'a1': 191.9863223, 'b0': 44.47470398, 'b1': 18.90660644}
 
     def __init__(self, address: str, m: float = None, b: float = None):
         self.__address = address
@@ -33,7 +38,7 @@ class ISC08:
             msg = f"ISC08 not found in port {self.address}"
             raise SerialException(msg)
         if m is not None:
-            self.__calibration_m = float(m)
+            self.__calibration = float(m)
         if b is not None:
             self.__calibration_b = float(b)
 
@@ -50,7 +55,12 @@ class ISC08:
 
     def set_speed_cms(self, value):
         value = abs(value)
-        voltage_setting = (value - self.__calibration_b) / self.__calibration_m
+        c = self.__calibration
+        if value < 50:
+            voltage_setting = c['a0'] + c['a1'] * value
+        else:
+            voltage_setting = c['b0'] + c['b1'] * value
+
         if (5.0 < voltage_setting) and (voltage_setting < 90.0):
             self.speed = voltage_setting
         else:
@@ -75,7 +85,7 @@ class ISC08:
 
     def load_calibration(self, m: float, b: float):
         if m is not None:
-            self.__calibration_m = float(m)
+            self.__calibration = float(m)
         if b is not None:
             self.__calibration_b = float(b)
 
