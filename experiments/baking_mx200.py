@@ -41,14 +41,17 @@ class BakingProcedure(Procedure):
     def startup(self):
         log.info("Setting up Televac MX200")
         self.__mx200 = MX200(address=self.port)
+        time.sleep(1.0)
         self.__mx200_delay = self.__mx200.delay
+        time.sleep(1.0)
         self.__mx200.units = 'MT'
+        time.sleep(1.0)
 
     def execute(self):
         self.__ndata_points = int(self.experiment_time * 3600 / self.interval)
         self.__scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
         self.__time_start = datetime.datetime.now()
-        self.__mx200.units = 'MT'
+        # self.__mx200.units = 'MT'
         # Reset the counter for failed readings
         self.__failed_readings = 0
         log.info("Starting the loop of {0:d} datapoints.".format(self.__ndata_points))

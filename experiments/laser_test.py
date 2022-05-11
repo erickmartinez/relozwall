@@ -37,7 +37,7 @@ SAMPLING_INTERVAL = 0.005
 
 
 class LaserProcedure(Procedure):
-    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=3.0)
+    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=5.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
     laser_power_setpoint = FloatParameter("Laser Power Setpoint", units='%', default=100, minimum=0.0, maximum=100.0)
     pd_gain = ListParameter('Photodiode Gain', choices=('0', '10', '20', '30', '40', '50', '60', '70'), units='dB',
@@ -83,6 +83,9 @@ class LaserProcedure(Procedure):
         self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
         total_time = self.measurement_time + self.emission_time
         self.__oscilloscope.set_acquisition_time(total_time)
+        self.__oscilloscope.write('ACQUIRE:STATE 0')
+        self.__oscilloscope.write('ACQUIRE:STOPAFTER SEQUENCE')
+        self.__oscilloscope.write('ACQuire:MODe SAMple')
         self.__mx200.units = 'MT'
         time.sleep(1.0)
 
@@ -94,7 +97,8 @@ class LaserProcedure(Procedure):
             raise e
 
         tc_logger = DualTCLogger(address=TC_LOGGER_COM)
-        time.sleep(2.0)
+        time.sleep(1.0)
+        print('Successfully initialized thermocouple readout...')
 
         esp32.pulse_duration = float(self.emission_time)
         time.sleep(0.5)
@@ -107,11 +111,8 @@ class LaserProcedure(Procedure):
         # time.sleep(0.05)
         t1 = time.time()
         tc_logger.log_time = self.measurement_time + self.emission_time
-        time.sleep(0.1)
+        time.sleep(0.5)
         tc_logger.start_logging()
-        self.__oscilloscope.write('ACQUIRE:STATE 0')
-        self.__oscilloscope.write('ACQUIRE:STOPAFTER SEQUENCE')
-        self.__oscilloscope.write('ACQuire:MODe SAMple')
         self.__oscilloscope.write('ACQUIRE:STATE ON')
         esp32.fire()
 
@@ -160,9 +161,16 @@ class LaserProcedure(Procedure):
         # print(self.__oscilloscope.sesr)
         # print(self.__oscilloscope.all_events)
         data = self.__oscilloscope.get_curve(channel=THERMOMETRY_CHANNEL)
+        time.sleep(1.0)
         reference = self.__oscilloscope.get_curve(channel=TRIGGER_CHANNEL)
-        tc_data: pd.DataFrame = tc_logger.read_temperature_log()
-        time.sleep(5.0)
+        time.sleep(1.0)
+        try:
+            tc_data: pd.DataFrame = tc_logger.read_temperature_log()
+        except (SerialException, ValueError) as e:
+            log.error(e)
+            raise ValueError(e)
+
+        time.sleep(10.0)
         print(tc_data)
 
         columns = data.dtype.names
@@ -265,9 +273,9 @@ class MainWindow(ManagedWindow):
         laser_setpoint = procedure.laser_power_setpoint
         photodiode_gain = procedure.pd_gain
 
-        prefix = f'LT_{sample_name}_{laser_setpoint:03.0f}PCT_{photodiode_gain}GAIN '
+        prefix = f'LT_{sample_name}_{laser_setpoint:03.0f}PCT_{photodiode_gain}GAIN_'
         filename = unique_filename(directory, prefix=prefix)
-        log_file = os.path.splitext(filename)[0] + ' .log'
+        log_file = os.path.splitext(filename)[0] + '.log'
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(log_file)
         fh.setFormatter(formatter)
