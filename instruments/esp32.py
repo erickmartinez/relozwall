@@ -179,8 +179,14 @@ class DualTCLogger(ArduinoSerial):
             raise SerialException(msg)
 
     def check_id(self, attempt: int = 0) -> bool:
-        time.sleep(1.0)
+        time.sleep(0.5)
+        old_delay = self.delay
+        old_timeout = self.timeout
+        self.delay = 1.0
+        self.timeout = 1.0
         check_id = self.query('i')
+        self.delay = old_delay
+        self.timeout = old_timeout
         if check_id != 'TCLOGGER':
             if attempt <= 3:
                 attempt += 1
@@ -229,7 +235,7 @@ class DualTCLogger(ArduinoSerial):
         else:
             interval_ms = value_in_seconds * 1000.0
             q = f't {interval_ms:.0f}'
-            self.query(q=q)
+            self.write(q=q)
 
     def read_temperature_log(self, attempts=0):
         header_list = ["Time (s)", "TC1 (C)", "TC2 (C)"]
@@ -249,7 +255,7 @@ class DualTCLogger(ArduinoSerial):
                 if attempts < 10:
                     return self.read_temperature_log(attempts=attempts)
                 else:
-                    error_empty == True
+                    error_empty = True
             df = pd.read_csv(io.StringIO(res), sep=',', lineterminator=";", names=header_list)
             df = df.apply(pd.to_numeric, errors='coerce')
             df.dropna(inplace=True)

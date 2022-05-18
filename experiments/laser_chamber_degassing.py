@@ -22,6 +22,7 @@ TC_LOGGER_COM = 'COM10'
 
 chamber_volume = 34.0  # L
 
+
 def number_density(chamber_pressure, chamber_temperature):
     """
     kb = 1.380649e-23  # J/k = N * m / K
@@ -35,13 +36,13 @@ def number_density(chamber_pressure, chamber_temperature):
 
 class LaserChamberDegassing(Procedure):
     measurement_time = FloatParameter('Measurement Time', units='h', default=1.0, minimum=0.1667, maximum=48.0)
+    interval = FloatParameter('Sampling Interval', units='s', default=0.1, minimum=0.1, maximum=60)
     sample_name = Parameter("Sample Name", default="UNKNOWN")
 
     __mx200: MX200 = None
     __mx200_delay: float = 0.05
     __temperature_readout: DualTCLogger = None
     __keep_alive: bool = False
-    __interval: float = 1.0 # sampling interval in seconds
     __time_start = None
     __ndata_points: int = None
     __previous_reading: dict = None
@@ -82,27 +83,26 @@ class LaserChamberDegassing(Procedure):
         self.__temperature_readout.close()
 
     def execute(self):
-        self.__ndata_points = int(self.measurement_time * 3600 / self.__interval)
+        self.__ndata_points = int(self.measurement_time * 3600 / self.interval)
         n = 1
         previous_time = 0.0
         total_time = 0.0
         self.inhibit_sleep()
         self.__time_start = time.time()
         self.__is_degassing: bool = False
-        degassing_time = 0.0
         while total_time <= self.measurement_time * 3600.0:
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
                 break
             current_time = time.time()
-            if (current_time - previous_time) >= self.__interval:
+            if (current_time - previous_time) >= self.interval:
                 self.acquire_data(n, current_time)
                 n += 1
                 total_time = time.time() - self.__time_start
-                if self.__previous_reading['Pressure (Torr)'] <= 6E-3:
-                    if not is_degassing:
-                        __degassing_time_start = time.time()
-                        is_degassing = True
+                if self.__previous_reading['Pressure (Torr)'] <= 10E-3:
+                    if not self.__is_degassing:
+                        self.__degassing_time_start = time.time()
+                        self.__is_degassing = True
                 previous_time = current_time
 
         self.unhinibit_sleep()
@@ -130,7 +130,7 @@ class LaserChamberDegassing(Procedure):
             "TC1 (C)": tc1,
             "TC2 (C)": tc2,
             "n (1/cm^3)": n,
-            "Degassing Time (h)": degassing_time
+            "Degassing Time (h)": degassing_time / 3600.0
         }
 
         # log.info(f"Time: {dt:.3f}, Pressure: {p:6.3E}, TC1: {tc1:5.2f} °C, TC2: {tc2:5.2f} °C, n: {n:.3E} 1/cm^3")
@@ -155,8 +155,8 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=LaserChamberDegassing,
-            inputs=["measurement_time", "sample_name"],
-            displays=["measurement_time", "sample_name"],
+            inputs=["measurement_time", "sample_name", "interval"],
+            displays=["measurement_time", "sample_name", "interval"],
             x_axis="Measurement Time (h)",
             y_axis="Pressure (Torr)",
             directory_input=True,

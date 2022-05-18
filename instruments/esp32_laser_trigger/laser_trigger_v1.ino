@@ -1,5 +1,5 @@
 
-#define INTERVAL_MAX 3000
+#define INTERVAL_MAX 5000
 #define SERIAL_SPEED 115200
 const unsigned int BUFFER_LENGTH = 50;
 
@@ -38,11 +38,14 @@ void loop() {
   unsigned long inputExposureTime;
   unsigned long currentMillis = millis();
   unsigned long intervalUS = intervalMS * 1000;
-  
+
   if(Serial.available()) {
     input = Serial.readStringUntil(0x0D);
     rxChar = input[0];
     switch (rxChar) {
+      case 0x69: // i as in id
+        Serial.print("TRIGGER\n");
+        break;
       case 0x66: // 'f': Fire the laser
           fireLaser();
         break;

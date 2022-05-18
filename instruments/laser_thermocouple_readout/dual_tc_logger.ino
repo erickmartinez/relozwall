@@ -34,7 +34,7 @@ char responseBuffer[50];
 unsigned long dt = 5;  // 10 ms
 unsigned long lcdInterval;
 unsigned long lcdPreviousMillis;
-unsigned long duration = 2000;
+unsigned long duration = 5000;
 char dataLineBuffer[20];
 double elapsedTime;
 
@@ -45,13 +45,15 @@ String logData;
 unsigned long logStartTime;
 
 void lcdTemperature(double t1, double t2) {
-  char buff[28]; // Buffer big enough for 7-character float
+  char buff[30]; // Buffer big enough for 7-character float
   display.clearDisplay();
   display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.cp437(true);         // Use full 256 char 'Code Page 437' font
+//  display.cp437(true);         // Use full 256 char 'Code Page 437' font
   display.setCursor(0, 0);     // Start at top-left corner
-  snprintf(buff, sizeof(buff), "TC1: %6.2f C\nTC2: %6.2f C", t1, t2);
+  display.println("Laser Stand");
+  display.println("--------------");
+  snprintf(buff, sizeof(buff), "TC1: %6.2f \367C\nTC2: %6.2f \367C", t1, t2);
   display.println(buff);
   display.display();
   delay(10);
@@ -106,14 +108,15 @@ void loop() {
         break;
   		case 0x6c: // l as in log
         elapsedTime = 0.0;
-        logStartTime = millis();
+        logStartTime = currentMillis;
         logData = "";
   			logFlag = true;
+        hasLog = false;
   			break;
   		case 0x74: // t
         logFlag = false;
   			if (input[1] == 0x3F) { // If '?' found
-  				sprintf(responseBuffer, "%lu", dt);
+  				sprintf(responseBuffer, "%lu", duration);
   				Serial.print(responseBuffer);
           Serial.print("\n");
   				break;
@@ -121,9 +124,9 @@ void loop() {
   			duration = (unsigned long) atol(input.substring(2).c_str());
         estimatedDt = (duration + 500) / N_POINTS;
         dt = (unsigned long) max(estimatedDt, 5.0);
-  			sprintf(responseBuffer, "%lu", dt);
+  			/*sprintf(responseBuffer, "%lu", dt);
   			Serial.print(responseBuffer);
-        Serial.print("\n");
+        Serial.print("\n");*/
   			break;
       case 0x72: // r as in read
         logFlag = false;
@@ -156,7 +159,7 @@ void loop() {
         snprintf(dataLineBuffer, sizeof(dataLineBuffer), "%6.4f,%6.2f,%6.2f", elapsedTime, t1, t2);
         logData = logData + dataLineBuffer + ";";
         hasLog = true;
-        if (elapsedTime >= duration + 500) {
+        if (int(elapsedTime * 1000.0) >= duration + 500) {
           logFlag = false;
         }
       } else {
