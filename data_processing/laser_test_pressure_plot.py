@@ -9,15 +9,17 @@ import json
 from matplotlib.ticker import ScalarFormatter
 import re
 
-chamber_volume = 34 # L
+chamber_volume = 31.57 # L
 
 # base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES"
 # base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS"
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
+# base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
 
 # filename = 'BINDER_SCAN_PLOT'
 # filename = 'STARTING_MATERIALS'
-filename = 'R3N18_MULTIPLE_FIRINGS'
+# filename = 'R3N18_MULTIPLE_FIRINGS'
+filename = 'GC_GRAPHITE_DEGASSING'
 
 # filelist = ['LT_R3N12_100PCT_40GAIN 2022-03-01_1', 'LT_R3N10_100PCT_40GAIN 2022-03-01_1',
 #             'LT_R3N3_100PCT_40GAIN 2022-03-02_1', 'LT_R3N14_100PCT_40GAIN 2022-03-02_1']
@@ -29,16 +31,26 @@ filename = 'R3N18_MULTIPLE_FIRINGS'
 #     "LT_hBN_100PCT_40GAIN 2022-03-21_1",
 #     # 'LT_R3N10_100PCT_40GAIN 2022-03-01_1'
 # ]
+# filelist = [
+#     'LT_R3N18_100PCT_40GAIN 2022-03-09_1',
+#     'LT_R3N18_100PCT_40GAIN 2022-03-09_2',
+#     'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
+#     'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
+#     # 'LT_R3N18_100PCT_50GAIN 2022-03-10_1',
+#     # 'LT_R3N18_100PCT_40GAIN 2022-03-14_1',
+#     # 'LT_R3N20_100PCT_40GAIN 2022-03-15_1',
+#     # 'LT_R3N20_100PCT_40GAIN 2022-03-15_2'
+# ]
+
 filelist = [
-    'LT_R3N18_100PCT_40GAIN 2022-03-09_1',
-    'LT_R3N18_100PCT_40GAIN 2022-03-09_2',
-    'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
-    'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
-    # 'LT_R3N18_100PCT_50GAIN 2022-03-10_1',
-    # 'LT_R3N18_100PCT_40GAIN 2022-03-14_1',
-    # 'LT_R3N20_100PCT_40GAIN 2022-03-15_1',
-    # 'LT_R3N20_100PCT_40GAIN 2022-03-15_2'
+    'LT_R3N40_100PCT_66.25h_2022-05-16_1',
+    'LT_R3N20_100PCT_12.0h_2022-05-12_1',
+    'LT_R3N40_100PCT_4.0h_2022-05-16_1',
+    'LT_R3N20_100PCT_1.0h_2022-05-12_1',
+    'LT_R3N40_NEGATIVE_2.5h_100PCT_2.5h_2022-05-17_1',
+    'LT_R3N40_2_NEGATIVE_3.5h_100PCT_3.5h_2022-05-17_1'
 ]
+
 # legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder', '4:1 GC to BN']
 # legends = ["Matrix Carbon",
 #            'GC Type 1',
@@ -48,15 +60,19 @@ filelist = [
 #            "hBN",
 #            # "70% GC Type 2,\n15% Resin,\n15% Carbon Black"
 #            ]
+# legends = [
+#     'First (Same day)',
+#     'Second (Same day)',
+#     'First (Overnight)',
+#     'Second (Overnight)',
+#     # 'Single Exposure',
+#     # 'Second Exposure',
+#     # 'Graphite (First)',
+#     # 'Graphite (Second)'
+# ]
+
 legends = [
-    'First (Same day)',
-    'Second (Same day)',
-    'First (Overnight)',
-    'Second (Overnight)',
-    # 'Single Exposure',
-    # 'Second Exposure',
-    # 'Graphite (First)',
-    # 'Graphite (Second)'
+    '66 h', '12 h', '4 h', '1 h', '-2.5 h', '-3.5 h'
 ]
 
 colors = plt.cm.cividis(np.linspace(0, 1, len(filelist)))
