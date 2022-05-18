@@ -10,14 +10,18 @@ from scipy import stats
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\Sample_50'
 # csv_file = 'Sample50_debris_distribution_3kW_1s.csv'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
-csv_file = r'R3N21_100PCT_POWER_20220415_160521140_RESULTS.csv'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
+# base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
+csv_file = r'R3N40_-3.5h_DEGASSING_20220518_004952253_results.csv'
+tray_width_mm = 21.0 * 0.5 * 25.4
 units = 'mm'
 
-label = "100% Laser Power"
+label = "-3.5 h - Degassing"
 
 height = 5. * 2.54  # cm
-x_center = 4.25 * 2.54  #
+# x_center = 0.5 * 8 * 2.54  #
+x_center = 0.5 * 9.0 * 2.54  #
+y_center = 0.5 * 1.0 * 2.54
 g = 9.8E2  # cm/s^2
 
 if __name__ == "__main__":
@@ -26,7 +30,7 @@ if __name__ == "__main__":
     df = df.apply(pd.to_numeric)
     xm = df['XM'].values - x_center
     ym = df['YM'].values
-    ym = ym - ym.min()
+    ym = ym.max() - ym - y_center
     rm = np.sqrt(xm**2.0 + ym**2.0)
     if units == 'mm':
         rm *= 0.1
@@ -62,7 +66,7 @@ if __name__ == "__main__":
     mode_index = n.argmax()
     vx_mode = 0.5 * (bins[mode_index]+bins[mode_index+1])
 
-    print(vx_mode)
+    print(f'Velocity Mode: {vx_mode:.1f} cm/s')
     results = f'$v_{{\\mathrm{{mean}}}} = {vx_mean:.0f}$ cm/s\n' \
               f'$v_{{\\mathrm{{std}}}}  \\quad= {vx_std:.0f}$ cm/s\n' \
               f'$v_{{\\mathrm{{mode}}}} = {vx_mode:.0f}$ cm/s\n' \

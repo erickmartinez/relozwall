@@ -21,15 +21,17 @@ from scipy import interpolate
 
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
 data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
-# data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
-data_file = 'LT_GR008G_5mTorr_contact_shield_050PCT_60GAIN 2022-05-04_1'
+data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
+# data_file = 'LT_GR008G_5mTorr_contact_shield_050PCT_60GAIN 2022-05-04_1'
 load_model = True
 # saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P5.70E+03'
-saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P3.61E+03'
+# saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P3.61E+03'
+saved_h5 = 'ADI_k1_6.96E-01_chi_0.60_P4.85E+03'
 
-time_constant = 2.1148
+time_constant = 1.65 ##2.1148
 # time_constant = 0.5
-qmax = 5.55E3 * 0.65
+# qmax = 5.55E3 * 0.65
+qmax = 4.85E3
 emissivity = 1.0 - (36.9 / 100)
 reflectance = 40.4
 
@@ -41,12 +43,12 @@ L = 5.0  # the length of the cylinder
 holder_thickness = 1.27
 dt = 1.0E-3
 beam_diameter = 1.5 * 0.8165  # cm
-probe_size = 1.0  # mm
+probe_size = 2.0  # mm
 
-thermography_spot_diameter = 0.4  # cm
+thermography_spot_diameter = 0.8  # cm
 # thermography_spot_diameter = R_sample
-density_g = 1.76  # g / cm^3 # GR008G
-# density_g = 1.81 # g / cm^3 # GR001CC
+# density_g = 1.76  # g / cm^3 # GR008G
+density_g = 1.81 # g / cm^3 # GR001CC
 """ 
 It has been found that the values of heat capacity for all
 types of natural and manufactured graphites are basically
@@ -60,8 +62,8 @@ https://poco.entegris.com/content/dam/poco/resources/reference-materials/brochur
 """
 # specific_heat_g = 0.712 # J / g / K
 specific_heat_g = 0.6752  # Markelov, Volga, et al., 1973
-# k0_1 = 85E-2 # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=6310&c=4343521&h=Tz5uoWvr-nhJ13GL1b1lG8HrmYUqV1M_1bOTFQ2MMuiQapxt # GR001C
-k0_1 = 130E-2  # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=7164&c=4343521&h=8qpl24Kn0sh2rXtzPvd5WxQIPQumdO8SE5m3VRfVBFvLJZtj # GR008G
+k0_1 = 85E-2 # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=6310&c=4343521&h=Tz5uoWvr-nhJ13GL1b1lG8HrmYUqV1M_1bOTFQ2MMuiQapxt # GR001C
+# k0_1 = 130E-2  # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=7164&c=4343521&h=8qpl24Kn0sh2rXtzPvd5WxQIPQumdO8SE5m3VRfVBFvLJZtj # GR008G
 # k0_1 = 200E-2
 k0_2 = 16.2E-2  # W / (cm K)
 
