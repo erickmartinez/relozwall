@@ -33,7 +33,7 @@ SAMPLING_INTERVAL = 0.005
 
 
 class LaserProcedure(Procedure):
-    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=5.0)
+    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=10.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
     laser_power_setpoint = FloatParameter("Laser Power Setpoint", units="%", default=100, minimum=0.0, maximum=100.0)
     degassing_time = FloatParameter('Degassing Time', units='h', default='1', minimum=0.0, maximum=1000.0)
@@ -94,11 +94,11 @@ class LaserProcedure(Procedure):
             raise e
 
         tc_logger = DualTCLogger(address=TC_LOGGER_COM)
-        time.sleep(1.0)
+        time.sleep(0.1)
         print('Successfully initialized thermocouple readout...')
 
         esp32.pulse_duration = float(self.emission_time)
-        time.sleep(0.5)
+        time.sleep(0.1)
         et = esp32.pulse_duration
         log.info(f'Pulse duration: {et:.2f} s.')
 
@@ -108,7 +108,7 @@ class LaserProcedure(Procedure):
         # time.sleep(0.05)
         t1 = time.time()
         tc_logger.log_time = self.measurement_time + self.emission_time
-        time.sleep(0.5)
+        time.sleep(0.1)
         tc_logger.start_logging()
         self.__oscilloscope.write('ACQUIRE:STATE ON')
         esp32.fire()
@@ -167,7 +167,7 @@ class LaserProcedure(Procedure):
             log.error(e)
             raise ValueError(e)
 
-        time.sleep(10.0)
+        time.sleep(2.0)
         print(tc_data)
 
         columns = data.dtype.names
@@ -192,6 +192,7 @@ class LaserProcedure(Procedure):
         tc_data.to_csv(filename, index=False)
 
         data = data[data[columns[0]] <= time_tc.max()]
+        reference = reference[reference[columns_ref[0]] <= time_tc.max()]
         time_osc = data[columns[0]]
         print('time_osc:')
         print(time_osc)
@@ -201,10 +202,10 @@ class LaserProcedure(Procedure):
         print(time_tc)
         print(f'len(time_tc): {len(time_tc)}, time_tc.min = {time_tc.min()}, time_tc.max = {time_tc.max()}')
 
-        msk_tmax = time_osc <= time_tc.max()
-        data = data[msk_tmax]
-        reference = reference[msk_tmax]
-        time_osc = data[columns[0]]
+        # msk_tmax = time_osc <= time_tc.max()
+        # data = data[msk_tmax]
+        # reference = reference[msk_tmax]
+        # time_osc = data[columns[0]]
 
         msk_tmin = time_osc >= time_tc.min()
         data = data[msk_tmin]

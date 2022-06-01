@@ -41,7 +41,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_MAX31855 thermocouple1(MAXCLK1, MAXCS1, MAXDO1);
 Adafruit_MAX31855 thermocouple2(MAXCLK2, MAXCS2, MAXDO2);
 
-float calibrationFactor = 8676.3;
+float calibrationFactor = 14651;
 long zeroFactor;
 unsigned long lcdInterval;
 unsigned long lcdPreviousMillis;
@@ -95,7 +95,7 @@ void scanI2C() {
         Serial.print("0");
       }
       Serial.println(address,HEX);
-    }
+    }    
   }
   if (nDevices == 0) {
     Serial.println("No I2C devices found\n");
@@ -107,7 +107,7 @@ void scanI2C() {
 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200); 
   delay(500);
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   I2C_SSD1306.begin(I2C_SDA, I2C_SCL, 100000);
@@ -117,8 +117,8 @@ void setup() {
   scale.set_scale(calibrationFactor);
   scale.tare(10); //Reset the scale to 0
   zeroFactor = scale.read_average(); //Get a baseline reading
-
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+  
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { 
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
@@ -202,5 +202,5 @@ void loop() {
       lcdUpdate(t1, t2, float(f), potADC);
       lcdPreviousMillis = currentMillis;
   }
-
+  
 }

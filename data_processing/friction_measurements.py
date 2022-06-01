@@ -13,13 +13,17 @@ import matplotlib.ticker as ticker
 
 EXT_READOUT_COM = 'COM12'
 ISC08_COM = 'COM4'
-SPEED_CMS = 1.1
+SPEED_CMS = 0.57
+# MOVING_LENGTH = 12.0 # in
+MOVING_LENGTH = 10.0 / 2.54 # in <--- During heating move only 15 cm (or the length of the coil)
 speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
 
 base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
-sample = 'R3N32_1000C'
+sample = 'R3N41_800C'
 plot_csv = True
-csv_file = 'FRICTION_R3N32_1000C_1.10CMPS_20220419-113439.csv'
+csv_file = 'FRICTION_R3N41_800C_0.57CMPS_20220525-103918.csv'
+calibration_factor = 14651.0
+load_cell_prediction_error_pct = 15.7 # %
 
 
 def move_forward_by_distance(distance_cm):
@@ -200,7 +204,7 @@ if __name__ == "__main__":
 
         speed_setting = SPEED_SETTING  # experiment.cmps_to_speed_setting(cmps=SPEED_CMS)
         print(f"Speed setting: {speed_setting}")
-        max_distance_in = 12.0
+        max_distance_in = MOVING_LENGTH
         max_distance = max_distance_in * 2.54  # cm
         moving_time = max_distance / SPEED_CMS
 
@@ -257,3 +261,5 @@ if __name__ == "__main__":
 
         print(friction_df)
         friction_df.to_csv(path_or_buf=os.path.join(base_path, file_tag + '.csv'), index=False)
+        print('Path of the results file:')
+        print(os.path.join(base_path, file_tag + '.csv'))
