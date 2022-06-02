@@ -10,13 +10,14 @@ from scipy import stats
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\Sample_50'
 # csv_file = 'Sample50_debris_distribution_3kW_1s.csv'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
-# base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
-csv_file = r'R3N40_-3.5h_DEGASSING_20220518_004952253_results.csv'
+# base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
+# csv_file = r'R3N40_-2.5h_DEGASSING_20220517_230330504_results.csv'
+csv_file = 'R3N21_100PCT_POWER_20220415_160521140_RESULTS.csv'
 tray_width_mm = 21.0 * 0.5 * 25.4
 units = 'mm'
 
-label = "-3.5 h - Degassing"
+label = "100% Laser Power"
 
 height = 5. * 2.54  # cm
 # x_center = 0.5 * 8 * 2.54  #

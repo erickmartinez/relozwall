@@ -48,7 +48,8 @@ filelist = [
     'LT_R3N40_100PCT_4.0h_2022-05-16_1',
     'LT_R3N20_100PCT_1.0h_2022-05-12_1',
     'LT_R3N40_NEGATIVE_2.5h_100PCT_2.5h_2022-05-17_1',
-    'LT_R3N40_2_NEGATIVE_3.5h_100PCT_3.5h_2022-05-17_1'
+    'LT_R3N40_2_NEGATIVE_3.5h_100PCT_3.5h_2022-05-17_1',
+    'LT_R3N40_100PCT_0.2h_2022-05-18_1'
 ]
 
 # legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder', '4:1 GC to BN']
@@ -72,7 +73,7 @@ filelist = [
 # ]
 
 legends = [
-    '66 h', '12 h', '4 h', '1 h', '-2.5 h', '-3.5 h'
+    '66 h', '12 h', '4 h', '1 h', '-2.5 h', '-3.5 h', '0.2 h'
 ]
 
 colors = plt.cm.cividis(np.linspace(0, 1, len(filelist)))

@@ -10,10 +10,14 @@ import ir_thermography.thermometry as irt
 import matplotlib.ticker as ticker
 import matplotlib.gridspec as gridspec
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER'
-csv_database = r'R3N21_firing_database.csv'
-chamber_volume = 34  # L
-max_time = 2.0  # s
+# base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER\graphite'
+# csv_database = r'R3N21_firing_database.csv'
+csv_database = 'GT001688_firing_database.csv'
+chamber_volume = 31.57 # L
+max_time = 4.0  # s
+
+heat_flux_at_100pct = 25.2 # MW/m2
 
 
 def plot_pressure(base_path: str, filelist: List, legends: List, output_filename: str, colors, display=False,
@@ -145,6 +149,8 @@ if __name__ == '__main__':
     ax2 = fig.add_subplot(gs[1])
 
     laser_power_setpoint_list = []
+    max_temperature = np.empty(len(filelist), dtype=np.float64)
+    heat_flux = np.empty_like(max_temperature)
 
     for i, file in enumerate(filelist):
         file = file.strip()
@@ -154,6 +160,7 @@ if __name__ == '__main__':
         photodiode_gain = experiment_params['Photodiode Gain']['value']
         laser_power_setting = experiment_params['Laser Power Setpoint']['value']
         laser_power_setpoint_list.append(laser_power_setting)
+        heat_flux[i] = heat_flux_at_100pct * float(laser_power_setting) * 1E-2
         ir_df = pd.read_csv(os.path.join(base_path, csv_file)).apply(pd.to_numeric)
         ir_df = ir_df[ir_df['Time (s)'] <= max_time]
         ir_df = ir_df[ir_df['Voltage (V)'] > 0.0]
@@ -166,6 +173,11 @@ if __name__ == '__main__':
             time_s -= 0.067
         voltage = ir_df['Voltage (V)'].values
         temperature_c = thermometry.get_temperature(voltage=voltage) - 273.15
+        if len(temperature_c) > 0:
+            max_temperature[i] = temperature_c.max()
+            print(temperature_c)
+        else:
+            max_temperature[i] = 20.0
 
         lbl = f'{float(laser_power_setting):3.0f} % Power'
 
@@ -181,7 +193,10 @@ if __name__ == '__main__':
         pressure_data = pressure_data.apply(pd.to_numeric)
         time_s = pressure_data['Time (s)'].values
         time_s -= time_s.min() + 0.5
+        time_msk = time_s >= 0.0
+        time_s = time_s[time_msk]
         pressure = 1000 * pressure_data['Pressure (Torr)'].values
+        pressure = pressure[time_msk]
         base_pressures[i] = pressure[0]
         peak_pressures[i] = pressure.max()
         idx_peak = (np.abs(pressure - peak_pressures[i])).argmin()
@@ -189,24 +204,25 @@ if __name__ == '__main__':
 
         ax2.plot(time_s, pressure, label=lbl, color=colors[i], lw=1.75)
 
-    ax2.set_xlabel('Time (s)')
-    ax2.set_ylabel('Pressure (mTorr)')
-
-    ax1.set_ylabel('Temperature (°C)')
-    ax1.set_ylim(top=2750)
-    ax2.set_ylim(top=40)
     ax1.set_xlabel('Time (s)')
+    ax2.set_xlabel('Time (s)')
+    ax2.set_ylabel('Chamber pressure (mTorr)')
+
+    ax1.set_ylabel('Surface temperature (°C)')
+    ax1.set_ylim(top=3000)
+    # ax2.set_ylim(top=40)
+    # ax1.set_xlabel('Time (s)')
     ax1.set_xlim(0.0, max_time)
-    ax2.set_xlim(left=-0.5, right=3.0)
+    ax2.set_xlim(left=0.0, right=max_time)
     # ax1.legend(loc="upper right", prop={'size': 9}, frameon=False, ncol=3)
     ax1.legend(
-        bbox_to_anchor=(0., 1.22, 1., .122), loc='lower left', ncol=4, mode="expand", borderaxespad=0.,
+        bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left', ncol=4, mode="expand", borderaxespad=0.,
         prop={'size': 8}
     )
 
     ax1.ticklabel_format(useMathText=True)
-    ax1.xaxis.set_major_locator(ticker.MultipleLocator(0.25))
-    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(0.125))
+    # ax1.xaxis.set_major_locator(ticker.MultipleLocator(0.25))
+    # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(0.125))
 
     ax1.yaxis.set_major_locator(ticker.MultipleLocator(500))
     ax1.yaxis.set_minor_locator(ticker.MultipleLocator(250))
@@ -215,11 +231,11 @@ if __name__ == '__main__':
     ax2.xaxis.set_major_locator(ticker.MultipleLocator(0.5))
     ax2.xaxis.set_minor_locator(ticker.MultipleLocator(0.25))
 
-    ax2.yaxis.set_major_locator(ticker.MultipleLocator(10))
-    ax2.yaxis.set_minor_locator(ticker.MultipleLocator(5))
+    # ax2.yaxis.set_major_locator(ticker.MultipleLocator(10))
+    # ax2.yaxis.set_minor_locator(ticker.MultipleLocator(5))
 
-    ax1.set_title('IR Thermography')
-    ax2.set_title('Chamber Pressure')
+    # ax1.set_title('IR Thermography')
+    # ax2.set_title('Chamber Pressure')
     filetag = os.path.splitext(csv_database)[0]
 
     outgassing_rate = chamber_volume * (peak_pressures - base_pressures) * 1E-3 / peak_dt
@@ -231,6 +247,14 @@ if __name__ == '__main__':
         'Peak dt (s)': peak_dt,
         'Outgassing Rate (Torr L / s)': outgassing_rate
     })
+
+    temperature_vs_power_df = pd.DataFrame(data={
+        'Laser power setpoint (%)': laser_power_setpoint_list,
+        'Heat flux (MW/m^2)': heat_flux,
+        'Max surface temperature (C)': max_temperature
+    })
+
+    temperature_vs_power_df.to_csv(os.path.join(base_path, f'{filetag}_surface_temperature.csv'), index=False)
 
     print(outgas_df)
     outgas_df.to_csv(os.path.join(base_path, f'{filetag}_OUTGASSING.csv'), index=False)
