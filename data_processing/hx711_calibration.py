@@ -11,19 +11,20 @@ from scipy.optimize import least_squares
 from scipy.linalg import svd
 import matplotlib.ticker as ticker
 
-csv_calibration = r'../instruments/Load Cell Calibration - 2022_04_07.csv'
-load_cell_range = '30kg'
+csv_calibration = r'../instruments/Load Cell Calibration - 20KG CELL.csv'
+load_cell_range = '20kg'
 
 
 def poly(x, b):
     return b[0] + b[1] * x #+ b[2] * np.power(x, 2.0)
 
 
-def poly_obj(beta: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    return poly(x, beta) - y
+def poly_obj(beta: np.ndarray, x: np.ndarray, y: np.ndarray, weights: np.ndarray = None) -> np.ndarray:
+    w = np.ones_like(x, dtype=np.float64) if weights is None else weights
+    return (poly(x, beta) - y) * w
 
 
-def poly_jac(beta: np.ndarray, x: np.ndarray, y: np.ndarray):
+def poly_jac(beta: np.ndarray, x: np.ndarray, y: np.ndarray, weights: np.ndarray = None):
     identity = np.ones_like(x)
     return np.array([identity, x]).T
 
@@ -90,6 +91,8 @@ if __name__ == '__main__':
     force_n = calibration_df['Force (N)'].values
     reading = calibration_df['Reading'].values.astype(np.float64)
     force_err = calibration_df['Force Error (N)'].values
+    weights = 1.0 / force_err
+    weights /= weights.max()
 
     n = len(force_n)
 
@@ -100,7 +103,7 @@ if __name__ == '__main__':
     b_guess = np.array([b0_guess, b1_guess])
     all_tol = np.finfo(np.float64).eps
     res = least_squares(
-        poly_obj, b_guess, args=(reading, force_n),
+        poly_obj, b_guess, args=(reading, force_n, weights),
         jac=poly_jac,
         xtol=all_tol,
         ftol=all_tol,
@@ -112,8 +115,16 @@ if __name__ == '__main__':
     pcov = get_pcov(res)
     ci = cf.confint(n, popt, pcov)
 
+    y_model = poly(reading, popt)
+    rmse = np.linalg.norm(y_model - force_n) / np.sqrt(n)
+
     xpred = np.linspace(reading.min(), reading.max())
-    ypred, lpb, upb = cf.predint(xpred, reading, force_n, poly, res)
+    pred_mode = 'observation'  # functional
+    ypred, lpb, upb = cf.predint(xpred, reading, force_n, poly, res, mode=pred_mode)
+    delta = np.abs(upb - ypred)
+    delta_pct = delta / ypred
+    print(f'95% prediction confidence interval (max): {delta.max():.1f} (N)')
+    print(f'95% prediction confidence interval (max): {100.0*delta_pct.max():.1f} (%)')
 
     with open('plot_style.json', 'r') as file:
         json_file = json.load(file)
@@ -152,7 +163,8 @@ if __name__ == '__main__':
 
     model_txt = r"$f(x) = a_0 + a_1 x$" + "\n"
     model_txt += rf"$a_0$: ${latex_float(popt[0])}$, 95% CI: [${latex_float(ci[0,0])}, {latex_float(ci[0,1])}$]" + "\n"
-    model_txt += rf"$a_1$: ${latex_float(popt[1])}$, 95% CI: [${latex_float(ci[1,0])}, {latex_float(ci[1,1])}$]" # + "\n"
+    model_txt += rf"$a_1$: ${latex_float(popt[1])}$, 95% CI: [${latex_float(ci[1,0])}, {latex_float(ci[1,1])}$]" + "\n"
+    model_txt += rf"95% Prediction Error (avg): {delta_pct.mean()*100.0:.1f} (%)"
     # model_txt += rf"$a_2$: ${latex_float(popt[2])}$, 95% CI: [${latex_float(ci[2,0])}, {latex_float(ci[2,1])}$]"
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
     ax.text(
@@ -169,7 +181,7 @@ if __name__ == '__main__':
 
     ax.set_xlabel('HX711 ADC Reading')
     ax.set_ylabel('Force (N)')
-    ax.set_title(f"Calibration Factor: ${latex_float(1.0/popt[1],significant_digits=4)}$")
+    ax.set_title(f"Calibration Factor: $\\mathregular{{{latex_float(1.0/popt[1],significant_digits=4)}}}$")
 
     ax.ticklabel_format(useMathText=True)
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(1E5))

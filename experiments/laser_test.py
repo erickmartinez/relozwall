@@ -1,5 +1,6 @@
 import logging
-import sys, os
+import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -11,19 +12,14 @@ import time
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
-from pymeasure.experiment import IntegerParameter, FloatParameter, ListParameter, Parameter
+from pymeasure.experiment import FloatParameter, ListParameter, Parameter
 from pymeasure.experiment import unique_filename
 from serial.serialutil import SerialException
-from pyvisa.errors import VisaIOError
-import datetime
 from instruments.esp32 import ESP32Trigger
 from instruments.esp32 import DualTCLogger
 from instruments.tektronix import TBS2000
 from instruments.mx200 import MX200
-# import matplotlib as mpl
-# import matplotlib.pyplot as plt
 from instruments.inhibitor import WindowsInhibitor
-# import json
 from scipy import interpolate
 
 TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
@@ -37,9 +33,10 @@ SAMPLING_INTERVAL = 0.005
 
 
 class LaserProcedure(Procedure):
-    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=5.0)
+    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=10.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
-    laser_power_setpoint = FloatParameter("Laser Power Setpoint", units='%', default=100, minimum=0.0, maximum=100.0)
+    laser_power_setpoint = FloatParameter("Laser Power Setpoint", units="%", default=100, minimum=0.0, maximum=100.0)
+    degassing_time = FloatParameter('Degassing Time', units='h', default='1', minimum=0.0, maximum=1000.0)
     pd_gain = ListParameter('Photodiode Gain', choices=('0', '10', '20', '30', '40', '50', '60', '70'), units='dB',
                             default='30')
     sample_name = Parameter("Sample Name", default="UNKNOWN")
@@ -97,11 +94,11 @@ class LaserProcedure(Procedure):
             raise e
 
         tc_logger = DualTCLogger(address=TC_LOGGER_COM)
-        time.sleep(1.0)
+        time.sleep(0.1)
         print('Successfully initialized thermocouple readout...')
 
         esp32.pulse_duration = float(self.emission_time)
-        time.sleep(0.5)
+        time.sleep(0.1)
         et = esp32.pulse_duration
         log.info(f'Pulse duration: {et:.2f} s.')
 
@@ -111,7 +108,7 @@ class LaserProcedure(Procedure):
         # time.sleep(0.05)
         t1 = time.time()
         tc_logger.log_time = self.measurement_time + self.emission_time
-        time.sleep(0.5)
+        time.sleep(0.1)
         tc_logger.start_logging()
         self.__oscilloscope.write('ACQUIRE:STATE ON')
         esp32.fire()
@@ -170,7 +167,7 @@ class LaserProcedure(Procedure):
             log.error(e)
             raise ValueError(e)
 
-        time.sleep(10.0)
+        time.sleep(2.0)
         print(tc_data)
 
         columns = data.dtype.names
@@ -195,6 +192,7 @@ class LaserProcedure(Procedure):
         tc_data.to_csv(filename, index=False)
 
         data = data[data[columns[0]] <= time_tc.max()]
+        reference = reference[reference[columns_ref[0]] <= time_tc.max()]
         time_osc = data[columns[0]]
         print('time_osc:')
         print(time_osc)
@@ -204,10 +202,10 @@ class LaserProcedure(Procedure):
         print(time_tc)
         print(f'len(time_tc): {len(time_tc)}, time_tc.min = {time_tc.min()}, time_tc.max = {time_tc.max()}')
 
-        msk_tmax = time_osc <= time_tc.max()
-        data = data[msk_tmax]
-        reference = reference[msk_tmax]
-        time_osc = data[columns[0]]
+        # msk_tmax = time_osc <= time_tc.max()
+        # data = data[msk_tmax]
+        # reference = reference[msk_tmax]
+        # time_osc = data[columns[0]]
 
         msk_tmin = time_osc >= time_tc.min()
         data = data[msk_tmin]
@@ -257,8 +255,10 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=LaserProcedure,
-            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name"],
-            displays=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name"],
+            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name",
+                    "degassing_time"],
+            displays=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name",
+                      "degassing_time"],
             x_axis="Measurement Time (s)",
             y_axis="Photodiode Voltage (V)",
             directory_input=True,
@@ -271,9 +271,10 @@ class MainWindow(ManagedWindow):
         procedure: LaserProcedure = self.make_procedure()
         sample_name = procedure.sample_name
         laser_setpoint = procedure.laser_power_setpoint
-        photodiode_gain = procedure.pd_gain
+        # photodiode_gain = procedure.pd_gain
+        degassing_time = procedure.degassing_time
 
-        prefix = f'LT_{sample_name}_{laser_setpoint:03.0f}PCT_{photodiode_gain}GAIN_'
+        prefix = f'LT_{sample_name}_{laser_setpoint:03.0f}PCT_{degassing_time}h_'
         filename = unique_filename(directory, prefix=prefix)
         log_file = os.path.splitext(filename)[0] + '.log'
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')

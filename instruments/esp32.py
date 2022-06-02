@@ -109,8 +109,8 @@ class ArduinoSerial:
 
 class ESP32Trigger(ArduinoSerial):
     __address = 'COM10'
-    __pulse_duration_min = 40E-6
-    __pulse_duration_max = 5
+    __pulse_duration_min: float = 40E-6
+    __pulse_duration_max: float = 10.0
 
     def __init__(self, address: str):
         super().__init__(address=address)
@@ -120,8 +120,14 @@ class ESP32Trigger(ArduinoSerial):
             raise SerialException(msg)
 
     def check_id(self, attempt: int = 0) -> bool:
-        time.sleep(1.0)
+        time.sleep(0.5)
+        old_delay = self.delay
+        old_timeout = self.timeout
+        self.delay = 0.5
+        self.timeout = 0.5
         check_id = self.query('i')
+        self.delay = old_delay
+        self.timeout = old_timeout
         if check_id != 'TRIGGER':
             if attempt <= 3:
                 attempt += 1
@@ -179,8 +185,14 @@ class DualTCLogger(ArduinoSerial):
             raise SerialException(msg)
 
     def check_id(self, attempt: int = 0) -> bool:
-        time.sleep(1.0)
+        time.sleep(0.5)
+        old_delay = self.delay
+        old_timeout = self.timeout
+        self.delay = 0.5
+        self.timeout = 0.5
         check_id = self.query('i')
+        self.delay = old_delay
+        self.timeout = old_timeout
         if check_id != 'TCLOGGER':
             if attempt <= 3:
                 attempt += 1
@@ -229,7 +241,7 @@ class DualTCLogger(ArduinoSerial):
         else:
             interval_ms = value_in_seconds * 1000.0
             q = f't {interval_ms:.0f}'
-            self.query(q=q)
+            self.write(q=q)
 
     def read_temperature_log(self, attempts=0):
         header_list = ["Time (s)", "TC1 (C)", "TC2 (C)"]
@@ -249,7 +261,7 @@ class DualTCLogger(ArduinoSerial):
                 if attempts < 10:
                     return self.read_temperature_log(attempts=attempts)
                 else:
-                    error_empty == True
+                    error_empty = True
             df = pd.read_csv(io.StringIO(res), sep=',', lineterminator=";", names=header_list)
             df = df.apply(pd.to_numeric, errors='coerce')
             df.dropna(inplace=True)
@@ -280,8 +292,14 @@ class ExtruderReadout(ArduinoSerial):
             raise SerialException(msg)
 
     def check_id(self, attempt: int = 0) -> bool:
-        time.sleep(1.0)
+        time.sleep(0.5)
+        old_delay = self.delay
+        old_timeout = self.timeout
+        self.delay = 0.5
+        self.timeout = 0.5
         check_id = self.query('i')
+        self.delay = old_delay
+        self.timeout = old_timeout
         if check_id != 'EXTRUDER_READOUT':
             print(f"Error checking id at {self.__address}. Response: '{check_id}'")
             if attempt <= 3:

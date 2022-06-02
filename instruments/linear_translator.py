@@ -20,11 +20,11 @@ class ISC08:
     __address = 'COM6'
     __baud_rate = 57600
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.1
+    __timeout = 0.2
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.05
+    __delay = 0.2
     __serial: serial.Serial = None
     __speed: int = 60
     __direction: str = 'forward'
