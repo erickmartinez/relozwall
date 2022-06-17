@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.linalg import svd
 from scipy.optimize import OptimizeResult
 from typing import Callable
 import scipy.linalg as LA
@@ -474,6 +475,28 @@ def predint_multi(x: np.ndarray, xd: np.ndarray, yd: np.ndarray,
     #    upb = ypred + delta
 
     return ypred, lpb, upb
+
+
+def get_pcov(res: OptimizeResult) -> np.ndarray:
+    popt = res.x
+    ysize = len(res.fun)
+    cost = 2 * res.cost  # res.cost is half sum of squares!
+    s_sq = cost / (ysize - popt.size)
+
+    # Do Moore-Penrose inverse discarding zero singular values.
+    _, s, VT = svd(res.jac, full_matrices=False)
+    threshold = np.finfo(float).eps * max(res.jac.shape) * s[0]
+    s = s[s > threshold]
+    VT = VT[:s.size]
+    pcov = np.dot(VT.T / s ** 2, VT)
+    pcov = pcov * s_sq
+
+    if pcov is None:
+        # indeterminate covariance
+        print('Failed estimating pcov')
+        pcov = np.zeros((len(popt), len(popt)), dtype=float)
+        pcov.fill(np.inf)
+    return pcov
 
 # References:
 # - Statistics in Geography by David Ebdon (ISBN: 978-0631136880)
