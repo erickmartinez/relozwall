@@ -160,7 +160,7 @@ if __name__ == '__main__':
     photodiode_corrected = photodiode_voltage - reflection_signal
     pd_corrected_min = photodiode_corrected[irradiation_time_idx].min()
     photodiode_corrected[irradiation_time_idx] -= pd_corrected_min + 0.5 * noise_level
-    time_pd_idx = (photodiode_corrected > 0.0) & (measurement_time > noise_level)
+    time_pd_idx = (photodiode_corrected > 0.0) & (photodiode_corrected > noise_level)
     measurement_time_pd = measurement_time[time_pd_idx]
     photodiode_voltage_positive = photodiode_corrected[time_pd_idx]
     measurement_time_pd = measurement_time_pd[n:-2]
