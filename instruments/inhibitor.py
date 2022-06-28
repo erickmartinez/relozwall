@@ -24,7 +24,7 @@ class WindowsInhibitor:
             WindowsInhibitor.ES_CONTINUOUS | WindowsInhibitor.ES_SYSTEM_REQUIRED | WindowsInhibitor.ES_DISPLAY_REQUIRED
         )
 
-    def unhinibit(self):
+    def uninhibit(self):
         print("Allowing Windows to go to sleep")
         ctypes.windll.kernel32.SetThreadExecutionState(
             WindowsInhibitor.ES_CONTINUOUS

@@ -19,6 +19,7 @@ from instruments.esp32 import ESP32Trigger
 from instruments.esp32 import DualTCLogger
 from instruments.tektronix import TBS2000
 from instruments.mx200 import MX200
+from instruments.IPG import YLR3000, LaserException
 from instruments.inhibitor import WindowsInhibitor
 from scipy import interpolate
 
@@ -30,10 +31,11 @@ TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
 TRIGGER_LEVEL = 3.3
 SAMPLING_INTERVAL = 0.005
+IP_LASER = "192.168.3.230"
 
 
 class LaserProcedure(Procedure):
-    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=10.0)
+    emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=20.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
     laser_power_setpoint = FloatParameter("Laser Power Setpoint", units="%", default=100, minimum=0.0, maximum=100.0)
     degassing_time = FloatParameter('Degassing Time', units='h', default='1', minimum=0.0, maximum=1000.0)
@@ -45,6 +47,7 @@ class LaserProcedure(Procedure):
     __on_sleep: WindowsInhibitor = None
     __tc_logger: DualTCLogger = None
     __mx200: MX200 = None
+    __ylr: YLR3000 = None
     pressure_data: pd.DataFrame = None
     __tc_data: pd.DataFrame = None
     __unique_filename: str = None
@@ -75,12 +78,22 @@ class LaserProcedure(Procedure):
             self.pressure_data.to_csv(filename, index=False)
 
     def execute(self):
+        log.info("Setting up Lasers")
+        self.__ylr = YLR3000(IP=IP_LASER)
+        self.__ylr.current_setpoint = self.laser_power_setpoint
+        emission_on = False
+        try:
+            self.__ylr.emission_on()
+            emission_on = True
+        except LaserException as e:
+            log.warning(e)
+            emission_on = False
         log.info("Setting up Oscilloscope")
+        self.__oscilloscope.write('ACQUIRE:STATE 0')
         self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
         self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
-        total_time = self.measurement_time + self.emission_time
-        self.__oscilloscope.set_acquisition_time(total_time)
-        self.__oscilloscope.write('ACQUIRE:STATE 0')
+        acquisition_time = self.measurement_time + self.emission_time
+        self.__oscilloscope.set_acquisition_time(acquisition_time)
         self.__oscilloscope.write('ACQUIRE:STOPAFTER SEQUENCE')
         self.__oscilloscope.write('ACQuire:MODe SAMple')
         self.__mx200.units = 'MT'
@@ -119,7 +132,7 @@ class LaserProcedure(Procedure):
         elapsed_time = []
         pressure = []
         start_time = time.time()
-        while total_time <= self.measurement_time + self.emission_time:
+        while total_time <= self.measurement_time + 0.5:
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
                 break
@@ -131,6 +144,13 @@ class LaserProcedure(Procedure):
                     elapsed_time.append(total_time)
                 total_time = time.time() - start_time
                 previous_time = current_time
+
+        if emission_on:
+            try:
+                self.__ylr.emission_off()
+                emission_on = False
+            except LaserException as e:
+                log.warning(e)
 
         # log.info("elapsed time:")
         # log.info(elapsed_time)
@@ -149,12 +169,14 @@ class LaserProcedure(Procedure):
         dt = t2 - t1
         log.info(f"dt: {dt:.3f}")
 
+
         while True:
             busyA = self.__oscilloscope.ask("BUSY?")
             if busyA == '0':
                 break
 
         print('*** ACQUISITION OVER ***')
+
         # print(self.__oscilloscope.sesr)
         # print(self.__oscilloscope.all_events)
         data = self.__oscilloscope.get_curve(channel=THERMOMETRY_CHANNEL)
@@ -236,6 +258,7 @@ class LaserProcedure(Procedure):
             # print(f'{data[data.dtype.names[0]][i]:.4g}, {data[data.dtype.names[1]][i]:.4g}')
 
         # print(data)
+        self.__ylr.disconnect()
         self.__oscilloscope.timeout = 1
 
     def inhibit_sleep(self):
@@ -246,7 +269,7 @@ class LaserProcedure(Procedure):
 
     def unhinibit_sleep(self):
         if os.name == 'nt' and self.__keep_alive:
-            self.__on_sleep.unhinibit()
+            self.__on_sleep.uninhibit()
             self.__keep_alive = False
 
 

@@ -7,6 +7,93 @@ from time import sleep
 from io import StringIO
 import pandas as pd
 from serial import SerialException
+import socket
+import struct
+
+
+class ArduinoTCP:
+    """
+    Represents an Arduino or ESP32 device through TCP/IP
+    """
+    __connection: socket.socket = None
+    __ip_address: str = None
+    __port: int = 3001
+
+    def __init__(self, ip_address: str, port: int = 3001):
+        self.__ip_address = ip_address
+        self.__port = port
+        self.connect()
+
+    def connect(self):
+        self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__connection.connect((self.__ip_address, self.__port))
+
+    def disconnect(self):
+        if self.__connection is not None:
+            self.__connection.close()
+            self.__connection = None
+
+    def query(self, q: str, attempts=1) -> str:
+        try:
+            self.__connection.sendall(f"{q}\r".encode('utf-8'))
+        except ConnectionAbortedError as e:
+            self.__connection.close()
+            self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.__connection.connect((self.__ip_address, self.__port))
+            attempts += 1
+            if attempts < 5:
+                print(e)
+                return self.query(q=q, attempts=attempts)
+        buffer = b''
+        while b'\n' not in buffer:
+            data = self.__connection.recv(1024)
+            if not data:
+                return ''
+            buffer += data
+        line, sep, buffer = buffer.partition(b'\n')
+        return line.decode('utf-8').rstrip("\n").rstrip(" ")
+
+    def query_binary(self, q, attempts: int = 1):
+        try:
+            self.__connection.sendall(f"{q}\r".encode('utf-8'))
+            # time.sleep(0.005)
+            raw_msg_len = self.__connection.recv(4)
+            # time.sleep(0.005)
+            n = struct.unpack('<I', raw_msg_len)[0]
+            raw_msg_cols = self.__connection.recv(4)
+            # time.sleep(0.005)
+            cols = struct.unpack('<I', raw_msg_cols)[0]
+            data = bytearray()
+            while len(data) < n:
+                packet = self.__connection.recv(n - len(data))
+                if not packet:
+                    return None
+                data.extend(packet)
+            rows = int(n / 4 / cols)
+        except ConnectionError as e:
+            self.__connection.close()
+            self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.__connection.connect((self.__ip_address, self.__port))
+            attempts += 1
+            while attempts <= 5:
+                print(e)
+                self.query_binary(q, attempts=attempts)
+        return rows, cols, data
+
+    def write(self, q: str, attempts: int = 1):
+        try:
+            self.__connection.sendall(f"{q}\r".encode('utf-8'))
+        except ConnectionAbortedError as e:
+            self.__connection.close()
+            self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.__connection.connect((self.__ip_address, self.__port))
+            attempts += 1
+            if attempts <= 5:
+                print(e)
+                self.write(q=q, attempts=attempts)
+
+    def __del__(self):
+        self.disconnect()
 
 
 class ArduinoSerial:
@@ -110,7 +197,7 @@ class ArduinoSerial:
 class ESP32Trigger(ArduinoSerial):
     __address = 'COM10'
     __pulse_duration_min: float = 40E-6
-    __pulse_duration_max: float = 10.0
+    __pulse_duration_max: float = 20.0
 
     def __init__(self, address: str):
         super().__init__(address=address)
@@ -278,30 +365,125 @@ class DualTCLogger(ArduinoSerial):
         return df
 
 
-class ExtruderReadout(ArduinoSerial):
-    __address = 'COM12'
+class DualTCLoggerTCP(ArduinoTCP):
+    __ip_address = '192.168.4.3'
 
-    def __init__(self, address: str):
-        super().__init__(address=address)
-        self.delay = 0.2
-        self.timeout = 0.2
+    def __init__(self, ip_address: str):
+        super().__init__(ip_address=ip_address)
         check_connection = self.check_id()
-
         if not check_connection:
-            msg = f"EXTRUDER_READOUT not found in port {self.__address}"
-            raise SerialException(msg)
+            msg = f"TCLOGGER not found on IP {ip_address}"
+            raise ConnectionError(msg)
 
     def check_id(self, attempt: int = 0) -> bool:
-        time.sleep(0.5)
-        old_delay = self.delay
-        old_timeout = self.timeout
-        self.delay = 0.5
-        self.timeout = 0.5
         check_id = self.query('i')
-        self.delay = old_delay
-        self.timeout = old_timeout
+        # self.delay = old_delay
+        # self.timeout = old_timeout
+        if check_id != 'TCLOGGER':
+            if attempt <= 3:
+                attempt += 1
+                return self.check_id(attempt=attempt)
+            else:
+                return False
+        else:
+            return True
+
+    @property
+    def temperature(self):
+        try:
+            _, _, res = self.query_binary('r')
+            temp = struct.unpack('<2f', res)
+        except AttributeError as e:
+            print(res, e)
+            raise AttributeError(e)
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+        return np.array(temp, dtype=np.float64)
+
+    def start_logging(self):
+        self.write('l')
+
+    @property
+    def log_time(self):
+        try:
+            res = self.query('t?')
+            log_time = float(res) / 1000.0
+        except AttributeError as e:
+            print(res, e)
+            raise AttributeError(e)
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+        return log_time
+
+    @log_time.setter
+    def log_time(self, value_in_seconds: float):
+        value_in_seconds = float(value_in_seconds)
+        if 0.0 > value_in_seconds or value_in_seconds > 120:
+            msg = f'Cannot set the log duration to {value_in_seconds}. Value is outside valid range:'
+            msg += f'[0, 120] s.'
+            raise Warning(msg)
+        else:
+            interval_ms = value_in_seconds * 1000.0
+            q = f't {interval_ms:.0f}'
+            self.write(q=q)
+
+    def read_temperature_log(self, attempts=0):
+        error_empty = False
+        try:
+            rows, cols, res = self.query_binary('r')
+            # print('rows:', rows, 'cols:', cols, 'len(res):', len(res))
+            if rows == 0:
+                print('Error reading the temperatre log. Response:')
+                print(res)
+                print('Trying again...')
+                attempts += 1
+                if attempts < 0:
+                    return self.read_temperature_log(attempts=attempts)
+                else:
+                    error_empty = True
+            data = np.frombuffer(res, dtype=np.dtype([('Time (s)', 'f'), ('TC1 (C)', 'f'), ('TC2 (C)', 'f')]))
+            df = pd.DataFrame(data=data)
+            # df.reset_index(drop=True, inplace=True)
+            # df = df.apply(pd.to_numeric, errors='coerce')
+        except ValueError as e:
+            print(res, e)
+            raise ValueError(e)
+
+        if error_empty:
+            msg = 'Could not retrieve the temperature log or the response was incomplete:\n'
+            msg += res
+            self.disconnect()
+            raise ConnectionError(msg)
+        return df
+
+
+class ExtruderReadout(ArduinoTCP):
+    __ip_address = '192.168.4.2'
+    __port = 3001
+
+    def __init__(self, ip_address: str = '192.168.4.2'):
+        super().__init__(ip_address=ip_address)
+        # self.delay = 0.2
+        # self.timeout = 0.2
+        # check_connection = self.check_id()
+        #
+        # if not check_connection:
+        #     msg = f"EXTRUDER_READOUT not found in port {self.__address}"
+        #     raise SerialException(msg)
+
+    def check_id(self, attempt: int = 0) -> bool:
+        # time.sleep(0.5)
+        # old_delay = self.delay
+        # old_timeout = self.timeout
+        # self.delay = 0.5
+        # self.timeout = 0.5
+        check_id = self.query('i')
+        # self.delay = old_delay
+        # self.timeout = old_timeout
         if check_id != 'EXTRUDER_READOUT':
-            print(f"Error checking id at {self.__address}. Response: '{check_id}'")
+            print(f"Error checking id at {self.__ip_address}. Response: '{check_id}'")
             if attempt <= 3:
                 attempt += 1
                 return self.check_id(attempt=attempt)
@@ -313,8 +495,9 @@ class ExtruderReadout(ArduinoSerial):
     @property
     def reading(self):
         try:
-            res = self.query('r')
-            reading = [float(x) for x in res.split(',')]
+            _, _, res = self.query_binary('r')
+            # reading = [float(x) for x in res.split(',')]
+            reading = list(struct.unpack('<ffflH', res))
         except AttributeError as e:
             print(res, e)
             raise AttributeError(e)
@@ -325,19 +508,17 @@ class ExtruderReadout(ArduinoSerial):
         return reading
 
     def zero(self):
-        old_delay = self.delay
-        old_timeout = self.timeout
-        self.delay = 1.0
-        self.timeout = 1.0
+        # old_delay = self.delay
+        # old_timeout = self.timeout
+        # self.delay = 1.0
+        # self.timeout = 1.0
         r = self.query('z')
-
+        # sleep(1.0)
         if r == '':
             print('Error taring')
             return self.zero()
-        self.timeout = old_timeout
-        self.delay = old_delay
-        self.flush_input()
-        sleep(1.0)
+        # self.timeout = old_timeout
+        # self.delay = old_delay
         return r
 
     @property

@@ -3,7 +3,19 @@
 #include "Adafruit_MAX31855.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <WiFi.h>
 #include "HX711.h"
+#include "arduino_secrets.h"
+
+const char* ssid = SECRET_SSID;
+const char* password = SECRET_PWD;
+
+WiFiServer wifiServer(3001);
+WiFiClient client;
+
+IPAddress local_IP(192, 168, 4, 2);
+IPAddress gateway(192, 168, 0, 1);
+IPAddress subnet(255, 255, 240, 0);
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -43,13 +55,37 @@ Adafruit_MAX31855 thermocouple2(MAXCLK2, MAXCS2, MAXDO2);
 
 float calibrationFactor = 14651;
 long zeroFactor;
-unsigned long lcdInterval;
-unsigned long lcdPreviousMillis;
+unsigned long lcdInterval, interval;
+unsigned long lcdPreviousMillis, previousMillis, lcdWCPreviousMillis;
+unsigned long currentMillis, currentWCMillis;
+
 char responseBuffer[BUFF_SIZE];
 int adcAverages = 3;
+double inputCalibration;
 
-double t1, t2, f;
-long reading, potADC;
+float t1, t2, f;
+long loadcellADC;
+uint16_t potADC;
+
+unsigned int columns = 5;
+unsigned int outputBufferSize = 3*sizeof(float)+sizeof(long)+sizeof(uint16_t);
+
+String input;
+char rxChar;
+
+typedef struct {
+  float tc1;
+  float tc2;
+  float force;
+  long loadcellADC;
+  uint16_t potADC;
+} readingData;
+
+readingData binaryData = {0.0, 0.0, 0.0, 0, 0};
+
+float adc2inches(int value) {
+  return 3.327 + 0.01303 * value;
+}
 
 void lcdUpdate(float t1, float t2, float f, int pot) {
   char buff[60]; // Buffer big enough for 7-character float
@@ -58,19 +94,19 @@ void lcdUpdate(float t1, float t2, float f, int pot) {
   display.setTextColor(SSD1306_WHITE); // Draw white text
 //  display.cp437(true);         // Use full 256 char 'Code Page 437' font
   display.setCursor(0, 0);     // Start at top-left corner
-  snprintf(buff, sizeof(buff), "TC1: %6.2f \367C\nTC2: %6.2f \367C\nF:   %7.1f N\nPot: %5d", t1, t2, f, pot);
+  snprintf(buff, sizeof(buff), "TC1: %6.2f \367C\nTC2: %6.2f \367C\nF:   %7.1f N\nD: %5.1f\"", t1, t2, f, adc2inches(pot));
   display.println(buff);
   display.display();
-  delay(10);
+  //delay(5);
 }
 
 
-int adcAverage() {
+uint16_t adcAverage() {
   float num = 0;
   for (int i=0; i<adcAverages; ++i){
     num += analogRead(POT_PIN);
   }
-  return int(num / adcAverages);
+  return (uint16_t) num / adcAverages;
 }
 
 void scanI2C() {
@@ -95,7 +131,7 @@ void scanI2C() {
         Serial.print("0");
       }
       Serial.println(address,HEX);
-    }    
+    }
   }
   if (nDevices == 0) {
     Serial.println("No I2C devices found\n");
@@ -105,10 +141,30 @@ void scanI2C() {
   }
 }
 
+void initWiFi() {
+  WiFi.mode(WIFI_STA);
+  // Configures static IP address
+  if (!WiFi.config(local_IP, gateway, subnet)) {
+    Serial.println("STA Failed to configure");
+  }
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("Connected to the WiFi network.");
+  Serial.println(WiFi.localIP());
+  Serial.print("MAC Address: ");
+  Serial.println(WiFi.macAddress());
+  wifiServer.begin();
+}
 
 void setup() {
-  Serial.begin(115200); 
-  delay(500);
+  Serial.begin(115200);
+  initWiFi();
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   I2C_SSD1306.begin(I2C_SDA, I2C_SCL, 100000);
   Wire.begin(I2C_SDA, I2C_SCL, 100000);
@@ -117,8 +173,8 @@ void setup() {
   scale.set_scale(calibrationFactor);
   scale.tare(10); //Reset the scale to 0
   zeroFactor = scale.read_average(); //Get a baseline reading
-  
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { 
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
@@ -134,73 +190,113 @@ void setup() {
   // Draw a single pixel in white
   display.drawPixel(10, 10, WHITE);
   lcdInterval = 200;
+  interval = 30000;
   lcdPreviousMillis = 0;
+  previousMillis = 0;
+  lcdWCPreviousMillis = 0;
 }
-void loop() {
-   double inputCalibration;
-   unsigned long currentMillis = millis();
-   String input;
-   char rxChar;
 
-   if(Serial.available()) {
-     input = Serial.readStringUntil(0x0D); // Read until line breaks
-     rxChar = input[0];
-     switch (rxChar) {
+void loop() {
+   client = wifiServer.available();
+   if (client) {
+    while (client.connected()) {
+      currentWCMillis = millis();
+      if ((unsigned long)(currentWCMillis - lcdWCPreviousMillis) >= lcdInterval) {
+          t1 = thermocouple1.readCelsius();
+          t2 = thermocouple2.readCelsius();
+          f = scale.get_units(1);
+          potADC = adcAverage();
+          lcdUpdate(t1, t2, float(f), potADC);
+          lcdWCPreviousMillis = currentWCMillis;
+      }
+      if (client.available()>0) {
+        input = "";
+        input = client.readStringUntil(0x0D);
+        /*Serial.print(input);
+        Serial.print('\n');
+        Serial.flush();*/
+        rxChar = input[0];
+        switch (rxChar) {
+          case 0x69: // i as in id
+            client.print("EXTRUDER_READOUT\n");
+            break;
+          case 0x7a: // z as in zero
+            scale.tare(20); //Reset the scale to 0
+            zeroFactor = scale.read_average(); //Get a baseline reading
+            snprintf(responseBuffer, BUFF_SIZE, "%lu", zeroFactor);
+            client.print(responseBuffer);
+            client.print("\n");
+            break;
+          case 0x72: // r as in read
+            t1 = thermocouple1.readCelsius();
+            t2 = thermocouple2.readCelsius();
+            f = scale.get_units(2);
+            loadcellADC = scale.read();
+            potADC = adcAverage();
+            binaryData = {t1, t2, f, loadcellADC, potADC};
+
+            client.write((const uint8_t  *)&outputBufferSize, sizeof(unsigned int));
+            client.write((const uint8_t  *)&columns, sizeof(unsigned int));
+            client.write((const uint8_t  *)&binaryData, outputBufferSize);
+            // snprintf(responseBuffer, BUFF_SIZE, "%6.2f,%6.2f,%5.1f,%6ld,%5ld", t1, t2, f, loadcellADC, potADC);
+            // Serial.print(responseBuffer);
+            // Serial.print("\n");
+            break;
+          case 0x63: // c as in calibration
+            if (input[1] == 0x3F) { // If '?' found
+              snprintf(responseBuffer, BUFF_SIZE, "%10.3E", calibrationFactor);
+              client.print(responseBuffer);
+              client.print("\n");
+              break;
+            }
+            inputCalibration = input.substring(2).toFloat();
+            if (abs(inputCalibration) > 0.0)
+              calibrationFactor = inputCalibration;
+              scale.set_scale(calibrationFactor);
+            break;
+          case 0x73: // s as in scan
+            scanI2C();
+            break;
+          default:
+            client.print("ERR_CMD");
+            client.print("\n");
+        }
+      }
+      //delay(10);
+    }
+    client.stop();
+    Serial.println("Client disconnected");
+  }
+
+  currentMillis = millis();
+  if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
+    t1 = thermocouple1.readCelsius();
+    //delay(2);
+    t2 = thermocouple2.readCelsius();
+    //delay(2);
+    f = scale.get_units(3);
+    //delay(1);
+    potADC = adcAverage();
+    lcdUpdate(t1, t2, float(f), potADC);
+    lcdPreviousMillis = currentMillis;
+  }
+
+  if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval)) {
+    WiFi.disconnect();
+    WiFi.reconnect();
+    previousMillis = currentMillis;
+  }
+
+  if(Serial.available()) {
+    input = Serial.readStringUntil(0x0D); // Read until line breaks
+    rxChar = input[0];
+    switch (rxChar) {
       case 0x69: // i as in id
         Serial.print("EXTRUDER_READOUT\n");
         break;
-      case 0x7a: // z as in zero
-        scale.tare(20); //Reset the scale to 0
-        zeroFactor = scale.read_average(); //Get a baseline reading
-        snprintf(responseBuffer, BUFF_SIZE, "%lu", zeroFactor);
-        Serial.print(responseBuffer);
-        Serial.print("\n");
-        break;
-      case 0x72: // r as in read
-        t1 = thermocouple1.readCelsius();
-        delay(0.01);
-        t2 = thermocouple2.readCelsius();
-        delay(0.01);
-        f = scale.get_units(3);
-        delay(0.01);
-        reading = scale.read();
-        delay(0.01);
-        potADC = adcAverage();
-        snprintf(responseBuffer, BUFF_SIZE, "%6.2f,%6.2f,%5.1f,%6ld,%5ld", t1, t2, f, reading, potADC);
-        Serial.print(responseBuffer);
-        Serial.print("\n");
-        break;
-      case 0x63: // c as in calibration
-        if (input[1] == 0x3F) { // If '?' found
-          snprintf(responseBuffer, BUFF_SIZE, "%10.3E", calibrationFactor);
-          Serial.print(responseBuffer);
-          Serial.print("\n");
-          break;
-        }
-        inputCalibration = input.substring(2).toFloat();
-        if (abs(inputCalibration) > 0.0)
-          calibrationFactor = inputCalibration;
-          scale.set_scale(calibrationFactor);
-        break;
-      case 0x73: // s as in scan
-        scanI2C();
-        break;
       default:
-        Serial.print("ERR_CMD");
-        Serial.print("\n");
-     }
-   }
-
-  if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
-      t1 = thermocouple1.readCelsius();
-      delay(0.01);
-      t2 = thermocouple2.readCelsius();
-      delay(0.01);
-      f = scale.get_units(3);
-      delay(0.01);
-      potADC = adcAverage();
-      lcdUpdate(t1, t2, float(f), potADC);
-      lcdPreviousMillis = currentMillis;
+        Serial.print("ERR_CMD\n");
+    }
   }
   
 }

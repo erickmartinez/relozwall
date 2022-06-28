@@ -141,7 +141,7 @@ class FlexuralStressProcedure(Procedure):
 
     def unhinibit_sleep(self):
         if os.name == 'nt' and self.__keep_alive:
-            self.__on_sleep.unhinibit()
+            self.__on_sleep.uninhibit()
             self.__keep_alive = False
 
     def __del__(self):

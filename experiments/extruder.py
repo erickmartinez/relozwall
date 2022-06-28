@@ -16,16 +16,19 @@ from instruments.mx200 import MX200
 import datetime
 from instruments.inhibitor import WindowsInhibitor
 from instruments.esp32 import ExtruderReadout
+from instruments.ametek import DCSource
 from serial import SerialException
 
 EXT_READOUT_COM = 'COM12'
 MX200_COM = 'COM3'
+DC_SOURCE_COM = 'COM13'
 NUMBER_OF_SAMPLES = 10000
 
 
 class ExtrusionProcedure(Procedure):
     experiment_time = FloatParameter('Experiment Time', units='min', default=1, minimum=0.25, maximum=60)
-    temperature_setpoint = FloatParameter('Temperature', units='C', default=350, minimum=25, maximum=1000.0)
+    voltage_setpoint = FloatParameter('DC Voltage', units='V', default=20, minimum=0.0, maximum=200.0)
+    voltage_ramp_time = FloatParameter('DC Ramp time', units='s', default=60, minimum=10, maximum=3600)
     sample_name = Parameter("Sample Name", default="UNKNOWN")
     __mx200: MX200 = None
     __time_start: datetime.datetime = None
@@ -37,6 +40,7 @@ class ExtrusionProcedure(Procedure):
     __max_attempts = 10
     __previous_reading: dict = None
     __previous_pressure: float = None
+    __dc_source: DCSource = None
 
     DATA_COLUMNS = ["Time (s)", "Baking Pressure (Torr)", "Outgassing Pressure (Torr)", "Baking Temperature (C)",
                     "Outgassing Temperature (C)"]
@@ -46,11 +50,15 @@ class ExtrusionProcedure(Procedure):
         self.__mx200 = MX200(address=MX200_COM)
         time.sleep(1.0)
         self.__mx200.units = 'MT'
+        log.info("Setting up power supply")
+        self.__dc_source = DCSource(address=DC_SOURCE_COM)
         # time.sleep(3.0)
         # print(f"Pressures: {self.__mx200.pressures}")
 
     def execute(self):
-        self.__mx200.units = 'MT'
+        log.info('Ramping up the voltage')
+        self.__dc_source.setup_ramp_voltage(output_voltage=self.voltage_setpoint, time_s=self.voltage_ramp_time)
+        self.__dc_source.run_voltage_ramp()
         # Reset the counter for failed readings
         self.__failed_readings = 0
         dt = max(1.0, self.experiment_time * 60 / NUMBER_OF_SAMPLES)
@@ -106,7 +114,7 @@ class ExtrusionProcedure(Procedure):
 
     def unhinibit_sleep(self):
         if os.name == 'nt' and self.__keep_alive:
-            self.__on_sleep.unhinibit()
+            self.__on_sleep.uninhibit()
             self.__keep_alive = False
 
 
@@ -128,9 +136,9 @@ class MainWindow(ManagedWindow):
 
         procedure: ExtrusionProcedure = self.make_procedure()
         sample_name = procedure.sample_name
-        temperature_setpoint = procedure.temperature_setpoint
+        temperature_setpoint = procedure.voltage_setpoint
 
-        prefix = f'EXTRUSION_{sample_name}_{temperature_setpoint:03.0f}C'
+        prefix = f'EXTRUSION_{sample_name}_{temperature_setpoint:03.0f}V'
         filename = unique_filename(directory, prefix=prefix)
         log_file = os.path.splitext(filename)[0] + '.log'
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')

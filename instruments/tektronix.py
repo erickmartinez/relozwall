@@ -74,10 +74,12 @@ class TBS2000:
         # self.write('ACQuire:MODe SAMple')
 
     def set_acquisition_time(self, t: float):
-        # self.write(f'HORizontal:POSITION = -3.0')
+        # self.write(f'HORizontal:POSITION = 3.0')
+        if t >= 10:
+            self.record_length = 20000
         self.write(f'HORizontal:RECOrdlength {self.record_length}')
         # self.write('ACQuire:NUMAVg 16')
-        self.horizontal_main_scale = t / 12.0
+        self.horizontal_main_scale = t / 10.0
         n_samples = int(self.sample_rate * t)
         # self.write(f'WFMINPRE:NR_PT {n_samples}')
         self.write(f'DATA INIT')

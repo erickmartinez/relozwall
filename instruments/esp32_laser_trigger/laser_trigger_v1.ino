@@ -1,4 +1,4 @@
-#define INTERVAL_MAX 10000
+#define INTERVAL_MAX 20000
 #define SERIAL_SPEED 115200
 const unsigned int BUFFER_LENGTH = 80;
 

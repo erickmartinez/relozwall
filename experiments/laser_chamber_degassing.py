@@ -53,19 +53,20 @@ class LaserChamberDegassing(Procedure):
 
     def startup(self):
         print('***  Startup ****')
-        self.__mx200 = MX200(address=MX200_COM)
-        time.sleep(1.0)
-        self.__mx200_delay = self.__mx200.delay
-        self.__mx200.units = 'MT'
+        self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
+        time.sleep(2.0)
         log.info('Connection to pressure readout successful...')
         log.info('Connecting to the temperature readout...')
         self.__temperature_readout = DualTCLogger(address=TC_LOGGER_COM)
+        self.__mx200.units = 'MT'
         time.sleep(2.0)
         log.info("Connection to temperature readout successful...")
         pressure = self.__mx200.pressure(2)
         time.sleep(0.1)
-        if pressure == '':
-            raise SerialException(f'Could not read pressure from gauge 2.')
+
+        if type(pressure) is str:
+            print(pressure)
+            raise SerialException(f'Could not read pressure from gauge 2.\nReturned: {pressure}')
         tc = self.__temperature_readout.temperature
         time.sleep(0.1)
         tc1 = tc[0]
@@ -83,8 +84,7 @@ class LaserChamberDegassing(Procedure):
         self.__temperature_readout.close()
 
     def execute(self):
-        self.__ndata_points = int(self.measurement_time * 3600 / self.interval)
-        n = 1
+        self.__ndata_points = int(self.measurement_time * 3600 / self.interval) + 1
         previous_time = 0.0
         total_time = 0.0
         self.inhibit_sleep()
@@ -96,8 +96,7 @@ class LaserChamberDegassing(Procedure):
                 break
             current_time = time.time()
             if (current_time - previous_time) >= self.interval:
-                self.acquire_data(n, current_time)
-                n += 1
+                self.acquire_data(current_time)
                 total_time = time.time() - self.__time_start
                 if self.__previous_reading['Pressure (Torr)'] <= 10E-3:
                     if not self.__is_degassing:
@@ -107,7 +106,7 @@ class LaserChamberDegassing(Procedure):
 
         self.unhinibit_sleep()
 
-    def acquire_data(self, sample_number, current_time):
+    def acquire_data(self, current_time):
         if self.should_stop():
             log.warning("Caught the stop flag in the procedure")
 
@@ -136,7 +135,7 @@ class LaserChamberDegassing(Procedure):
         # log.info(f"Time: {dt:.3f}, Pressure: {p:6.3E}, TC1: {tc1:5.2f} °C, TC2: {tc2:5.2f} °C, n: {n:.3E} 1/cm^3")
         self.__previous_reading = data
         self.emit('results', data)
-        self.emit('progress', sample_number * 100. / self.__ndata_points)
+        self.emit('progress', float(dt) * 100.0 / self.measurement_time / 3600.0)
         log.debug("Emitting results: {0}".format(data))
 
     def inhibit_sleep(self):
@@ -147,7 +146,7 @@ class LaserChamberDegassing(Procedure):
 
     def unhinibit_sleep(self):
         if os.name == 'nt' and self.__keep_alive:
-            self.__on_sleep.unhinibit()
+            self.__on_sleep.uninhibit()
             self.__keep_alive = False
 
 

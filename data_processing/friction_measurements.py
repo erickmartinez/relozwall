@@ -1,5 +1,5 @@
+import logging
 import numpy as np
-
 import instruments.esp32 as esp32
 import instruments.linear_translator as lnt
 import time
@@ -10,20 +10,27 @@ import matplotlib.pyplot as plt
 import os
 import json
 import matplotlib.ticker as ticker
+from instruments.ametek import DCSource
 
 EXT_READOUT_COM = 'COM12'
+DC_SOURCE_COM = 'COM13'
 ISC08_COM = 'COM4'
-SPEED_CMS = 0.57
+voltage_setpoint = 40.0
+voltage_ramp_time = 60.0
+SPEED_CMS = 1.1
 # MOVING_LENGTH = 12.0 # in
-MOVING_LENGTH = 10.0 / 2.54 # in <--- During heating move only 15 cm (or the length of the coil)
+MOVING_LENGTH = 5.0 / 2.54  # in <--- During heating move only 5 cm (or the length of the coil)
 speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
 
+
 base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
-sample = 'R3N41_800C'
+sample = 'R3N50_3_350C'
 plot_csv = True
-csv_file = 'FRICTION_R3N41_800C_0.57CMPS_20220525-103918.csv'
+csv_file = 'FRICTION_R3N50_3_350C_1.10CMPS_20220608-185244.csv'
 calibration_factor = 14651.0
-load_cell_prediction_error_pct = 15.7 # %
+load_cell_prediction_error_pct = 15.7  # %
+load_cell_range = 20.0 # kg
+allowable_force_threshold = 90  # percentage of the nominal range of the load cell
 
 
 def move_forward_by_distance(distance_cm):
@@ -47,6 +54,7 @@ def move_back_by_distance(distance_cm):
 class FrictionExperiment:
     __translator: lnt.ISC08 = None
     __readout: esp32.ExtruderReadout = None
+    __dc_power_supply: DCSource = None
     __address_translator: str = 'COM4'
     __address_readout: str = 'COM12'
     __x0: float = None
@@ -104,6 +112,7 @@ def cm2in(value):
 
 
 if __name__ == "__main__":
+    allowable_force_threshold_n = allowable_force_threshold * load_cell_range * 9.82E-2
     if SPEED_CMS not in speed_setting_map:
         msg = f"Speed {SPEED_CMS} not defined! Valid values are: {[k for k in speed_setting_map.keys()]}"
         raise ValueError(msg)
@@ -139,13 +148,24 @@ if __name__ == "__main__":
 
         ax2 = ax1.twiny()
 
-        ax1.plot(
-            position, force,
-            color='C0', fillstyle='none', marker='o',
+        force_err = force * load_cell_prediction_error_pct * 1E-2
+
+        ax1.errorbar(
+            position, force, yerr=force_err,
+            capsize=2.75, mew=1.25, marker='o', ms=8, elinewidth=1.25,
+            color='C0', fillstyle='none',
             ls='-',
             label='Data',
             zorder=1
         )
+
+        # ax1.plot(
+        #     position, force,
+        #     color='C0', fillstyle='none', marker='o',
+        #     ls='-',
+        #     label='Data',
+        #     zorder=1
+        # )
 
         xmin, xmax = ax1.get_xlim()
         ax2.set_xlim(cm2in(xmin), cm2in(xmax))
@@ -186,13 +206,28 @@ if __name__ == "__main__":
         fig.savefig(os.path.join(base_path, file_tag + '.png'), dpi=600)
         plt.show()
     else:
+        log = logging.getLogger(__name__)
+        log.addHandler(logging.NullHandler())
+        today = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+        sample = sample.upper()
+        file_tag = f"FRICTION_{sample}_{SPEED_CMS:3.2f}CMPS_{today}"
+        log_file = os.path.join(base_path, file_tag + '.csv')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        fh = logging.FileHandler(log_file)
+        fh.setFormatter(formatter)
+        fh.setLevel(logging.DEBUG)
+        log.addHandler(fh)
+
         experiment = FrictionExperiment(address_translator=ISC08_COM, address_readout=EXT_READOUT_COM)
+        dc_source = DCSource(address=DC_SOURCE_COM)
+        dc_source.setup_ramp_voltage(output_voltage=voltage_setpoint, time_s=voltage_ramp_time)
+        dc_source.run_voltage_ramp()
         # read the force in the absence of torque:
         n = 20
         f0 = np.empty(n)
 
         experiment.readout.zero()
-        time.sleep(5.0)
+        time.sleep(2.0)
         for i in range(n):
             [_, _, f0[i], _, _] = experiment.readout.reading
             # print(f"{f0[i]:3.1f} N")
@@ -234,8 +269,15 @@ if __name__ == "__main__":
                 total_time = current_time - t0
                 elapsed_time.append(total_time)
                 position.append(d)
+                fi_err = fi * load_cell_prediction_error_pct * 1E-2
                 force.append(fi)
-                print(f"{total_time:8.3f} s, ADC: {pot_adc:5.0f} -> {d:4.1f} cm, {fi:4.1f} N")
+                if fi >= allowable_force_threshold_n:
+                    msg = f'The force on the sample ({fi} N) is larger than the allowable limit: ' \
+                          f'{allowable_force_threshold_n} (N) '
+                    print(msg)
+                    raise ValueError(msg)
+                    break
+                print(f"{total_time:8.3f} s, ADC: {pot_adc:5.0f} -> {d:>5.1f} cm, {fi:>5.1f} ± {fi_err:>5.1f}N")
                 previous_time = current_time
 
         elapsed_time = np.array(elapsed_time)
@@ -250,9 +292,7 @@ if __name__ == "__main__":
         print(f'Moving time: {moving_time:5.3f} s')
         print(f'Average Speed: {avg_speed[0]:4.2f}±{avg_speed[1]:4.2f}cm/s')
 
-        today = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-        sample = sample.upper()
-        file_tag = f"FRICTION_{sample}_{SPEED_CMS:3.2f}CMPS_{today}"
+
         friction_df = pd.DataFrame(data={
             'Time (s)': elapsed_time,
             'Position (cm)': position,

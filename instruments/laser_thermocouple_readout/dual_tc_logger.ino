@@ -103,30 +103,30 @@ void loop() {
 	   input = Serial.readStringUntil(0x0D); // Read until line breaks
 	   rxChar = input[0];
 	   switch (rxChar) {
-      case 0x69: // i as in id
-        Serial.print("TCLOGGER\n");
-        break;
+        case 0x69: // i as in id
+            Serial.print("TCLOGGER\n");
+            break;
   		case 0x6c: // l as in log
-        elapsedTime = 0.0;
-        logStartTime = currentMillis;
-        logData = "";
-  			logFlag = true;
-        hasLog = false;
+            elapsedTime = 0.0;
+            logStartTime = currentMillis;
+            logData = "";
+            logFlag = true;
+            hasLog = false;
   			break;
   		case 0x74: // t
-        logFlag = false;
-  			if (input[1] == 0x3F) { // If '?' found
-  				sprintf(responseBuffer, "%lu", duration);
-  				Serial.print(responseBuffer);
-          Serial.print("\n");
-  				break;
-  			}
-  			duration = (unsigned long) atol(input.substring(2).c_str());
-        estimatedDt = (duration + 500) / N_POINTS;
-        dt = (unsigned long) max(estimatedDt, 5.0);
-  			/*sprintf(responseBuffer, "%lu", dt);
-  			Serial.print(responseBuffer);
-        Serial.print("\n");*/
+            logFlag = false;
+            if (input[1] == 0x3F) { // If '?' found
+                sprintf(responseBuffer, "%lu", duration);
+                Serial.print(responseBuffer);
+                Serial.print("\n");
+                break;
+            }
+            duration = (unsigned long) atol(input.substring(2).c_str());
+            estimatedDt = (duration + 500) / N_POINTS;
+            dt = (unsigned long) max(estimatedDt, 5.0);
+            /*sprintf(responseBuffer, "%lu", dt);
+            Serial.print(responseBuffer);
+            Serial.print("\n");*/
   			break;
       case 0x72: // r as in read
         logFlag = false;

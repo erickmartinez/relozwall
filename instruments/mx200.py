@@ -38,22 +38,55 @@ class MX200:
         self.__address = address
         self.__keep_alive = bool(keep_alive)
         if self.__keep_alive:
-            self.__serial = serial.Serial(
-                port=self.__address,
-                baudrate=self.__baud_rate,
-                bytesize=self.__byte_size,
-                timeout=self.__timeout,
-                parity=self.__parity,
-                stopbits=self.__stopbits,
-                xonxoff=self.__xonxoff
-            )
+            self.connect()
+        time.sleep(self.__delay)
         check_connection = self.check_id()
+        if self.__keep_alive:
+            self.__serial.flush()
         if not check_connection:
             msg = f"MX200 not found in port {self.__address}"
             raise SerialException(msg)
 
+    def connect(self):
+        self.__serial = serial.Serial(
+            port=self.__address,
+            baudrate=self.__baud_rate,
+            bytesize=self.__byte_size,
+            timeout=self.__timeout,
+            parity=self.__parity,
+            stopbits=self.__stopbits,
+            xonxoff=self.__xonxoff
+        )
+        sleep(self.__delay)
+
+    def close(self):
+        try:
+            print(f'Closing serial connection to MX200 at {self.__address}.')
+            if self.__keep_alive:
+                self.__serial.close()
+        except AttributeError as e:
+            print('Connection already closed')
+
+    @property
+    def timeout(self):
+        return self.__timeout
+
+    @timeout.setter
+    def timeout(self, value: float):
+        value = abs(float(value))
+        self.__timeout = value
+        if self.__serial is not None:
+            self.__serial.timeout = value
+
     def check_id(self, attempt: int = 0) -> bool:
+        time.sleep(0.5)
+        old_delay = self.delay
+        old_timeout = self.timeout
+        self.delay = 0.5
+        self.timeout = 0.5
         check_id = self.query('SN')
+        self.delay = old_delay
+        self.delay = old_timeout
         if check_id != '406714':
             if attempt <= 3:
                 attempt += 1
@@ -105,13 +138,17 @@ class MX200:
 
     @units.setter
     def units(self, value: str):
+        self.set_units(value)
+
+    def set_units(self, value: str, attempts=0):
         if value in self.units_mapping:
             q = f"W1{value.upper()}"
             # print(q)
             r = self.query(q)
-            # print(r)
-            # # if r != value:
-            # #     print(f'Units {value} could not be set.')
+            if r != value:
+                # print(f'Units {value} could not be set. Returned {r}')
+                if attempts < 3:
+                    self.set_units(value, attempts+1)
 
     @property
     def sensor_types(self) -> dict:
@@ -161,16 +198,6 @@ class MX200:
         # print(f"Pressure: {pressure:.1e}")
         # return pressure
 
-    @property
-    def delay(self):
-        return self.__delay
-
-    @delay.setter
-    def delay(self, value):
-        if isinstance(value, float) or isinstance(value, int):
-            if value > 0:
-                self.__delay = value
-
     @staticmethod
     def ppsee(string_value: str):
         if string_value is None:
@@ -193,6 +220,16 @@ class MX200:
         b = '0' if np.sign(value) == -1 else 1
         aa = str(abs(value)).zfill(2)
         return f"{b}{aa}"
+
+    @property
+    def delay(self) -> float:
+        return self.__delay
+
+    @delay.setter
+    def delay(self, value):
+        value = float(value)
+        if value > 0:
+            self.__delay = value
 
     def write(self, q: str):
         if self.__keep_alive:
@@ -217,6 +254,8 @@ class MX200:
             self.__serial.write("{0}\r".format(q).encode('utf-8'))
             sleep(self.__delay)
             line = self.__serial.readline()
+            sleep(self.__delay)
+            return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
         else:
             with serial.Serial(
                     port=self.__address,
@@ -231,4 +270,5 @@ class MX200:
                 ser.write("{0}\r".format(q).encode('utf-8'))
                 sleep(self.__delay)
                 line = ser.readline()
-        return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
+                sleep(self.__delay)
+                return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
