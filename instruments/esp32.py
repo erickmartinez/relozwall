@@ -370,7 +370,7 @@ class DualTCLogger(ArduinoSerial):
 class DualTCLoggerTCP(ArduinoTCP):
     __ip_address = '192.168.4.3'
 
-    def __init__(self, ip_address: str):
+    def __init__(self, ip_address: str = '192.168.4.3'):
         super().__init__(ip_address=ip_address)
         check_connection = self.check_id()
         if not check_connection:
@@ -446,7 +446,7 @@ class DualTCLoggerTCP(ArduinoTCP):
                 else:
                     error_empty = True
             data = np.frombuffer(res, dtype=np.dtype([('Time (s)', 'f'), ('TC1 (C)', 'f'), ('TC2 (C)', 'f')]))
-            df = pd.DataFrame(data=data)
+            df = pd.DataFrame(data=data).apply(pd.to_numeric)
             # df.reset_index(drop=True, inplace=True)
             # df = df.apply(pd.to_numeric, errors='coerce')
         except ValueError as e:

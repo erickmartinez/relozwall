@@ -10,6 +10,7 @@ const char* ssid = SECRET_SSID;
 const char* password = SECRET_PWD;
 
 WiFiServer wifiServer(3001);
+WiFiClient client;
 
 IPAddress local_IP(192, 168, 4, 3);
 IPAddress gateway(192, 168, 0, 1);
@@ -47,6 +48,7 @@ unsigned long dt = 5;  // 10 ms
 unsigned long lcdInterval, wifiInterval;
 unsigned long lcdPreviousMillis, wifiPreviousMillis, logPreviousMillis, logCurrentMillis, wcPreviousMillis;
 unsigned long currentMillis, currentWCMillis;
+unsigned long previousMillisLoop;
 unsigned long duration = 5000;
 char tempBuffer[50];
 float elapsedTime;
@@ -60,6 +62,27 @@ float logDataBinary[N_POINTS][3];
 float readingData[3];
 float t1, t2;
 unsigned int logBufferSize, count, columns;
+
+
+void readTC1() {
+  double r = thermocouple1.readCelsius();
+  if (!isnan(r)) {
+    t1 = r;
+  } else {
+    delay(2);
+    readTC1();
+  }
+}
+
+void readTC2() {
+  double r = thermocouple2.readCelsius();
+  if (!isnan(r)) {
+    t2 = r;
+  } else {
+    delay(2);
+    readTC2();
+  }
+}
 
 void lcdTemperature(double t1, double t2) {
   char buff[30]; // Buffer big enough for 7-character float
@@ -122,7 +145,7 @@ void setup() {
   // Draw a single pixel in white
   display.drawPixel(10, 10, WHITE);
   count = 0;
-  lcdInterval = 200;
+  lcdInterval = 250;
   lcdPreviousMillis = 0;
   wifiInterval = 30000;
   wifiPreviousMillis = 0;
@@ -131,15 +154,19 @@ void setup() {
 
 
 void loop() {
-  WiFiClient client = wifiServer.available();
+  client = wifiServer.available();
+  currentMillis = millis();
+
   if (client) {
     while (client.connected()) {
       currentWCMillis = millis();
       if ((unsigned long)(currentWCMillis - wcPreviousMillis) >= lcdInterval) {
-          t1 = thermocouple1.readCelsius();
-          t2 = thermocouple2.readCelsius();
+          /*t1 = thermocouple1.readCelsius();
+          t2 = thermocouple2.readCelsius();*/
+          readTC1();
+          readTC2();
           lcdTemperature(t1, t2);
-          wcPreviousMillis = currentMillis;
+          wcPreviousMillis = currentWCMillis;
       }
       if (client.available()>0) {
         input = "";
@@ -159,6 +186,7 @@ void loop() {
             logPreviousMillis = 0;
             elapsedTime = 0.0;
             logStartTime = millis();
+            previousMillisLoop = 0;
 
             while ((elapsedTime < (duration + 500)/1000.0) && (count < N_POINTS)) {
               logCurrentMillis = millis();
@@ -166,8 +194,10 @@ void loop() {
                 if (client.available()>0) {
                   break;
                 }
-                t1 = thermocouple1.readCelsius();
-                t2 = thermocouple2.readCelsius();
+                /*t1 = thermocouple1.readCelsius();
+                t2 = thermocouple2.readCelsius();*/
+                readTC1();
+                readTC2();
                 elapsedTime = (float) (logCurrentMillis - logStartTime) / 1000.0;
                 logDataBinary[count][0] = elapsedTime;
                 logDataBinary[count][1] = t1;
@@ -198,8 +228,10 @@ void loop() {
               count = 0;
               break;
             }
-            readingData[0] = thermocouple1.readCelsius();
-            readingData[1] = thermocouple2.readCelsius();
+            readTC1();
+            readTC2();
+            readingData[0] = t1; // thermocouple1.readCelsius();
+            readingData[1] = t2; // thermocouple2.readCelsius();
             logBufferSize = 2*sizeof(float);
             columns = 2;
             client.write((const uint8_t  *)&logBufferSize, sizeof(unsigned int));
@@ -229,11 +261,11 @@ void loop() {
     }
   }
 
-  currentMillis = millis();
-
   if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
-      t1 = thermocouple1.readCelsius();
-      t2 = thermocouple2.readCelsius();
+      /*t1 = thermocouple1.readCelsius();
+      t2 = thermocouple2.readCelsius();*/
+      readTC1();
+      readTC2();
       lcdTemperature(t1, t2);
       lcdPreviousMillis = currentMillis;
   }
