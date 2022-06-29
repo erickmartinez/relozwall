@@ -11,26 +11,33 @@ import os
 import json
 import matplotlib.ticker as ticker
 from instruments.ametek import DCSource
+from simple_pid import PID
 
-EXT_READOUT_COM = 'COM12'
-DC_SOURCE_COM = 'COM13'
+# EXT_READOUT_COM = 'COM12'
+# DC_SOURCE_COM = 'COM13'
+DC_SOURCE_IP = '192.168.1.3'
+EXT_READOUT_IP = '192.168.4.2'
+
 ISC08_COM = 'COM4'
 voltage_setpoint = 40.0
-voltage_ramp_time = 60.0
+pid_stabilizing_time = 60.0
 SPEED_CMS = 1.1
 # MOVING_LENGTH = 12.0 # in
 MOVING_LENGTH = 5.0 / 2.54  # in <--- During heating move only 5 cm (or the length of the coil)
 speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
 
-
 base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
-sample = 'R3N50_3_350C'
-plot_csv = True
+sample = 'BLANK'
+temperature = 350
+plot_csv = False
 csv_file = 'FRICTION_R3N50_3_350C_1.10CMPS_20220608-185244.csv'
 calibration_factor = 14651.0
-load_cell_prediction_error_pct = 15.7  # %
-load_cell_range = 20.0 # kg
+load_cell_prediction_error_pct = 9.8  # %
+load_cell_range = 30.0  # kg
 allowable_force_threshold = 90  # percentage of the nominal range of the load cell
+ku = 1000.0
+Tu = 60.0
+pid_params = {'ku': 1000.0, 'kp': 0.2 * ku, 'ki': 0.4 * ku / Tu, 'kd': 2.0 * ku * Tu / 30.0}
 
 
 def move_forward_by_distance(distance_cm):
@@ -56,7 +63,7 @@ class FrictionExperiment:
     __readout: esp32.ExtruderReadout = None
     __dc_power_supply: DCSource = None
     __address_translator: str = 'COM4'
-    __address_readout: str = 'COM12'
+    __address_readout: str = None
     __x0: float = None
     __isc08_calibration_m: float = 0.034
     __isc08_calibration_b: float = -1.0
@@ -68,8 +75,7 @@ class FrictionExperiment:
         self.__address_readout = address_readout
         self.__translator = lnt.ISC08(address=address_translator)
         time.sleep(1.0)
-        self.__readout = esp32.ExtruderReadout(address=address_readout)
-        time.sleep(1.0)
+        self.__readout = esp32.ExtruderReadout(ip_address=EXT_READOUT_IP)
         self.__x0 = self.current_position_cm[0]
 
     @property
@@ -112,11 +118,11 @@ def cm2in(value):
 
 
 if __name__ == "__main__":
-    allowable_force_threshold_n = allowable_force_threshold * load_cell_range * 9.82E-2
     if SPEED_CMS not in speed_setting_map:
         msg = f"Speed {SPEED_CMS} not defined! Valid values are: {[k for k in speed_setting_map.keys()]}"
         raise ValueError(msg)
     SPEED_SETTING = speed_setting_map[SPEED_CMS]
+    # print(f"Speed setting: {SPEED_SETTING}")
     if plot_csv:
         file_tag = os.path.splitext(csv_file)[0]
 
@@ -208,6 +214,7 @@ if __name__ == "__main__":
     else:
         log = logging.getLogger(__name__)
         log.addHandler(logging.NullHandler())
+        log.setLevel(logging.DEBUG)
         today = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
         sample = sample.upper()
         file_tag = f"FRICTION_{sample}_{SPEED_CMS:3.2f}CMPS_{today}"
@@ -218,24 +225,38 @@ if __name__ == "__main__":
         fh.setLevel(logging.DEBUG)
         log.addHandler(fh)
 
-        experiment = FrictionExperiment(address_translator=ISC08_COM, address_readout=EXT_READOUT_COM)
-        dc_source = DCSource(address=DC_SOURCE_COM)
-        dc_source.setup_ramp_voltage(output_voltage=voltage_setpoint, time_s=voltage_ramp_time)
-        dc_source.run_voltage_ramp()
+        # create console handler and set level to debug
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+
+        log.addHandler(ch)
+
+        log.info("Setting the PID controller")
+        pid = PID(pid_params['kp'], pid_params['ki'], pid_params['kd'], setpoint=temperature)
+        pid.output_limits = (0, 150.0)
+        allowable_force_threshold_n = allowable_force_threshold * load_cell_range * 9.82E-2
+
+        experiment = FrictionExperiment(address_translator=ISC08_COM, address_readout=EXT_READOUT_IP)
+        dc_source = DCSource(ip_address=DC_SOURCE_IP)
+
+        log.info('Setting up DC voltage')
+        # self.__dc_source.cls()
+        # self.__dc_source.rst()
+        dc_source.current_setpoint = 8.0
+        dc_source.voltage_setpoint = 0.0
+        dc_source.output_on()
+
         # read the force in the absence of torque:
         n = 20
-        f0 = np.empty(n)
+        # f0 = np.empty(n)
 
+        log.info("Taring the load cell...")
         experiment.readout.zero()
         time.sleep(2.0)
-        for i in range(n):
-            [_, _, f0[i], _, _] = experiment.readout.reading
-            # print(f"{f0[i]:3.1f} N")
-            time.sleep(0.01)
-
-        background_reading = f0.mean()
-        background_std = f0.std()
-        print(f"Background Force Reading: {background_reading:3.1f}±{background_std:4.2f}")
+        # self.__dc_source.trigger_voltage()
+        [TC1, _, f, _, _] = experiment.readout.reading
+        log.info(f"TC1: {TC1:6.2f} °C, F: {f:4.1f} N")
+        pid.set_auto_mode(True, last_output=TC1)
 
         speed_setting = SPEED_SETTING  # experiment.cmps_to_speed_setting(cmps=SPEED_CMS)
         print(f"Speed setting: {speed_setting}")
@@ -253,32 +274,67 @@ if __name__ == "__main__":
         current_time = 0.0
         previous_time = 0.0
         total_time = 0.0
+        ramping_time = 0.0
+        ramping_t0 = time.time()
         moving = False
-        t0 = time.time()
+
+        run_pid = True
+        ramping = True
+        stabilizing = False
         # experiment.readout.zero()
         # time.sleep(5.0)
-
-        while total_time <= moving_time:
+        while run_pid:
             current_time = time.time()
-            if not moving:
+            [TC1, _, _, _, _] = experiment.readout.reading
+            control = pid(TC1)
+            dc_source.voltage_setpoint = control
+            if ramping:
+                print(f"T = {TC1:>6.2f} °C, Ramping Time: {ramping_time:>5.2f} s", end='\r', flush=True)
+                ramping_time = time.time() - ramping_t0
+                time.sleep(0.5)
+            if TC1 >= temperature and ramping:
+                ramping = False
+                stabilizing = True
+                ramping_time = 0
+                ramping_t0 = current_time
+                print("")
+                time.sleep(0.5)
+            if stabilizing and ramping_time <= pid_stabilizing_time:
+                print(f"T = {TC1:>6.2f} °C, Stabilizing Time: {ramping_time:>5.2f} s", end='\r', flush=True)
+                ramping_time = time.time() - ramping_t0
+                if ramping_time > pid_stabilizing_time:
+                    stabilizing = False
+                    t0 = current_time
+                    total_time = 0
+                time.sleep(0.5)
+
+            if (not ramping) and (not stabilizing) and not moving:
                 experiment.translator.move_by_time(moving_time=moving_time, speed_setting=speed_setting)
                 moving = True
-            if (current_time - previous_time) >= dt:
-                [_, _, fi, _, pot_adc] = experiment.readout.reading
-                d = experiment.adc_to_cm(pot_adc)
-                total_time = current_time - t0
-                elapsed_time.append(total_time)
-                position.append(d)
-                fi_err = fi * load_cell_prediction_error_pct * 1E-2
-                force.append(fi)
-                if fi >= allowable_force_threshold_n:
-                    msg = f'The force on the sample ({fi} N) is larger than the allowable limit: ' \
-                          f'{allowable_force_threshold_n} (N) '
-                    print(msg)
-                    raise ValueError(msg)
-                    break
-                print(f"{total_time:8.3f} s, ADC: {pot_adc:5.0f} -> {d:>5.1f} cm, {fi:>5.1f} ± {fi_err:>5.1f}N")
-                previous_time = current_time
+
+            if (not ramping) and (not stabilizing) and total_time <= moving_time:
+                # current_time = time.time()
+                if (current_time - previous_time) >= dt:
+                    [_, _, fi, _, pot_adc] = experiment.readout.reading
+                    d = experiment.adc_to_cm(pot_adc)
+                    total_time = current_time - t0
+                    elapsed_time.append(total_time)
+                    position.append(d)
+                    fi_err = fi * load_cell_prediction_error_pct * 1E-2
+                    force.append(fi)
+                    if fi >= allowable_force_threshold_n:
+                        msg = f'The force on the sample ({fi} N) is larger than the allowable limit: ' \
+                              f'{allowable_force_threshold_n} (N) '
+                        print(msg)
+                        raise ValueError(msg)
+                        break
+                    print(f"{total_time:8.3f} s, ADC: {pot_adc:5.0f} -> {d:>5.1f} cm, {fi:>5.1f} ± {fi_err:>5.1f}N")
+                    previous_time = current_time
+            if total_time > moving_time:
+                run_pid = False
+
+        dc_source.voltage_setpoint = 0.0
+        dc_source.output_off()
 
         elapsed_time = np.array(elapsed_time)
         position = np.array(position)
@@ -291,7 +347,6 @@ if __name__ == "__main__":
         print(f'Displacement: {displacement[0]:4.1f}±{displacement[1]:5.2f} cm')
         print(f'Moving time: {moving_time:5.3f} s')
         print(f'Average Speed: {avg_speed[0]:4.2f}±{avg_speed[1]:4.2f}cm/s')
-
 
         friction_df = pd.DataFrame(data={
             'Time (s)': elapsed_time,

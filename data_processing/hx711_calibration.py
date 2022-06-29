@@ -11,8 +11,8 @@ from scipy.optimize import least_squares
 from scipy.linalg import svd
 import matplotlib.ticker as ticker
 
-csv_calibration = r'../instruments/Load Cell Calibration - 20KG CELL.csv'
-load_cell_range = '20kg'
+csv_calibration = r'../instruments/Load Cell Calibration - 30KG CELL 2022-06-28.csv'
+load_cell_range = '30kg'
 
 
 def poly(x, b):

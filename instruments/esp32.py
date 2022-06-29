@@ -27,6 +27,7 @@ class ArduinoTCP:
     def connect(self):
         self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__connection.connect((self.__ip_address, self.__port))
+        self.__connection.settimeout(None)
 
     def disconnect(self):
         if self.__connection is not None:
@@ -36,10 +37,12 @@ class ArduinoTCP:
     def query(self, q: str, attempts=1) -> str:
         try:
             self.__connection.sendall(f"{q}\r".encode('utf-8'))
-        except ConnectionAbortedError as e:
-            self.__connection.close()
-            self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.__connection.connect((self.__ip_address, self.__port))
+        except (ConnectionAbortedError, ConnectionResetError) as e:
+            # self.__connection.close()
+            # self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # self.__connection.connect((self.__ip_address, self.__port))
+            self.disconnect()
+            self.connect()
             attempts += 1
             if attempts < 5:
                 print(e)
@@ -56,12 +59,9 @@ class ArduinoTCP:
     def query_binary(self, q, attempts: int = 1):
         try:
             self.__connection.sendall(f"{q}\r".encode('utf-8'))
-            # time.sleep(0.005)
             raw_msg_len = self.__connection.recv(4)
-            # time.sleep(0.005)
             n = struct.unpack('<I', raw_msg_len)[0]
             raw_msg_cols = self.__connection.recv(4)
-            # time.sleep(0.005)
             cols = struct.unpack('<I', raw_msg_cols)[0]
             data = bytearray()
             while len(data) < n:
@@ -70,10 +70,12 @@ class ArduinoTCP:
                     return None
                 data.extend(packet)
             rows = int(n / 4 / cols)
-        except ConnectionError as e:
-            self.__connection.close()
-            self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.__connection.connect((self.__ip_address, self.__port))
+        except (ConnectionError, ConnectionResetError) as e:
+            # self.__connection.close()
+            # self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # self.__connection.connect((self.__ip_address, self.__port))
+            self.disconnect()
+            self.connect()
             attempts += 1
             while attempts <= 5:
                 print(e)
@@ -83,7 +85,7 @@ class ArduinoTCP:
     def write(self, q: str, attempts: int = 1):
         try:
             self.__connection.sendall(f"{q}\r".encode('utf-8'))
-        except ConnectionAbortedError as e:
+        except (ConnectionAbortedError,ConnectionResetError) as e:
             self.__connection.close()
             self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__connection.connect((self.__ip_address, self.__port))
@@ -492,20 +494,27 @@ class ExtruderReadout(ArduinoTCP):
         else:
             return True
 
-    @property
-    def reading(self):
+    def get_reading(self, attempts=1):
         try:
             _, _, res = self.query_binary('r')
             # reading = [float(x) for x in res.split(',')]
-            reading = list(struct.unpack('<ffflH', res))
+            result = np.array(list(struct.unpack('<ffflH', res)))
+            if np.isnan(result).any():
+                attempts += 1
+                if attempts <= 5:
+                    return self.get_reading(attempts=attempts)
         except AttributeError as e:
             print(res, e)
             raise AttributeError(e)
         except ValueError as e:
             print(res, e)
             raise ValueError(e)
-        time.sleep(0.01)
-        return reading
+        # time.sleep(0.01)
+        return result
+
+    @property
+    def reading(self):
+        return self.get_reading()
 
     def zero(self):
         # old_delay = self.delay

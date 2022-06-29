@@ -1,7 +1,6 @@
 import logging
-import sys, os
-
-import numpy as np
+import os
+import sys
 
 sys.path.append('../')
 sys.modules['cloudpickle'] = None
@@ -10,10 +9,8 @@ import time
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
-from pymeasure.experiment import IntegerParameter, FloatParameter, Parameter
+from pymeasure.experiment import FloatParameter
 from pymeasure.experiment import unique_filename
-from instruments.mx200 import MX200
-import datetime
 from instruments.inhibitor import WindowsInhibitor
 from instruments.esp32 import ExtruderReadout
 from instruments.ametek import DCSource

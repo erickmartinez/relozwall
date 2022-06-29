@@ -53,14 +53,14 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_MAX31855 thermocouple1(MAXCLK1, MAXCS1, MAXDO1);
 Adafruit_MAX31855 thermocouple2(MAXCLK2, MAXCS2, MAXDO2);
 
-float calibrationFactor = 14651;
+float calibrationFactor = 7.8764E+03;
 long zeroFactor;
 unsigned long lcdInterval, interval;
 unsigned long lcdPreviousMillis, previousMillis, lcdWCPreviousMillis;
 unsigned long currentMillis, currentWCMillis;
 
 char responseBuffer[BUFF_SIZE];
-int adcAverages = 3;
+int adcAverages = 5;
 double inputCalibration;
 
 float t1, t2, f;
@@ -97,16 +97,40 @@ void lcdUpdate(float t1, float t2, float f, int pot) {
   snprintf(buff, sizeof(buff), "TC1: %6.2f \367C\nTC2: %6.2f \367C\nF:   %7.1f N\nD: %5.1f\"", t1, t2, f, adc2inches(pot));
   display.println(buff);
   display.display();
-  //delay(5);
+  //delay(1);
 }
 
+double readTC(uint8_t tcIndex) {
+  double result = NAN;
+  if (tcIndex == 1) {
+    result = thermocouple1.readCelsius();
+  } else if (tcIndex == 2) {
+    result = thermocouple2.readCelsius();
+  }
+  if (isnan(result)) {
+    delay(5);
+    return readTC(tcIndex);
+  }
+  return result;
+}
 
-uint16_t adcAverage() {
+int savePotRead() {
+  int adc = NAN;
+  adc = analogRead(POT_PIN);
+  if (isnan(adc)) {
+    delay(2);
+    return savePotRead();
+  }
+  return adc;
+}
+
+int adcAverage() {
   float num = 0;
   for (int i=0; i<adcAverages; ++i){
-    num += analogRead(POT_PIN);
+    num += savePotRead();
+    //delay(1);
   }
-  return (uint16_t) num / adcAverages;
+  return (int) num / adcAverages;
 }
 
 void scanI2C() {
@@ -189,7 +213,7 @@ void setup() {
 
   // Draw a single pixel in white
   display.drawPixel(10, 10, WHITE);
-  lcdInterval = 200;
+  lcdInterval = 250;
   interval = 30000;
   lcdPreviousMillis = 0;
   previousMillis = 0;
@@ -198,13 +222,15 @@ void setup() {
 
 void loop() {
    client = wifiServer.available();
+   currentMillis = millis();
+
    if (client) {
     while (client.connected()) {
       currentWCMillis = millis();
       if ((unsigned long)(currentWCMillis - lcdWCPreviousMillis) >= lcdInterval) {
-          t1 = thermocouple1.readCelsius();
-          t2 = thermocouple2.readCelsius();
-          f = scale.get_units(1);
+          t1 = readTC(1); //thermocouple1.readCelsius();
+          t2 = readTC(2); //thermocouple2.readCelsius();
+          f = scale.get_units(3);
           potADC = adcAverage();
           lcdUpdate(t1, t2, float(f), potADC);
           lcdWCPreviousMillis = currentWCMillis;
@@ -228,9 +254,9 @@ void loop() {
             client.print("\n");
             break;
           case 0x72: // r as in read
-            t1 = thermocouple1.readCelsius();
-            t2 = thermocouple2.readCelsius();
-            f = scale.get_units(2);
+            t1 = readTC(1); //thermocouple1.readCelsius();
+            t2 = readTC(2); //thermocouple2.readCelsius();
+            f = scale.get_units(1);
             loadcellADC = scale.read();
             potADC = adcAverage();
             binaryData = {t1, t2, f, loadcellADC, potADC};
@@ -268,14 +294,11 @@ void loop() {
     Serial.println("Client disconnected");
   }
 
-  currentMillis = millis();
+  // currentMillis = millis();
   if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
-    t1 = thermocouple1.readCelsius();
-    //delay(2);
-    t2 = thermocouple2.readCelsius();
-    //delay(2);
+    t1 = readTC(1); //thermocouple1.readCelsius();
+    t2 = readTC(2); //thermocouple2.readCelsius();
     f = scale.get_units(3);
-    //delay(1);
     potADC = adcAverage();
     lcdUpdate(t1, t2, float(f), potADC);
     lcdPreviousMillis = currentMillis;
