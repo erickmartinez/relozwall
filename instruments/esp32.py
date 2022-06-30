@@ -29,6 +29,9 @@ class ArduinoTCP:
         self.__connection.connect((self.__ip_address, self.__port))
         self.__connection.settimeout(None)
 
+    def close(self):
+        self.disconnect()
+
     def disconnect(self):
         if self.__connection is not None:
             self.__connection.close()

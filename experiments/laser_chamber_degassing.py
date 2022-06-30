@@ -14,11 +14,12 @@ from pymeasure.experiment import FloatParameter, Parameter
 from pymeasure.experiment import unique_filename
 from instruments.mx200 import MX200
 from instruments.inhibitor import WindowsInhibitor
-from instruments.esp32 import DualTCLogger
+from instruments.esp32 import DualTCLoggerTCP
 from serial import SerialException
 
 MX200_COM = 'COM3'
-TC_LOGGER_COM = 'COM10'
+# TC_LOGGER_COM = 'COM10'
+TC_LOGGER_IP = '192.168.4.3'
 
 chamber_volume = 34.0  # L
 
@@ -41,7 +42,7 @@ class LaserChamberDegassing(Procedure):
 
     __mx200: MX200 = None
     __mx200_delay: float = 0.05
-    __temperature_readout: DualTCLogger = None
+    __temperature_readout: DualTCLoggerTCP = None
     __keep_alive: bool = False
     __time_start = None
     __ndata_points: int = None
@@ -57,7 +58,7 @@ class LaserChamberDegassing(Procedure):
         time.sleep(2.0)
         log.info('Connection to pressure readout successful...')
         log.info('Connecting to the temperature readout...')
-        self.__temperature_readout = DualTCLogger(address=TC_LOGGER_COM)
+        self.__temperature_readout = DualTCLoggerTCP(ip_address=TC_LOGGER_IP)
         self.__mx200.units = 'MT'
         time.sleep(2.0)
         log.info("Connection to temperature readout successful...")

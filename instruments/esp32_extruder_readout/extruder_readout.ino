@@ -73,6 +73,8 @@ unsigned int outputBufferSize = 3*sizeof(float)+sizeof(long)+sizeof(uint16_t);
 String input;
 char rxChar;
 
+uint8_t failedAttempts = 0;
+
 typedef struct {
   float tc1;
   float tc2;
@@ -108,9 +110,13 @@ double readTC(uint8_t tcIndex) {
     result = thermocouple2.readCelsius();
   }
   if (isnan(result)) {
-    delay(5);
-    return readTC(tcIndex);
+    failedAttempts += 1;
+    if (failedAttempts <= 3) {
+      delay(2);
+      return readTC(tcIndex);
+    }
   }
+  failedAttempts = 0;
   return result;
 }
 
@@ -118,7 +124,7 @@ int savePotRead() {
   int adc = NAN;
   adc = analogRead(POT_PIN);
   if (isnan(adc)) {
-    delay(2);
+    delay(5);
     return savePotRead();
   }
   return adc;
