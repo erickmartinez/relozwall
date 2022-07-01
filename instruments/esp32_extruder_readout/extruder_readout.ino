@@ -56,11 +56,12 @@ Adafruit_MAX31855 thermocouple2(MAXCLK2, MAXCS2, MAXDO2);
 float calibrationFactor = 7.8764E+03;
 long zeroFactor;
 unsigned long lcdInterval, interval;
-unsigned long lcdPreviousMillis, previousMillis, lcdWCPreviousMillis;
-unsigned long currentMillis, currentWCMillis;
+unsigned long lcdPreviousMillis, previousMillis, sensorsPreviousMillis;
+unsigned long currentMillis;
 
 char responseBuffer[BUFF_SIZE];
-int adcAverages = 5;
+uint8_t adcAverages = 3;
+float invADCAverages;
 double inputCalibration;
 
 float t1, t2, f;
@@ -73,7 +74,8 @@ unsigned int outputBufferSize = 3*sizeof(float)+sizeof(long)+sizeof(uint16_t);
 String input;
 char rxChar;
 
-uint8_t failedAttempts = 0;
+uint8_t failedAttemptsTC1 = 0;
+uint8_t failedAttemptsTC2 = 0;
 
 typedef struct {
   float tc1;
@@ -85,7 +87,7 @@ typedef struct {
 
 readingData binaryData = {0.0, 0.0, 0.0, 0, 0};
 
-float adc2inches(int value) {
+float adc2inches(uint16_t value) {
   return 3.327 + 0.01303 * value;
 }
 
@@ -102,30 +104,40 @@ void lcdUpdate(float t1, float t2, float f, int pot) {
   //delay(1);
 }
 
-double readTC(uint8_t tcIndex) {
-  double result = NAN;
-  if (tcIndex == 1) {
-    result = thermocouple1.readCelsius();
-  } else if (tcIndex == 2) {
-    result = thermocouple2.readCelsius();
-  }
-  if (isnan(result)) {
-    failedAttempts += 1;
-    if (failedAttempts <= 3) {
+void readTC1() {
+  double r = thermocouple1.readCelsius();
+  if (!isnan(r)) {
+    t1 = r;
+    failedAttemptsTC1 = 0;
+  } else {
+    failedAttemptsTC1++;
+    if (failedAttemptsTC1 <= 3) {
       delay(2);
-      return readTC(tcIndex);
+      readTC1();
     }
   }
-  failedAttempts = 0;
-  return result;
+}
+
+void readTC2() {
+  double r = thermocouple2.readCelsius();
+  if (!isnan(r)) {
+    t2 = r;
+    failedAttemptsTC2 = 0;
+  } else {
+    failedAttemptsTC2++;
+    if (failedAttemptsTC2 <= 3) {
+      delay(2);
+      readTC2();
+    }
+  }
 }
 
 int savePotRead() {
-  int adc = NAN;
+  uint16_t adc = NAN;
   adc = analogRead(POT_PIN);
   if (isnan(adc)) {
-    delay(5);
-    return savePotRead();
+    delay(2);
+    savePotRead();
   }
   return adc;
 }
@@ -136,7 +148,7 @@ int adcAverage() {
     num += savePotRead();
     //delay(1);
   }
-  return (int) num / adcAverages;
+  potADC = (uint16_t) num * invADCAverages;
 }
 
 void scanI2C() {
@@ -223,30 +235,57 @@ void setup() {
   interval = 30000;
   lcdPreviousMillis = 0;
   previousMillis = 0;
-  lcdWCPreviousMillis = 0;
+  sensorsPreviousMillis = 0;
+  invADCAverages = 1.0 / ((float) adcAverages);
 }
 
 void loop() {
    client = wifiServer.available();
    currentMillis = millis();
 
-   if (client) {
-    while (client.connected()) {
-      currentWCMillis = millis();
-      if ((unsigned long)(currentWCMillis - lcdWCPreviousMillis) >= lcdInterval) {
-          t1 = readTC(1); //thermocouple1.readCelsius();
-          t2 = readTC(2); //thermocouple2.readCelsius();
-          f = scale.get_units(3);
-          potADC = adcAverage();
-          lcdUpdate(t1, t2, float(f), potADC);
-          lcdWCPreviousMillis = currentWCMillis;
+   if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval)) {
+    WiFi.disconnect();
+    WiFi.reconnect();
+    previousMillis = currentMillis;
+  }
+
+   if ((!client) || (!client.connected())) {
+    if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 5) {
+      readTC1();
+      readTC2();
+      adcAverage();
+      f = scale.get_units(3);
+      loadcellADC = scale.read();
+      sensorsPreviousMillis = currentMillis;
+    }
+
+    if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
+      lcdUpdate(t1, t2, float(f), potADC);
+      lcdPreviousMillis = currentMillis;
+    }
+  }
+
+  if (client) {
+    while (client.connected() ) {
+      currentMillis = millis();
+
+      if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 5) {
+        readTC1();
+        readTC2();
+        adcAverage();
+        f = scale.get_units(3);
+        loadcellADC = scale.read();
+        sensorsPreviousMillis = currentMillis;
       }
+
+      if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
+        lcdUpdate(t1, t2, float(f), potADC);
+        lcdPreviousMillis = currentMillis;
+      }
+
       if (client.available()>0) {
         input = "";
         input = client.readStringUntil(0x0D);
-        /*Serial.print(input);
-        Serial.print('\n');
-        Serial.flush();*/
         rxChar = input[0];
         switch (rxChar) {
           case 0x69: // i as in id
@@ -260,13 +299,7 @@ void loop() {
             client.print("\n");
             break;
           case 0x72: // r as in read
-            t1 = readTC(1); //thermocouple1.readCelsius();
-            t2 = readTC(2); //thermocouple2.readCelsius();
-            f = scale.get_units(1);
-            loadcellADC = scale.read();
-            potADC = adcAverage();
             binaryData = {t1, t2, f, loadcellADC, potADC};
-
             client.write((const uint8_t  *)&outputBufferSize, sizeof(unsigned int));
             client.write((const uint8_t  *)&columns, sizeof(unsigned int));
             client.write((const uint8_t  *)&binaryData, outputBufferSize);
@@ -292,28 +325,11 @@ void loop() {
           default:
             client.print("ERR_CMD");
             client.print("\n");
-        }
-      }
-      //delay(10);
-    }
+        } // switch (rxChar)
+      } // if client available
+    } // if (client.connected())
     client.stop();
-    Serial.println("Client disconnected");
-  }
-
-  // currentMillis = millis();
-  if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
-    t1 = readTC(1); //thermocouple1.readCelsius();
-    t2 = readTC(2); //thermocouple2.readCelsius();
-    f = scale.get_units(3);
-    potADC = adcAverage();
-    lcdUpdate(t1, t2, float(f), potADC);
-    lcdPreviousMillis = currentMillis;
-  }
-
-  if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval)) {
-    WiFi.disconnect();
-    WiFi.reconnect();
-    previousMillis = currentMillis;
+    //Serial.println("Client disconnected");
   }
 
   if(Serial.available()) {

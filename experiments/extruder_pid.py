@@ -1,3 +1,8 @@
+"""
+See:
+https://en.wikipedia.org/wiki/Ziegler%E2%80%93Nichols_method
+"""
+
 import logging
 import os
 import sys
@@ -18,6 +23,7 @@ from simple_pid import PID
 
 DC_SOURCE_IP = '192.168.1.3'
 EXT_READOUT_IP = '192.168.4.2'
+
 
 
 class ExtruderPIDProcedure(Procedure):

@@ -16,7 +16,7 @@ from pymeasure.experiment import FloatParameter, ListParameter, Parameter
 from pymeasure.experiment import unique_filename
 from serial.serialutil import SerialException
 from instruments.esp32 import ESP32Trigger
-from instruments.esp32 import DualTCLogger
+from instruments.esp32 import DualTCLoggerTCP
 from instruments.tektronix import TBS2000
 from instruments.mx200 import MX200
 from instruments.IPG import YLR3000, LaserException
@@ -25,7 +25,8 @@ from scipy import interpolate
 
 TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
 ESP32_COM = 'COM6'
-TC_LOGGER_COM = 'COM10'
+# TC_LOGGER_COM = 'COM10'
+TC_LOGGER_IP = '192.168.4.3'
 MX200_COM = 'COM3'
 TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
@@ -45,7 +46,7 @@ class LaserProcedure(Procedure):
     __oscilloscope: TBS2000 = None
     __keep_alive: bool = False
     __on_sleep: WindowsInhibitor = None
-    __tc_logger: DualTCLogger = None
+    __tc_logger: DualTCLoggerTCP = None
     __mx200: MX200 = None
     __ylr: YLR3000 = None
     pressure_data: pd.DataFrame = None
@@ -80,8 +81,12 @@ class LaserProcedure(Procedure):
     def execute(self):
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
+        time.sleep(0.1)
+        log.info(f"Setting the laser to the current setpoint: {float(self.laser_power_setpoint):.2f} %")
         self.__ylr.current_setpoint = self.laser_power_setpoint
-        emission_on = False
+        time.sleep(0.1)
+        log.info(f"Laser current setpoint: {float(self.__ylr.current_setpoint):.2f} %")
+
         try:
             self.__ylr.emission_on()
             emission_on = True
@@ -106,8 +111,7 @@ class LaserProcedure(Procedure):
             print("Error initializing ESP32 trigger")
             raise e
 
-        tc_logger = DualTCLogger(address=TC_LOGGER_COM)
-        time.sleep(0.1)
+        tc_logger =  DualTCLoggerTCP(ip_address=TC_LOGGER_IP)
         print('Successfully initialized thermocouple readout...')
 
         esp32.pulse_duration = float(self.emission_time)
@@ -121,7 +125,6 @@ class LaserProcedure(Procedure):
         # time.sleep(0.05)
         t1 = time.time()
         tc_logger.log_time = self.measurement_time + self.emission_time
-        time.sleep(0.1)
         tc_logger.start_logging()
         self.__oscilloscope.write('ACQUIRE:STATE ON')
         esp32.fire()
@@ -189,7 +192,9 @@ class LaserProcedure(Procedure):
             log.error(e)
             raise ValueError(e)
 
-        time.sleep(2.0)
+        tc_time = tc_data['Time (s)']
+        tc_time_max_idx = tc_time.idxmax()
+        tc_data = tc_data.iloc[0:tc_time_max_idx+1,:]
         print(tc_data)
 
         columns = data.dtype.names

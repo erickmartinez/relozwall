@@ -12,6 +12,7 @@ import json
 import matplotlib.ticker as ticker
 from instruments.ametek import DCSource
 from simple_pid import PID
+from scipy.interpolate import interp1d
 
 # EXT_READOUT_COM = 'COM12'
 # DC_SOURCE_COM = 'COM13'
@@ -19,27 +20,34 @@ DC_SOURCE_IP = '192.168.1.3'
 EXT_READOUT_IP = '192.168.4.2'
 
 ISC08_COM = 'COM4'
-voltage_setpoint = 40.0
-pid_stabilizing_time = 60.0
-SPEED_CMS = 1.1
-# MOVING_LENGTH = 12.0 # in
-MOVING_LENGTH = 5.0 / 2.54  # in <--- During heating move only 5 cm (or the length of the coil)
-speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
-
 base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
-sample = 'BLANK'
+pid_stabilizing_time = 300.0  # seconds
+SPEED_CMS = 0.57
+speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
 temperature = 350
-plot_csv = False
-csv_file = 'FRICTION_R3N50_3_350C_1.10CMPS_20220608-185244.csv'
-calibration_factor = 14651.0
+sample = 'R3N52'
+baseline = False
+# MOVING_LENGTH = 12.0 # in
+MOVING_LENGTH = 6.0  # 5.0 / 2.54  # in <--- During heating move only 5 cm (or the length of the coil)
+if baseline:
+    MOVING_LENGTH = 20.0  # <------- FOR BASELINE 20 INCHES STARTING FROM POSITION = 9.0 IN
+
+plot_csv = True
+csv_file = 'FRICTION_R3N52_350C_0.57CMPS_20220701-115904.csv'
+# ********************** BASELINE ******************************************
+baseline_csv = 'FRICTION_BASELINE_R3N52_350C_0.11CMPS_20220630-171238.csv'
+# **************************************************************************
+
 load_cell_prediction_error_pct = 9.8  # %
 load_cell_range = 30.0  # kg
 allowable_force_threshold = 90  # percentage of the nominal range of the load cell
 ku = 1000.0
 Tu = 60.0
 pid_params = {'ku': 1000.0, 'kp': 0.2 * ku, 'ki': 0.4 * ku / Tu, 'kd': 2.0 * ku * Tu / 30.0}
+N_POINTS = 100
+X_MAX = 55.5
 
-
+"""
 def move_forward_by_distance(distance_cm):
     import instruments.linear_translator as lnt
     m_time = distance_cm / 0.57
@@ -56,6 +64,7 @@ def move_back_by_distance(distance_cm):
         __translator = lnt.ISC08(address=ISC08_COM)
     __translator.move_by_time(moving_time=m_time, speed_setting=-55)
     del __translator
+"""
 
 
 class FrictionExperiment:
@@ -127,6 +136,15 @@ if __name__ == "__main__":
         file_tag = os.path.splitext(csv_file)[0]
 
         friction_df = pd.read_csv(os.path.join(base_path, csv_file)).apply(pd.to_numeric)
+        friction_df.sort_values(by=['Position (cm)'], ascending=True, inplace=True)
+        friction_df.reset_index(drop=True, inplace=True)
+        if X_MAX is not None:
+            friction_df = friction_df[friction_df['Position (cm)'] <= X_MAX]
+        background_df = pd.read_csv(os.path.join(base_path, baseline_csv)).apply(pd.to_numeric)
+        x_b = background_df['Position (cm)'].values
+        f_f = background_df['Force (N)'].values
+        f = interp1d(x_b, f_f, kind='linear')
+
         #     pd.DataFrame(data={
         #     'Time (s)': elapsed_time,
         #     'Position (cm)': position,
@@ -135,12 +153,21 @@ if __name__ == "__main__":
         elapsed_time = friction_df['Time (s)'].values
         position = friction_df['Position (cm)'].values
         force = friction_df['Force (N)'].values
+        if not baseline:
+            force -= f(position)
+        force_err = force * (2.0 ** 0.5) * load_cell_prediction_error_pct * 1E-2
 
-        elapsed_time = elapsed_time[:-1]
-        position = position[:-1]
-        force = force[:-1]
+        if not baseline:
+            friction_baselined_df = friction_df.copy()
+            friction_baselined_df['Background Force (N)'] = f(position)
+            friction_baselined_df['Baselined Force (N)'] = force
+            friction_baselined_df['Baselined Force Error (N)'] = force_err
+            print(friction_baselined_df)
+            friction_baselined_df.to_csv(path_or_buf=os.path.join(base_path, file_tag + '_baselined.csv'), index=False)
 
-        print(friction_df)
+        # elapsed_time = elapsed_time[:-1]
+        # position = position[:-1]
+        # force = force[:-1]
 
         avg_speed = (position.max() - position.min()) / elapsed_time.max()
 
@@ -153,8 +180,6 @@ if __name__ == "__main__":
         fig.set_size_inches(4.5, 3.25)
 
         ax2 = ax1.twiny()
-
-        force_err = force * load_cell_prediction_error_pct * 1E-2
 
         ax1.errorbar(
             position, force, yerr=force_err,
@@ -200,7 +225,7 @@ if __name__ == "__main__":
         ax1.set_xlabel('Position (cm)')
         ax1.set_ylabel('Force (N)')
         ax2.set_xlabel('Position (in)')
-        ax1.set_title(f"{sample}, {avg_speed:3.2} cm/s")
+        ax1.set_title(f"{sample}, {temperature:>3.0f} °C, {avg_speed:3.2} cm/s")
 
         ax1.ticklabel_format(useMathText=True)
         ax1.xaxis.set_minor_locator(ticker.MaxNLocator(6))
@@ -217,7 +242,7 @@ if __name__ == "__main__":
         log.setLevel(logging.DEBUG)
         today = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
         sample = sample.upper()
-        file_tag = f"FRICTION_{sample}_{SPEED_CMS:3.2f}CMPS_{today}"
+        file_tag = f"FRICTION_{sample}_{temperature:>3.0f}C_{SPEED_CMS:3.2f}CMPS_{today}"
         log_file = os.path.join(base_path, file_tag + '.csv')
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(log_file)
@@ -247,15 +272,15 @@ if __name__ == "__main__":
         dc_source.output_on()
 
         # read the force in the absence of torque:
-        n = 20
         # f0 = np.empty(n)
 
         log.info("Taring the load cell...")
         experiment.readout.zero()
         time.sleep(2.0)
         # self.__dc_source.trigger_voltage()
-        [TC1, _, f, _, _] = experiment.readout.reading
-        log.info(f"TC1: {TC1:6.2f} °C, F: {f:4.1f} N")
+        [TC1, _, f, _, pot_adc] = experiment.readout.reading
+        d0 = experiment.adc_to_cm(pot_adc)
+        log.info(f"TC1: {TC1:6.2f} °C, F: {f:4.1f} N, x0: {d0:.1f} cm")
         pid.set_auto_mode(True, last_output=TC1)
 
         speed_setting = SPEED_SETTING  # experiment.cmps_to_speed_setting(cmps=SPEED_CMS)
@@ -266,11 +291,13 @@ if __name__ == "__main__":
 
         initial_position, _ = experiment.current_position_cm
 
-        dt = moving_time / n
+        dt = max(moving_time / N_POINTS, 0.4)
+        print(f'dt = {dt:.3f} s')
 
         elapsed_time = []
         force = []
         position = []
+        baking_temperature = []
         current_time = 0.0
         previous_time = 0.0
         total_time = 0.0
@@ -281,24 +308,25 @@ if __name__ == "__main__":
         run_pid = True
         ramping = True
         stabilizing = False
+        displacement = 0
         # experiment.readout.zero()
         # time.sleep(5.0)
         while run_pid:
             current_time = time.time()
-            [TC1, _, _, _, _] = experiment.readout.reading
+            [TC1, _, fi, _, pot_adc] = experiment.readout.reading
             control = pid(TC1)
             dc_source.voltage_setpoint = control
             if ramping:
                 print(f"T = {TC1:>6.2f} °C, Ramping Time: {ramping_time:>5.2f} s", end='\r', flush=True)
                 ramping_time = time.time() - ramping_t0
-                time.sleep(0.5)
+                time.sleep(0.1)
             if TC1 >= temperature and ramping:
                 ramping = False
                 stabilizing = True
                 ramping_time = 0
                 ramping_t0 = current_time
                 print("")
-                time.sleep(0.5)
+                time.sleep(0.01)
             if stabilizing and ramping_time <= pid_stabilizing_time:
                 print(f"T = {TC1:>6.2f} °C, Stabilizing Time: {ramping_time:>5.2f} s", end='\r', flush=True)
                 ramping_time = time.time() - ramping_t0
@@ -306,7 +334,7 @@ if __name__ == "__main__":
                     stabilizing = False
                     t0 = current_time
                     total_time = 0
-                time.sleep(0.5)
+                time.sleep(0.1)
 
             if (not ramping) and (not stabilizing) and not moving:
                 experiment.translator.move_by_time(moving_time=moving_time, speed_setting=speed_setting)
@@ -315,13 +343,15 @@ if __name__ == "__main__":
             if (not ramping) and (not stabilizing) and total_time <= moving_time:
                 # current_time = time.time()
                 if (current_time - previous_time) >= dt:
-                    [_, _, fi, _, pot_adc] = experiment.readout.reading
+                    # [TC1, _, fi, _, pot_adc] = experiment.readout.reading
                     d = experiment.adc_to_cm(pot_adc)
+                    displacement = (d - d0) / 2.54
                     total_time = current_time - t0
                     elapsed_time.append(total_time)
                     position.append(d)
                     fi_err = fi * load_cell_prediction_error_pct * 1E-2
                     force.append(fi)
+                    baking_temperature.append(TC1)
                     if fi >= allowable_force_threshold_n:
                         msg = f'The force on the sample ({fi} N) is larger than the allowable limit: ' \
                               f'{allowable_force_threshold_n} (N) '
@@ -330,7 +360,7 @@ if __name__ == "__main__":
                         break
                     print(f"{total_time:8.3f} s, ADC: {pot_adc:5.0f} -> {d:>5.1f} cm, {fi:>5.1f} ± {fi_err:>5.1f}N")
                     previous_time = current_time
-            if total_time > moving_time:
+            if displacement >= MOVING_LENGTH or total_time > moving_time:
                 run_pid = False
 
         dc_source.voltage_setpoint = 0.0
@@ -341,6 +371,7 @@ if __name__ == "__main__":
         force = np.array(force)
         current_position = experiment.current_position_cm
         displacement = current_position - initial_position
+        baking_temperature = np.array(baking_temperature)
 
         avg_speed = displacement / moving_time
 
@@ -351,7 +382,8 @@ if __name__ == "__main__":
         friction_df = pd.DataFrame(data={
             'Time (s)': elapsed_time,
             'Position (cm)': position,
-            'Force (N)': force
+            'Force (N)': force,
+            'TC1 (C)': baking_temperature
         })
 
         print(friction_df)

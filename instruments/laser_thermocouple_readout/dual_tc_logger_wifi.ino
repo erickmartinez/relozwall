@@ -46,9 +46,8 @@ Adafruit_MAX31855 thermocouple2(MAXCLK2, MAXCS2, MAXDO2);
 char responseBuffer[50];
 unsigned long dt = 5;  // 10 ms
 unsigned long lcdInterval, wifiInterval;
-unsigned long lcdPreviousMillis, wifiPreviousMillis, logPreviousMillis, logCurrentMillis, wcPreviousMillis;
-unsigned long currentMillis, currentWCMillis;
-unsigned long previousMillisLoop;
+unsigned long lcdPreviousMillis, wifiPreviousMillis, logPreviousMillis, logCurrentMillis, sensorsPreviousMillis;
+unsigned long currentMillis;
 unsigned long duration = 5000;
 char tempBuffer[50];
 float elapsedTime;
@@ -62,15 +61,20 @@ float logDataBinary[N_POINTS][3];
 float readingData[3];
 float t1, t2;
 unsigned int logBufferSize, count, columns;
-
+uint8_t failedAttemptsTC1 = 0;
+uint8_t failedAttemptsTC2 = 0;
 
 void readTC1() {
   double r = thermocouple1.readCelsius();
   if (!isnan(r)) {
     t1 = r;
+    failedAttemptsTC1 = 0;
   } else {
-    delay(2);
-    readTC1();
+    failedAttemptsTC1++;
+    if (failedAttemptsTC1 <= 3) {
+      delay(1);
+      readTC1();
+    }
   }
 }
 
@@ -78,9 +82,13 @@ void readTC2() {
   double r = thermocouple2.readCelsius();
   if (!isnan(r)) {
     t2 = r;
+    failedAttemptsTC2 = 0;
   } else {
-    delay(2);
-    readTC2();
+    failedAttemptsTC2++;
+    if (failedAttemptsTC2 <= 3) {
+      delay(1);
+      readTC2();
+    }
   }
 }
 
@@ -149,7 +157,7 @@ void setup() {
   lcdPreviousMillis = 0;
   wifiInterval = 30000;
   wifiPreviousMillis = 0;
-  wcPreviousMillis = 0;
+  sensorsPreviousMillis = 0;
 }
 
 
@@ -157,17 +165,41 @@ void loop() {
   client = wifiServer.available();
   currentMillis = millis();
 
+  if ((WiFi.status() != WL_CONNECTED) && (currentMillis - wifiPreviousMillis >= wifiInterval)) {
+    WiFi.disconnect();
+    WiFi.reconnect();
+    wifiPreviousMillis = currentMillis;
+  }
+
+  if ((!client) || (!client.connected())) {
+    if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 2) {
+      readTC1();
+      readTC2();
+      sensorsPreviousMillis = currentMillis;
+    }
+
+    if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
+        lcdTemperature(t1, t2);
+        lcdPreviousMillis = currentMillis;
+    }
+  }
+
+
   if (client) {
     while (client.connected()) {
-      currentWCMillis = millis();
-      if ((unsigned long)(currentWCMillis - wcPreviousMillis) >= lcdInterval) {
-          /*t1 = thermocouple1.readCelsius();
-          t2 = thermocouple2.readCelsius();*/
-          readTC1();
-          readTC2();
-          lcdTemperature(t1, t2);
-          wcPreviousMillis = currentWCMillis;
+      currentMillis = millis();
+
+      if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 2) {
+        readTC1();
+        readTC2();
+        sensorsPreviousMillis = currentMillis;
       }
+
+      if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
+          lcdTemperature(t1, t2);
+          lcdPreviousMillis = currentMillis;
+      }
+
       if (client.available()>0) {
         input = "";
         input = client.readStringUntil(0x0D);
@@ -186,7 +218,6 @@ void loop() {
             logPreviousMillis = 0;
             elapsedTime = 0.0;
             logStartTime = millis();
-            previousMillisLoop = 0;
 
             while ((elapsedTime < (duration + 500)/1000.0) && (count < N_POINTS)) {
               logCurrentMillis = millis();
@@ -194,8 +225,6 @@ void loop() {
                 if (client.available()>0) {
                   break;
                 }
-                /*t1 = thermocouple1.readCelsius();
-                t2 = thermocouple2.readCelsius();*/
                 readTC1();
                 readTC2();
                 elapsedTime = (float) (logCurrentMillis - logStartTime) / 1000.0;
@@ -228,8 +257,6 @@ void loop() {
               count = 0;
               break;
             }
-            readTC1();
-            readTC2();
             readingData[0] = t1; // thermocouple1.readCelsius();
             readingData[1] = t2; // thermocouple2.readCelsius();
             logBufferSize = 2*sizeof(float);
@@ -242,11 +269,10 @@ void loop() {
             client.print("ERR_CMD");
             client.print("\n");
         } // switch (rxChar)
-      } // while (client.available()>0)
-      // delay(10);
-    } // while (client.connected())
+      } // if (client.available()>0)
+    } // if (client.connected())
     client.stop();
-    Serial.println("Client disconnected");
+    // Serial.println("Client disconnected");
   } // if (client)
 
   if(Serial.available()) {
@@ -261,18 +287,4 @@ void loop() {
     }
   }
 
-  if ((unsigned long)(currentMillis - lcdPreviousMillis) >= lcdInterval) {
-      /*t1 = thermocouple1.readCelsius();
-      t2 = thermocouple2.readCelsius();*/
-      readTC1();
-      readTC2();
-      lcdTemperature(t1, t2);
-      lcdPreviousMillis = currentMillis;
-  }
-
-  if ((WiFi.status() != WL_CONNECTED) && (currentMillis - wifiPreviousMillis >= wifiInterval)) {
-    WiFi.disconnect();
-    WiFi.reconnect();
-    wifiPreviousMillis = currentMillis;
-  }
 }

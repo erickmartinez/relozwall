@@ -37,18 +37,19 @@ class YLR3000:
         p = re.compile(r'RCS\:\s*(\d+\.?\d*)')
         m = re.findall(p, r)
         if len(m) > 0:
-            return float(r[0])
+            return float(m[0])
         msg = rf'Error reading current setpoint. Response: \'{r}\'.'
         raise ValueError(msg)
 
     @current_setpoint.setter
     def current_setpoint(self, value):
         value = float(value)
-        if 0.0 < value < 100.0:
+        if 0.0 < value <= 100.0:
             q = f"SDC {value:.1f}"
             r = self.query(q)
             if r[0:] == 'ERR':
                 raise ValueError(r)
+            self.__log.info(f"Set the laser diode current to: {value:.2f} %")
 
     def disable_analog_control(self):
         r = self.query("DEC")
