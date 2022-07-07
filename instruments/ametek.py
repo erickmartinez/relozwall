@@ -74,7 +74,7 @@ class DCSource:
     @current_setpoint.setter
     def current_setpoint(self, value):
         value = float(value)
-        if 0.0 <= value <= 8.8:
+        if 0.0 <= value <= 9.0:
             self.write(f'SOUR:CURR {value:.3f}')
 
     @property
@@ -85,12 +85,12 @@ class DCSource:
     @current_limit.setter
     def current_limit(self, value: float):
         value = float(value)
-        if 0.0 <= value <= 8.8:
+        if 0.0 <= value <= 9.0:
             self.write(f'SOURce:CURRent:LIMit {value:.3f}')
 
     def setup_ramp_voltage(self, output_voltage: float, time_s: float = 60.0):
         output_voltage, time_s = float(output_voltage), float(time_s)
-        if abs(output_voltage) < 200 and time_s > 1.0:
+        if abs(output_voltage) < 200.0 and time_s > 1.0:
             self.write(f"SOURce:VOLTage:RAMP:TRIGger {output_voltage:.3f} {time_s:.3f}")
             self.__voltage_ramp_configured = True
 
@@ -112,7 +112,7 @@ class DCSource:
     @voltage_setpoint.setter
     def voltage_setpoint(self, value):
         value = float(value)
-        if abs(value) < 200.0:
+        if abs(value) <= 200.0:
             self.write(f'SOURce:VOLTage:LEVel:IMMediate {value:.3f}')
 
     @property

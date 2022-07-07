@@ -21,11 +21,11 @@ EXT_READOUT_IP = '192.168.4.2'
 
 ISC08_COM = 'COM4'
 base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
-pid_stabilizing_time = 300.0  # seconds
-SPEED_CMS = 0.57
+pid_stabilizing_time = 600.0  # seconds
+SPEED_CMS = 1.1
 speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
 temperature = 350
-sample = 'R3N52'
+sample = 'R3N51'
 baseline = False
 # MOVING_LENGTH = 12.0 # in
 MOVING_LENGTH = 6.0  # 5.0 / 2.54  # in <--- During heating move only 5 cm (or the length of the coil)
@@ -33,19 +33,19 @@ if baseline:
     MOVING_LENGTH = 20.0  # <------- FOR BASELINE 20 INCHES STARTING FROM POSITION = 9.0 IN
 
 plot_csv = True
-csv_file = 'FRICTION_R3N52_350C_0.57CMPS_20220701-115904.csv'
+csv_file = 'FRICTION_R3N51_350C_1.10CMPS_20220704-105157.csv'
 # ********************** BASELINE ******************************************
-baseline_csv = 'FRICTION_BASELINE_R3N52_350C_0.11CMPS_20220630-171238.csv'
+baseline_csv = 'FRICTION_R3N51_350C_0.11CMPS_20220701-160613.csv'
 # **************************************************************************
-
+RAMPING_RATE = 25.0 # °C/min
 load_cell_prediction_error_pct = 9.8  # %
 load_cell_range = 30.0  # kg
 allowable_force_threshold = 90  # percentage of the nominal range of the load cell
 ku = 1000.0
 Tu = 60.0
-pid_params = {'ku': 1000.0, 'kp': 0.2 * ku, 'ki': 0.4 * ku / Tu, 'kd': 2.0 * ku * Tu / 30.0}
+pid_params = {'ku': 800.0, 'kp': 0.2 * ku, 'ki': 0.4 * ku / Tu, 'kd': 2.0 * ku * Tu / 30.0}
 N_POINTS = 100
-X_MAX = 55.5
+X_MAX = 55.0
 
 """
 def move_forward_by_distance(distance_cm):
@@ -71,7 +71,7 @@ class FrictionExperiment:
     __translator: lnt.ISC08 = None
     __readout: esp32.ExtruderReadout = None
     __dc_power_supply: DCSource = None
-    __address_translator: str = 'COM4'
+    __address_translator: str = ISC08_COM
     __address_readout: str = None
     __x0: float = None
     __isc08_calibration_m: float = 0.034
@@ -135,12 +135,12 @@ if __name__ == "__main__":
     if plot_csv:
         file_tag = os.path.splitext(csv_file)[0]
 
-        friction_df = pd.read_csv(os.path.join(base_path, csv_file)).apply(pd.to_numeric)
+        friction_df = pd.read_csv(os.path.join(base_path, csv_file), comment='#').apply(pd.to_numeric)
         friction_df.sort_values(by=['Position (cm)'], ascending=True, inplace=True)
         friction_df.reset_index(drop=True, inplace=True)
-        if X_MAX is not None:
+        if X_MAX is not None and not baseline:
             friction_df = friction_df[friction_df['Position (cm)'] <= X_MAX]
-        background_df = pd.read_csv(os.path.join(base_path, baseline_csv)).apply(pd.to_numeric)
+        background_df = pd.read_csv(os.path.join(base_path, baseline_csv), comment='#').apply(pd.to_numeric)
         x_b = background_df['Position (cm)'].values
         f_f = background_df['Force (N)'].values
         f = interp1d(x_b, f_f, kind='linear')
@@ -256,13 +256,14 @@ if __name__ == "__main__":
 
         log.addHandler(ch)
 
-        log.info("Setting the PID controller")
-        pid = PID(pid_params['kp'], pid_params['ki'], pid_params['kd'], setpoint=temperature)
-        pid.output_limits = (0, 150.0)
-        allowable_force_threshold_n = allowable_force_threshold * load_cell_range * 9.82E-2
-
         experiment = FrictionExperiment(address_translator=ISC08_COM, address_readout=EXT_READOUT_IP)
         dc_source = DCSource(ip_address=DC_SOURCE_IP)
+
+        log.info("Setting the PID controller")
+        [TC1, _, _, _, pot_adc] = experiment.readout.reading
+        pid = PID(pid_params['kp'], pid_params['ki'], pid_params['kd'], setpoint=TC1)
+        pid.output_limits = (0, 200.0)
+        allowable_force_threshold_n = allowable_force_threshold * load_cell_range * 9.82E-2
 
         log.info('Setting up DC voltage')
         # self.__dc_source.cls()
@@ -301,7 +302,9 @@ if __name__ == "__main__":
         current_time = 0.0
         previous_time = 0.0
         total_time = 0.0
-        ramping_time = 0.0
+        current_ramping_time = 0.0
+        initial_temperature = TC1
+        ramping_time = 60.0 * (temperature - initial_temperature) / RAMPING_RATE
         ramping_t0 = time.time()
         moving = False
 
@@ -316,21 +319,26 @@ if __name__ == "__main__":
             [TC1, _, fi, _, pot_adc] = experiment.readout.reading
             control = pid(TC1)
             dc_source.voltage_setpoint = control
-            if ramping:
-                print(f"T = {TC1:>6.2f} °C, Ramping Time: {ramping_time:>5.2f} s", end='\r', flush=True)
-                ramping_time = time.time() - ramping_t0
-                time.sleep(0.1)
-            if TC1 >= temperature and ramping:
+            if ramping and current_ramping_time <= ramping_time:
+                temperature_setpoint = initial_temperature + RAMPING_RATE * current_ramping_time / 60.0
+                if temperature_setpoint > temperature:
+                    temperature_setpoint = temperature
+                    ramping = False
+                print(f"T = {TC1:>6.2f} °C, (Setpoint: {temperature_setpoint:>6.1f} °C), Ramping Time: {current_ramping_time:>5.2f} s", end='\r', flush=True)
+                current_ramping_time = time.time() - ramping_t0
+                pid.setpoint = temperature_setpoint
+                time.sleep(0.01)
+            if temperature_setpoint >= temperature and ramping:
                 ramping = False
                 stabilizing = True
-                ramping_time = 0
+                current_ramping_time = 0
                 ramping_t0 = current_time
                 print("")
                 time.sleep(0.01)
-            if stabilizing and ramping_time <= pid_stabilizing_time:
-                print(f"T = {TC1:>6.2f} °C, Stabilizing Time: {ramping_time:>5.2f} s", end='\r', flush=True)
-                ramping_time = time.time() - ramping_t0
-                if ramping_time > pid_stabilizing_time:
+            if stabilizing and current_ramping_time <= pid_stabilizing_time:
+                print(f"T = {TC1:>6.2f} °C, Stabilizing Time: {current_ramping_time:>5.2f} s", end='\r', flush=True)
+                current_ramping_time = time.time() - ramping_t0
+                if current_ramping_time > pid_stabilizing_time:
                     stabilizing = False
                     t0 = current_time
                     total_time = 0
