@@ -41,9 +41,9 @@ RAMPING_RATE = 25.0 # °C/min
 load_cell_prediction_error_pct = 9.8  # %
 load_cell_range = 30.0  # kg
 allowable_force_threshold = 90  # percentage of the nominal range of the load cell
-ku = 1000.0
-Tu = 60.0
-pid_params = {'ku': 800.0, 'kp': 0.2 * ku, 'ki': 0.4 * ku / Tu, 'kd': 2.0 * ku * Tu / 30.0}
+ku = 5000.0
+Tu = 15.5
+pid_params = {'ku': 5000.0, 'kp': 0.2 * ku, 'ki': 0.4 * ku / Tu, 'kd': 2.0 * ku * Tu / 30.0}
 N_POINTS = 100
 X_MAX = 55.0
 
