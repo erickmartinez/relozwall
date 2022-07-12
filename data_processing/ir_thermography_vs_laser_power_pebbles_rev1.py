@@ -16,82 +16,14 @@ from scipy.optimize import least_squares
 import confidence as cf
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
 # csv_database = r'R3N21_firing_database.csv'
-csv_database = 'graphite_equilibrium_redone_files.csv'
+csv_database = 'pebble_sample_equilibrium_redone_files.csv'
 chamber_volume = 31.57  # L
-max_time = 20.0  # s
+max_time = 10.0  # s
 
 heat_flux_at_100pct = 25.2  # MW/m2
 correct_reflection = True
-
-
-def plot_pressure(base_path: str, filelist: List, legends: List, output_filename: str, colors, display=False,
-                  plot_title=None):
-    with open('plot_style.json', 'r') as file:
-        json_file = json.load(file)
-        plot_style = json_file['defaultPlotStyle']
-    mpl.rcParams.update(plot_style)
-
-    fig, ax = plt.subplots()
-    fig.set_size_inches(4.5, 3.0)
-
-    base_pressures = np.empty_like(filelist, dtype=np.float64)
-    peak_pressures = np.empty_like(filelist, dtype=np.float64)
-    peak_dt = np.empty_like(filelist, dtype=np.float64)
-
-    for fn, leg, c, i in zip(filelist, legends, colors, range(len(filelist))):
-        params = get_experiment_params(base_path, fn)
-        pressure_csv = f'{fn}_pressure.csv'
-        print(pressure_csv)
-        pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(base_path, pressure_csv))
-        pressure_data = pressure_data.apply(pd.to_numeric)
-        time_s = pressure_data['Time (s)'].values
-        time_s -= time_s.min()
-        pressure = 1000 * pressure_data['Pressure (Torr)'].values
-        base_pressures[i] = pressure[0]
-        peak_pressures[i] = pressure.max()
-        idx_peak = (np.abs(pressure - peak_pressures[i])).argmin()
-        peak_dt[i] = time_s[idx_peak]
-
-        # title_str = 'Sample ' + params['Sample Name']['value'] + ', '
-        # params_title = params
-        # params_title.pop('Sample Name')
-        #
-        # for i, p in enumerate(params_title):
-        #     title_str += f"{params_title[p]['value']}{params_title[p]['units']}"
-        #     if i + 1 < len(params_title):
-        #         title_str += ', '
-
-        line = ax.plot(time_s, pressure, label=leg, color=c)
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Pressure (mTorr)')
-        # colors.append(line[0].get_color())
-
-    leg = ax.legend(frameon=True, loc='best', fontsize=8)
-    for color, text in zip(colors, leg.get_texts()):
-        text.set_color(color)
-
-    if plot_title is not None:
-        ax.set_title(plot_title)
-
-    outgassing_rate = chamber_volume * (peak_pressures - base_pressures) * 1E-3 / peak_dt
-
-    outgas_df = pd.DataFrame(data={
-        'Sample': legends,
-        'Base Pressure (mTorr)': base_pressures,
-        'Peak Pressure (mTorr)': peak_pressures,
-        'Peak dt (s)': peak_dt,
-        'Outgassing Rate (Torr L / s)': outgassing_rate
-    })
-
-    print(outgas_df)
-    outgas_df.to_csv(os.path.join(base_path, f'{output_filename}_OUTGASSING.csv'), index=False)
-
-    fig.tight_layout()
-    fig.savefig(os.path.join(base_path, f'{output_filename}_PRESSURE.png'), dpi=600)
-    if display:
-        fig.show()
 
 
 def get_experiment_params(relative_path: str, filename: str):
@@ -128,15 +60,69 @@ def get_experiment_params(relative_path: str, filename: str):
 def model_tanh(t, b):
     return b[0] * np.tanh(b[1] * t + b[2])
 
+
 def model_exp(t, b):
-    return b[0]*(1.0 - np.exp(-b[1]*t-b[2]))
+    return b[0] * (1.0 - np.exp(-b[1] * t + b[2]))
+
+
+def model_asymptotic2(t, b):
+    # return b[0] * ((t - b[1]) ** b[2]) / ((t - b[1]) ** b[2] + b[3])
+    t_min = np.min(t)
+    res = b[0] * np.power(1.0 - t_min / t, b[1])
+    return res
+
+
+def model_asymptotic1(t, b):
+    x = t - np.min(t) + 1E-10
+    return b[0] * (x ** b[1] / (x ** b[1] + b[2]))
 
 
 def fobj_tanh(b, t, temp):
-    return model_tanh(t, b) - temp
+    temp_max = np.max(temp)
+    return (model_tanh(t, b) - temp) * temp / temp_max
+
 
 def fobj_exp(b, t, temp):
-    return model_exp(t, b) - temp
+    temp_max = np.max(temp)
+    return (model_exp(t, b) - temp)*temp/temp_max
+
+
+def fobj_asymptotic1(b, t, temp):
+    temp_max = np.max(temp)
+    return (model_asymptotic1(t, b) - temp) * temp/temp_max
+
+
+def fobj_asymptotic2(b, t, temp):
+    temp_max = np.max(temp)
+    return (model_asymptotic2(t, b) - temp) * temp/temp_max
+
+
+def model_asymptotic1_jac(b, t, temp):
+    x = t - np.min(t) + 1E-10
+    xb = x ** b[1]
+    den = 1.0 / (xb + b[2])
+    den2 = den * den
+    j1 = xb * den  # (x ** b[1] / (x ** b[1] + b[2]))
+    j2 = b[0] * b[2] * np.log(x) * den2
+    j3 = -b[0] * xb * den2
+    return np.array([j1, j2, j3]).T
+
+
+def model_asymptotic2_jac(b, t, temp):
+    # tb = t - b[1]
+    # tbb2 = tb ** b[2]
+    # den = tbb2 + b[3]
+    # den2 = 1.0 / den * den
+    # j1 = tbb2 / den
+    # j2 = -b[0] * b[2] * b[3] * tbb2 * den2 / tb
+    # j3 = b[0] * b[3] * tbb2 * np.log(tb) * den2
+    # j4 = -b[0] * tbb2 * den2
+    # return np.array([j1, j2, j3, j4]).T
+    a = 1.0 - np.min(t) / t
+    a[0] = 1E-50
+    j1 = np.power(a, b[1])
+    j2 = b[0] * j1 * np.log(a)
+    return np.array([j1, j2]).T
 
 
 def model_tanh_jac(b, t, temp):
@@ -146,10 +132,13 @@ def model_tanh_jac(b, t, temp):
     j2 = j3 * t
     return np.array([j1, j2, j3]).T
 
+
 def model_exp_jac(b, t, temp):
-    j1 = 1.0 - np.exp(-b[1]*t-b[2])
-    j3 = b[0] * np.exp(-b[1]*t-b[2])
-    j2 = j3 * t
+    ee = np.exp(-b[1] * t + b[2])
+    j1 = 1.0 - ee
+    j2 = b[0] * t * ee
+    j3 = -b[0] * ee
+
     return np.array([j1, j2, j3]).T
 
 
@@ -159,10 +148,14 @@ if __name__ == '__main__':
         os.path.join(base_path, csv_database), comment='#'
     )
     database_df['Laser Power Setting (%)'] = database_df['Laser Power Setting (%)'].apply(pd.to_numeric)
+
     database_df.sort_values(by='Laser Power Setting (%)', ascending=True)
     database_df.dropna(inplace=True)
     # print(database_df)
     filelist = database_df['csv']
+    fit_data = np.array(database_df['fit'], dtype=bool)
+    fit_model = database_df['model']
+    show_plot = np.array(database_df['plot'], dtype=bool)
     n = len(filelist)
     colors = plt.cm.jet(np.linspace(0, 1, n))
 
@@ -207,7 +200,7 @@ if __name__ == '__main__':
         ir_df = pd.read_csv(os.path.join(base_path, csv_file)).apply(pd.to_numeric)
         ir_df = ir_df[ir_df['Time (s)'] <= max_time]
         ir_df = ir_df[ir_df['Voltage (V)'] > 0.0]
-        measurements_df = pd.read_csv(os.path.join(base_path, file+'.csv'), comment='#').apply(pd.to_numeric)
+        measurements_df = pd.read_csv(os.path.join(base_path, file + '.csv'), comment='#').apply(pd.to_numeric)
         measurement_time = measurements_df['Measurement Time (s)'].values
         trigger_voltage = measurements_df['Trigger (V)'].values
         photodiode_voltage = measurements_df['Photodiode Voltage (V)'].values
@@ -221,7 +214,7 @@ if __name__ == '__main__':
         photodiode_voltage[irradiation_time_idx] = savgol_filter(photodiode_voltage[irradiation_time_idx], sg_window, 2)
 
         # t_pulse_max = irradiation_time.max() + 0.2
-        noise_level = np.abs(photodiode_voltage[measurement_time > 0.75*measurement_time.max()]).max()
+        noise_level = np.abs(photodiode_voltage[measurement_time > 0.75 * measurement_time.max()]).max()
         print(f"Noise Level: {noise_level:.4f} V")
 
         t0 = irradiation_time.max() - emission_time
@@ -250,7 +243,7 @@ if __name__ == '__main__':
             photodiode_corrected = photodiode_voltage - reflection_signal
             pd_corrected_min = photodiode_corrected[irradiation_time_idx].min()
             photodiode_corrected[irradiation_time_idx] -= pd_corrected_min + 0.5 * noise_level
-            time_pd_idx = (photodiode_corrected > 0.0) #& (measurement_time > noise_level)
+            time_pd_idx = (photodiode_corrected > 0.0)  # & (measurement_time > noise_level)
             measurement_time_pd = measurement_time[time_pd_idx]
             photodiode_voltage_positive = photodiode_corrected[time_pd_idx]
             measurement_time_pd = measurement_time_pd[n:-2]
@@ -265,77 +258,130 @@ if __name__ == '__main__':
             trigger_voltage_corrected = trigger_voltage[time_pd_idx]
             irradiation_time_idx = trigger_voltage_corrected >= 1.5
 
-        voltage = photodiode_voltage_positive # ir_df['Voltage (V)'].values
+        voltage = photodiode_voltage_positive  # ir_df['Voltage (V)'].values
         temperature_c = thermometry.get_temperature(voltage=voltage) - 273.15
 
         print('len(measurement_time_pd):', len(measurement_time_pd))
         print('len(temperature_c):', len(temperature_c))
         print('len(irradiation_time_idx):', len(irradiation_time_idx))
+
+        lbl = f'{float(laser_power_setting):3.0f} % Power'
+
+        if show_plot[i]:
+            ax1.plot(
+                measurement_time_pd,
+                temperature_c,
+                color=colors[i], lw=1.75, marker='o', fillstyle='none', ls='none',
+                label=lbl
+            )
+
         temp_peak = temperature_c.max()
         t_max_idx = (np.abs(temperature_c - temp_peak)).argmin()
         t_peak = measurement_time_pd[t_max_idx]
         print(f't_peak: {t_peak:.3f} s, v_peak: {temp_peak:.2f} °C')
-        t0_fit = int(0.1*t_peak)
+        t0_fit = int(0.01 * t_peak)
         idx_fit = (measurement_time_pd >= t0_fit) & (measurement_time_pd <= t_peak)
+        # idx_fit = irradiation_time_idx
+        # idx_fit = measurement_time_pd <= t_peak
+
         # t_fit = measurement_time_pd[irradiation_time_idx]
         # temp_fit = temperature_c[irradiation_time_idx]
         t_fit = measurement_time_pd[idx_fit]
         temp_fit = temperature_c[idx_fit]
         print(f'len(temp_fit): {len(temp_fit)}')
-        b_guess = [2500, 1.5, 0.5]
+
+        if fit_model[i] == 'tanh':
+            fobj = fobj_tanh
+            jac = model_tanh_jac
+            model = model_tanh
+            b_guess = [temp_peak, 0.5, 0.1]
+            bounds = ([200.0, 1E-10, -10.0], [2800.0, 2.0, 10.0])
+
+        elif fit_model[i] == 'asymptotic1':
+            fobj = fobj_asymptotic1
+            jac = model_asymptotic1_jac
+            model = model_asymptotic1
+            b_guess = [temp_peak, 1.1, 1E-5]
+            bounds = ([1000.0, 0.001, 0.0], [3000.0, 1E5, 1E10])
+        elif fit_model[i] == 'asymptotic2':
+            fobj = fobj_asymptotic2
+            jac = model_asymptotic2_jac
+            model = model_asymptotic2
+            b_guess = [temp_peak, 1.1]
+            bounds = ([1000.0, 1.001], [3000.0, 1E5])
+        elif fit_model[i] == 'exp':
+            fobj = fobj_exp
+            jac = model_exp_jac
+            model = model_exp
+            b_guess = [temp_peak, 1.0, 0.1]
+            bounds = ([800.0, 1E-16, -10.0], [2800.0, 1E3, 10.0])
+
+
         all_tol = np.finfo(np.float64).eps
-        res = least_squares(
-            fobj_tanh, b_guess, args=(t_fit, temp_fit),
-            bounds=([1500.0, 0.0, 0.0], [5000.0, 2.0, 2.0]),
-            jac=model_tanh_jac,
-            xtol=all_tol,
-            ftol=all_tol,
-            gtol=all_tol,
-            loss='soft_l1', f_scale=0.1,
-            verbose=2
-        )
-        popt = res.x
-        #pcov = cf.get_pcov(res)
+        if fit_data[i]:
+            res = least_squares(
+                fobj, b_guess, args=(t_fit, temp_fit),
+                bounds=bounds,
+                jac=jac,
+                xtol=all_tol,
+                ftol=all_tol,
+                gtol=all_tol,
+                # loss='soft_l1', f_scale=0.1,
+                verbose=2
+            )
+            popt = res.x
+            # pcov = cf.get_pcov(res)
 
-        print(f'b[0]: {popt[0]:.3E}')
-        print(f'b[1]: {popt[1]:.3E}')
-        print(f'b[2]: {popt[2]:.3E}')
-        # print(f'b[3]: {popt[3]:.3E}')
+            print(f'b[0]: {popt[0]:.3E}')
+            print(f'b[1]: {popt[1]:.3E}')
+            # print(f'b[2]: {popt[2]:.3E}')
+            # print(f'b[3]: {popt[3]:.3E}')
 
-        time_extrapolate = np.linspace(measurement_time_pd[irradiation_time_idx].max()-emission_time, 20.0, 200)
-        temp_extrapolate = model_tanh(time_extrapolate, popt)
-        tc = (3.0 - popt[2]) / popt[1]
-        limit_temp = model_tanh(tc, popt)
-        if len(temperature_c) > 0:
-            max_temperature[i] = limit_temp#temperature_c.max()
-            # print(temperature_c)
+            time_extrapolate = np.linspace(t_fit.min(), 20.0, 200)
+            temp_extrapolate = model(time_extrapolate, popt)
+            if fit_model[i] == 'tanh':
+                tc = (3.0 - popt[2]) / popt[1]
+                limit_temp = model_tanh(tc, popt)
+            elif fit_model[i] == 'asymptotic1':
+                tc = np.power(0.995*popt[2]/(1.0-0.995), 1.0/popt[1]) + t_fit.min()
+                limit_temp = 0.995 * popt[0]
+            elif fit_model[i] == 'asymptotic2':
+                tc = t_fit.min() / (1.0 - (0.995 ** (1.0 / popt[1])) )
+                limit_temp = 0.995 * popt[0]
+            elif fit_model[i] == 'exp':
+                tc = (popt[2] - np.log(1-0.995))/popt[1]
+                limit_temp = 0.995*popt[0]
+
+            print(f'99.5% of final temperature: {tc:g} s, {limit_temp:.0f} °C ({fit_model[i]})')
+            if len(temperature_c) > 0:
+                max_temperature[i] = limit_temp  # temperature_c.max()
+                # print(temperature_c)
+            else:
+                max_temperature[i] = 20.0
+
+            time_to_equilibrium[i] = tc
+
+            if show_plot[i]:
+                ax1.plot(
+                    time_extrapolate, temp_extrapolate, color=colors[i], ls='--', lw=1.0
+                )
+
+                ax1.plot(
+                    t_fit, model(t_fit, popt), color='k', ls='--', lw=1.0,
+                )
         else:
-            max_temperature[i] = 20.0
+            idx_avg = (np.abs(temperature_c - temp_peak)).argmin()
+            limit_temp = temp_peak
+            max_temperature[i] = limit_temp
+            tc = t_peak
+            time_to_equilibrium[i] = tc
 
-        time_to_equilibrium[i] = tc
-
-        lbl = f'{float(laser_power_setting):3.0f} % Power'
-
-        ax1.plot(
-            measurement_time_pd,
-            temperature_c,
-            color=colors[i], lw=1.75, marker='o', fillstyle='none', ls='none',
-            label=lbl
-        )
-
-        ax1.plot(
-            time_extrapolate, temp_extrapolate, color=colors[i], ls='--', lw=1.0
-        )
-
-        ax1.plot(
-            t_fit, model_tanh(t_fit, popt), color='k', ls='--', lw=1.0
-        )
-
-        ax1.plot(tc, limit_temp, color='k', marker='*', ls='none', ms=8)
+        if show_plot[i]:
+            ax1.plot(tc, limit_temp, color='k', marker='*', ls='none', ms=8)
 
         offset = 1
         connectionstyle = "angle3,angleA=0,angleB=90"
-        bbox = dict(boxstyle="round", fc="w", alpha=1.0, ec=colors[i]) #, fc="wheat", alpha=1.0)
+        bbox = dict(boxstyle="round", fc="w", alpha=1.0, ec=colors[i])  # , fc="wheat", alpha=1.0)
         """
         arrowprops = dict(
             arrowstyle="->", color="k",
@@ -356,13 +402,14 @@ if __name__ == '__main__':
         )
         """
         temperature_irradiation = temperature_c[irradiation_time_idx]
-        ax1.text(
-            t0+emission_time*np.random.uniform(low=(1.0-0.075*i/n), high=(1.0+0.065*i/n)),
-            temperature_irradiation[-1]*np.random.uniform(low=(0.95-0.075*i/n), high=(0.975+0.05*i/n)),
-            f'{float(laser_power_setting):3.0f} %',
-            color=colors[i],
-            ha='right', bbox=bbox
-        )
+        if show_plot[i]:
+            ax1.text(
+                t0 + emission_time * np.random.uniform(low=(1.0 - 0.075 * i / n), high=(1.0 + 0.065 * i / n)),
+                temperature_irradiation[-1] * np.random.uniform(low=(0.95 - 0.075 * i / n), high=(0.975 + 0.05 * i / n)),
+                f'{float(laser_power_setting):3.0f} %',
+                color=colors[i],
+                ha='right', bbox=bbox
+            )
 
         pressure_csv = f'{file}_pressure.csv'
         pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(base_path, pressure_csv))
@@ -379,7 +426,7 @@ if __name__ == '__main__':
 
         peak_dt[i] = time_s[idx_peak]
 
-        ax2.plot(time_s, pressure-pressure[0], label=lbl, color=colors[i], lw=1.75)
+        ax2.plot(time_s, pressure - pressure[0], label=lbl, color=colors[i], lw=1.75)
 
     ax1.set_xlabel('Time (s)')
     ax2.set_xlabel('Time (s)')
@@ -389,8 +436,8 @@ if __name__ == '__main__':
     ax1.set_ylim(top=3000, bottom=1000)
     # ax2.set_ylim(top=40)
     ax1.set_xlabel('Time (s)')
-    ax1.set_xlim(0.0, 20.0)
-    ax2.set_xlim(left=0.0, right=20.0)
+    ax1.set_xlim(-0.5, max_time)
+    ax2.set_xlim(left=0.0, right=max_time)
     # ax1.legend(loc="upper right", prop={'size': 9}, frameon=False, ncol=3)
     # ax1.legend(
     #     bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left', ncol=4, mode="expand", borderaxespad=0.,
