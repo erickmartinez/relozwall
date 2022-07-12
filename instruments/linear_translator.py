@@ -28,19 +28,16 @@ class ISC08:
     __serial: serial.Serial = None
     __speed: int = 60
     __direction: str = 'forward'
-    __calibration: {'a0': 0.5377032793, 'a1': 191.9863223, 'b0': 44.47470398, 'b1': 18.90660644}
+    __calibration: dict = {'a0': 0.5377032793, 'a1': 191.9863223, 'b0': 44.47470398, 'b1': 18.90660644}
+    __calibration_intercept = 0.2538541300601601
 
-    def __init__(self, address: str, m: float = None, b: float = None):
+    def __init__(self, address: str):
         self.__address = address
         self.connect()
         check_connection = self.check_id()
         if not check_connection:
             msg = f"ISC08 not found in port {self.address}"
             raise SerialException(msg)
-        if m is not None:
-            self.__calibration = float(m)
-        if b is not None:
-            self.__calibration_b = float(b)
 
     def check_id(self, attempt: int = 0) -> bool:
         check_id = self.query('i')
@@ -53,24 +50,36 @@ class ISC08:
         else:
             return True
 
+
+    @property
+    def calibration(self) -> dict:
+        return self.__calibration
+
+    def set_calibration(self, c):
+        for e in self.__calibration:
+            if not e in c:
+                raise KeyError(f"The calibration value {e}, was not found in the provided calibration.")
+        for e in c:
+            self.__calibration[e] = float(c[e])
+        self.__calibration_intercept = (c['b0'] - c['a0']) / (c['a1'] - c['b1'])
+
     def set_speed_cms(self, value):
         value = abs(value)
         c = self.__calibration
-        if value < 50:
+        if value <= self.__calibration_intercept:
             voltage_setting = c['a0'] + c['a1'] * value
         else:
             voltage_setting = c['b0'] + c['b1'] * value
+        self.speed = voltage_setting
 
-        if (5.0 < voltage_setting) and (voltage_setting < 90.0):
-            self.speed = voltage_setting
-        else:
-            self.speed = 50.0
+        # if (5.0 < voltage_setting) and (voltage_setting < 90.0):
+        #     self.speed = voltage_setting
+        # else:
+        #     self.speed = 50.0
         print(f"Input Speed: {value:.2f} cm/s, Voltage Setting: {self.speed:02.0f}")
 
     def move_by_cm(self, distance: float, speed: float = 2.0):
         speed = abs(speed)
-        if distance < 0:
-            speed = -speed
         self.set_speed_cms(speed)
         translation_time = distance / speed
         direction = 'f' if distance >= 0 else 'r'
@@ -82,12 +91,6 @@ class ISC08:
         speed_cm = speed * 2.54
         distance_cm = distance * 2.54
         self.move_by_cm(distance=distance_cm, speed=speed_cm)
-
-    def load_calibration(self, m: float, b: float):
-        if m is not None:
-            self.__calibration = float(m)
-        if b is not None:
-            self.__calibration_b = float(b)
 
     @property
     def speed(self) -> int:

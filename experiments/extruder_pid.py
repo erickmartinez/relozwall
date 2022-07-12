@@ -28,8 +28,8 @@ EXT_READOUT_IP = '192.168.4.2'
 
 class ExtruderPIDProcedure(Procedure):
     experiment_time = FloatParameter('Experiment Time', units='min', default=5, minimum=0.25, maximum=60)
-    temperature_setpoint = FloatParameter('Temperature Setpoint', units='C', default=25.0, minimum=25.0, maximum=1500.0)
-    kp = FloatParameter('Kp', default=10, minimum=0.0)
+    temperature_setpoint = FloatParameter('Temperature Setpoint', units='C', default=25.0, minimum=25.0, maximum=800.0)
+    kp = FloatParameter('Kp', default=5000, minimum=0.0)
     ki = FloatParameter('Ki', default=0.1, minimum=0.0)
     kd = FloatParameter('Kd', default=0.05, minimum=0.0)
     __on_sleep: WindowsInhibitor = None
@@ -43,7 +43,7 @@ class ExtruderPIDProcedure(Procedure):
 
     def execute(self):
         pid = PID(self.kp, self.ki, self.kd, setpoint=self.temperature_setpoint)
-        pid.output_limits = (0, 150.0)
+        pid.output_limits = (0, 200.0)
         extruder_readout = ExtruderReadout(ip_address=EXT_READOUT_IP)  # ExtruderReadout(address=EXT_READOUT_COM)
         time.sleep(3.0)
         self.inhibit_sleep()
