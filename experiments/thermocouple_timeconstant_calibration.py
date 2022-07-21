@@ -10,36 +10,36 @@ sys.modules['cloudpickle'] = None
 
 import time
 import datetime
-from instruments.esp32 import DualTCLogger
+from instruments.esp32 import DualTCLoggerTCP
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import json
 from scipy import interpolate
-import confidence as cf
+import data_processing.confidence as cf
 
-# base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\thermocouple time constant'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
-tc_id = 'TC001'
+base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\thermocouple time constant'
+# base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
+tc_id = 'TCE01'
 
-TC_LOGGER_COM = 'COM10'
-max_time = 120.0
+TC_LOGGER_IP = '192.168.4.3'
+max_time = 60.0
 tc_error_pct = 2.0
-T_ss = 408
+T_ss = 164
 make_fit = True
-csv_file = 'TC00120220427-164143'
-left_cut = 1.33#2.27
-right_cut = 120.0
+csv_file = 'CAL_TCE01_2022-07-16_090756'
+left_cut = 2.4
+right_cut = 60.0
 
 
 def model(x, b):
     return b[0] * (1.0 - np.exp(-(x - b[1]) / b[2]))
 
 
-def model_obj(beta: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    return model(x, beta) - y
+def model_obj(beta: np.ndarray, x: np.ndarray, y: np.ndarray, weights = 1.0) -> np.ndarray:
+    return (model(x, beta) - y)*weights
 
 
-def model_jac(b: np.ndarray, x: np.ndarray, y: np.ndarray):
+def model_jac(b: np.ndarray, x: np.ndarray, y: np.ndarray, weights = 1.0):
     identity = np.ones_like(x)
     xb = x - b[1]
     ee = np.exp(-xb / b[2])
@@ -107,12 +107,11 @@ def lighten_color(color, amount=0.5):
 if __name__ == '__main__':
     if not make_fit:
         print('Connecting to temperature logger...')
-        tc_logger = DualTCLogger(address=TC_LOGGER_COM)
-        time.sleep(2.0)
+        tc_logger = DualTCLoggerTCP(ip_address=TC_LOGGER_IP)
         print('Connection to temperature logger successful')
         temperature_reading = tc_logger.temperature
         temperature_0 = temperature_reading[0]
-        temperature_ss = T_ss
+        temperature_ss = temperature_reading[1] #T_ss
         print(f'T(0) = {temperature_0:5.3f} °C')
         print(f'TSS = {temperature_ss:5.3f} °C')
         input('Make sure the thermocouple on which to run the calibration is connected on the input \'TC1\'.')
@@ -120,8 +119,26 @@ if __name__ == '__main__':
         input('Place the thermocouple to be calibrated on the hotplate.')
         tc_logger.log_time = max_time
         tc_logger.start_logging()
-        time.sleep(max_time + 10.0)
+        previous_time = 0.0
+        total_time = 0.0
+        start_time = time.time()
+        acquisition_time = max_time
+
+        while total_time <= acquisition_time:
+            current_time = time.time()
+            if (current_time - previous_time) >= 0.1:
+                total_time = current_time - start_time
+                progress = 100 * total_time / acquisition_time
+                print(f'T = {total_time:5.1f} s / {acquisition_time:5.1f} s Progress: {progress:5.1f}%', end='\r')
+                previous_time = current_time
+
         tc_data: pd.DataFrame = tc_logger.read_temperature_log()
+        today = datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')
+        file_tag = f"CAL_{tc_id.upper()}_{today}"
+        full_file_name = os.path.join(base_path, file_tag + '.csv')
+        tc_data.to_csv(full_file_name, index=False)
+        print(f'Data saved in:')
+        print(f'{full_file_name}')
 
     else:
         tc_data = pd.read_csv(os.path.join(base_path, csv_file + '.csv'))
@@ -129,6 +146,7 @@ if __name__ == '__main__':
         tc1 = tc_data['TC1 (C)'].values
         tc2 = tc_data['TC2 (C)'].values
         t0 = tc1[0]
+        print(f'T(0) = {t0:.2f} °C')
 
         idx_fit = (measured_time >= left_cut) & (measured_time <= right_cut)
         measured_time_fit = measured_time[idx_fit]
@@ -141,17 +159,21 @@ if __name__ == '__main__':
         tc1_err = tc1 * tc_error_pct * 0.01
         for i in range(len(tc1_err)):
             tc1_err[i] = max(tc1_err[i], resolution_error)
+
+        weights = 1/tc1_err/np.sqrt(2.0)
+        weights /= weights.max()
+        weights = weights[idx_fit]
         n = len(measured_time)
-        b_guess = np.array([dT_fit.max(), measured_time_fit[0], 0.5 * measured_time_fit.max()])
+        b_guess = np.array([dT_fit.max(), left_cut*0.1, measured_time_fit.max()*0.10])
         all_tol = np.finfo(np.float64).eps
         res = least_squares(
-            model_obj, b_guess, args=(measured_time_fit, dT_fit),
+            model_obj, b_guess, args=(measured_time_fit, dT_fit, weights),
             jac=model_jac,
             xtol=all_tol,
             ftol=all_tol,
             gtol=all_tol,
             max_nfev=10000 * n,
-            loss='soft_l1', f_scale=0.1,
+            # loss='soft_l1', f_scale=0.1,
             verbose=2
         )
         popt = res.x
@@ -190,7 +212,7 @@ if __name__ == '__main__':
         model_txt = f'$\\tau$ = {time_constant:.3f} s\n95% CI: [{ci[2][0]:.4f}, {ci[2][1]:.4f}] s'
         # model_txt += f'\n$\Delta T_{{\mathrm{{ss}}}} = {latex_float(tss,significant_digits=3)} °C 95% CI: [{ci[0][0]:.4f}, {ci[0][1]:.4f}] °C$'
 
-        with open('plot_style.json', 'r') as file:
+        with open('../data_processing/plot_style.json', 'r') as file:
             json_file = json.load(file)
             plot_style = json_file['defaultPlotStyle']
         mpl.rcParams.update(plot_style)
@@ -224,7 +246,8 @@ if __name__ == '__main__':
         )
 
         ax1.set_xlabel('Time (s)')
-        ax1.set_ylabel('$\Delta T$ (°C)')
+        # ax1.set_ylabel('$\Delta T$ (°C)')
+        ax1.set_ylabel('Temperature (°C)')
 
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
         ax1.text(

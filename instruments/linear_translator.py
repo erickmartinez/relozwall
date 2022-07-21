@@ -81,7 +81,7 @@ class ISC08:
     def move_by_cm(self, distance: float, speed: float = 2.0):
         speed = abs(speed)
         self.set_speed_cms(speed)
-        translation_time = distance / speed
+        translation_time = abs(distance / speed)
         direction = 'f' if distance >= 0 else 'r'
         query = f"{direction}{self.__speed:02d}{translation_time * 10:.0f}"
         print(query)

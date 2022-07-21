@@ -101,6 +101,11 @@ class ExtruderPIDProcedure(Procedure):
         self.unhinibit_sleep()
         if self.__dc_source is not None:
             self.__dc_source.output_off()
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for handler in log.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    log.removeHandler(handler)
 
     def __del__(self):
         self.shutdown()
@@ -155,6 +160,18 @@ class MainWindow(ManagedWindow):
 if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.addHandler(logging.NullHandler())
+
+    # create console handler and set level to debug
+    has_console_handler = False
+    if len(log.handlers) > 0:
+        for handler in log.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                has_console_handler = True
+
+    if not has_console_handler:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        log.addHandler(ch)
 
     app = QtGui.QApplication(sys.argv)
     window = MainWindow()

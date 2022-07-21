@@ -45,7 +45,6 @@ class LaserChamberDegassing(Procedure):
     __temperature_readout: DualTCLoggerTCP = None
     __keep_alive: bool = False
     __time_start = None
-    __ndata_points: int = None
     __previous_reading: dict = None
     __degassing_time_start = None
     __is_degassing: bool = False
@@ -53,6 +52,17 @@ class LaserChamberDegassing(Procedure):
     DATA_COLUMNS = ["Measurement Time (h)", "Pressure (Torr)", "TC1 (C)", "TC2 (C)", "n (1/cm^3)", "Degassing Time (h)"]
 
     def startup(self):
+        log.info("Setting up the experiment")
+
+    def shutdown(self):
+        log.info("Shutting down the experiment")
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for handler in log.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    log.removeHandler(handler)
+
+    def execute(self):
         print('***  Startup ****')
         self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
         time.sleep(2.0)
@@ -81,11 +91,6 @@ class LaserChamberDegassing(Procedure):
             "Degassing Time (h)": 0.0
         }
 
-    def shutdown(self):
-        self.__temperature_readout.close()
-
-    def execute(self):
-        self.__ndata_points = int(self.measurement_time * 3600 / self.interval) + 1
         previous_time = 0.0
         total_time = 0.0
         self.inhibit_sleep()
@@ -106,6 +111,8 @@ class LaserChamberDegassing(Procedure):
                 previous_time = current_time
 
         self.unhinibit_sleep()
+        self.__mx200.close()
+        self.__temperature_readout.close()
 
     def acquire_data(self, current_time):
         if self.should_stop():
@@ -187,6 +194,18 @@ class MainWindow(ManagedWindow):
 if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.addHandler(logging.NullHandler())
+
+    # create console handler and set level to debug
+    has_console_handler = False
+    if len(log.handlers) > 0:
+        for handler in log.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                has_console_handler = True
+
+    if not has_console_handler:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        log.addHandler(ch)
 
     app = QtGui.QApplication(sys.argv)
     window = MainWindow()

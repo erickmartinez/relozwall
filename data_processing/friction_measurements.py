@@ -33,9 +33,9 @@ if baseline:
     MOVING_LENGTH = 20.0  # <------- FOR BASELINE 20 INCHES STARTING FROM POSITION = 9.0 IN
 
 plot_csv = True
-csv_file = 'FRICTION_R3N51_350C_1.10CMPS_20220704-105157.csv'
+csv_file = 'FRICTION_R3N56_900C_1.1CMPS_2022-07-19_1_corrected.csv'
 # ********************** BASELINE ******************************************
-baseline_csv = 'FRICTION_R3N51_350C_0.11CMPS_20220701-160613.csv'
+baseline_csv = 'FRICTION_BASELINE_715C_0.11CMPS_2022-07-19_1.csv'
 # **************************************************************************
 RAMPING_RATE = 25.0 # °C/min
 load_cell_prediction_error_pct = 9.8  # %
@@ -134,7 +134,6 @@ if __name__ == "__main__":
     # print(f"Speed setting: {SPEED_SETTING}")
     if plot_csv:
         file_tag = os.path.splitext(csv_file)[0]
-
         friction_df = pd.read_csv(os.path.join(base_path, csv_file), comment='#').apply(pd.to_numeric)
         friction_df.sort_values(by=['Position (cm)'], ascending=True, inplace=True)
         friction_df.reset_index(drop=True, inplace=True)
@@ -142,8 +141,8 @@ if __name__ == "__main__":
             friction_df = friction_df[friction_df['Position (cm)'] <= X_MAX]
         background_df = pd.read_csv(os.path.join(base_path, baseline_csv), comment='#').apply(pd.to_numeric)
         x_b = background_df['Position (cm)'].values
-        f_f = background_df['Force (N)'].values
-        f = interp1d(x_b, f_f, kind='linear')
+        f_b = background_df['Force (N)'].values
+        f = interp1d(x_b, f_b, kind='linear')
 
         #     pd.DataFrame(data={
         #     'Time (s)': elapsed_time,
@@ -154,7 +153,10 @@ if __name__ == "__main__":
         position = friction_df['Position (cm)'].values
         force = friction_df['Force (N)'].values
         if not baseline:
-            force -= f(position)
+            try:
+                force -= f(position)
+            except ValueError as ve:
+                print(f'Sample Force: min={force:.1F} N, max={}')
         force_err = force * (2.0 ** 0.5) * load_cell_prediction_error_pct * 1E-2
 
         if not baseline:
