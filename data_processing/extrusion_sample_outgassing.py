@@ -11,11 +11,11 @@ from scipy.interpolate import interp1d
 
 base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\extrusion setup\outgassing'
 pumping_speed_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\extrusion setup\pumping_speed\pumpdown_venting\DEGASSING_EXTRUDER_FRONT_CHAMBER_PUMPDOWN_2022-06-08_1_pumping_speed'
-data_csv = 'EXTRUSION_R3N49_1_40V_350C_350C2022-06-02_1'
+data_csv = 'EXTRUSION_SACRIFICIAL_20220705_R3N51_FONT_0800C2022-07-07_1_CORRECTED_ISBAKING'
 surface_cm2 = 0.25 * np.pi * 1.5 ** 2.0
 print(f'Surface Area: {surface_cm2}')
-label = '330 °C'
-label = '330 °C'
+label = '800 °C'
+label = '800 °C'
 
 """
 Volume and surface area of the outgassing chamber in the extruder system
@@ -55,13 +55,22 @@ def get_mean_free_path(temp_c: np.ndarray = np.array([20.0]), pressure_pa: np.nd
 
 
 if __name__ == '__main__':
-    pressure_df = pd.read_csv(os.path.join(base_dir, data_csv + '.csv'), comment="#").apply(pd.to_numeric)
+    pressure_df: pd.DataFrame = pd.read_csv(os.path.join(base_dir, data_csv + '.csv'), comment="#").apply(pd.to_numeric)
+    columns_names = pressure_df.columns
+    t0 = pressure_df['Time (s)'].min()
+
+    if 'Is Baking?' in columns_names:
+        pressure_df = pressure_df[pressure_df['Is Baking?'] >= 1.0]
+        t0 = pressure_df['Time (s)'].min()
+
+
     pumping_speed_df = pd.read_csv(pumping_speed_csv + '.csv').apply(pd.to_numeric)
-    measurement_time = pressure_df['Time (s)'].values
+    measurement_time = pressure_df['Time (s)'].values - t0
     pressure_1 = pressure_df['Baking Pressure (Torr)'].values
     pressure_2 = pressure_df['Outgassing Pressure (Torr)'].values
     pressure_2_baselined = chamber_outgassing_mean * surface_extruder_chamber - pressure_2
     temperature_c = pressure_df['Baking Temperature (C)'].values
+
 
     idx_p0 = 0
     # # Find the range of measurements before the vacuum pump started running
@@ -101,11 +110,11 @@ if __name__ == '__main__':
         wl_t += 1
 
     pressure_2_smooth = savgol_filter(
-        pressure_2, window_length=wl_t, polyorder=6, delta=dt
+        pressure_2, window_length=wl_t, polyorder=6, #delta=dt
     )
-    pressure_2_smooth[transitional_idx] = savgol_filter(
-        pressure_2[transitional_idx], window_length=wl_t, polyorder=6, delta=dt
-    )
+    # pressure_2_smooth[transitional_idx] = savgol_filter(
+    #     pressure_2[transitional_idx], window_length=wl_t, polyorder=6, #delta=dt
+    # )
     # if viscous_window_length > 0:
     #     wl = int(viscous_window_length / 2)
     #     if wl % 2 == 0:
@@ -128,7 +137,7 @@ if __name__ == '__main__':
     dPdt_inst = np.gradient(pressure_2_smooth, measurement_time)
 
     # dPdt = savgol_filter(dPdt, window_length=41, polyorder=1)
-    Vdp = -dPdt_inst * volume_extruder_chamber * 1E-3
+    Vdp = -dPdt_inst * volume_extruder_chamber * 1E-3 # Is there a negative sign here?
     Sp = pumping_speed_interp * pressure_2
     q_tot = Vdp + Sp
     q_tot = savgol_filter(q_tot, window_length=11, polyorder=3)
@@ -137,6 +146,7 @@ if __name__ == '__main__':
     outgassing_df = pressure_df.iloc[idx_p0::, :].copy()
     outgassing_df.reset_index(inplace=True, drop=True)
     outgassing_df['Outgassing (Torr*L/m^2 s)'] = q_tot / surface_cm2 * 1E4
+    outgassing_df['S*p/A (Torr*L/m^2 s)'] = Sp / surface_cm2 * 1E4
     outgassing_df.to_csv(
         os.path.join(base_dir, data_csv + '_outgassing.csv'),
         index=False

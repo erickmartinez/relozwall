@@ -8,10 +8,12 @@ import json
 
 
 
-graphite_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium'
-sample_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER'
-graphite_filetag = 'graphite_equilibrium_files'
-sample_filetag = 'R3N21_firing_database'
+# graphite_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium'
+# sample_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER'
+graphite_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone'
+sample_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
+graphite_filetag = 'graphite_equilibrium_redone_files'
+sample_filetag = 'pebble_sample_equilibrium_redone_files'
 pebble_velocity_csv = 'R3N21_Pebble_Velocity.csv'
 filetag = 'surface_temperature_plot'
 
@@ -24,8 +26,9 @@ if __name__ == '__main__':
 
     graphite_temperature_df = pd.read_csv(os.path.join(graphite_path, graphite_filetag + '_surface_temperature.csv')).apply(pd.to_numeric)
     sample_temperature_df = pd.read_csv(os.path.join(sample_path, sample_filetag + '_surface_temperature.csv')).apply(pd.to_numeric)
-    pebble_velocity_df = pd.read_csv(os.path.join(sample_path, pebble_velocity_csv)).apply(pd.to_numeric)
+    # pebble_velocity_df = pd.read_csv(os.path.join(sample_path, pebble_velocity_csv)).apply(pd.to_numeric)
     sample_outgassing_df = pd.read_csv(os.path.join(sample_path, sample_filetag + '_OUTGASSING.csv')).apply(pd.to_numeric)
+    graphite_outgassing_df = pd.read_csv(os.path.join(graphite_path, graphite_filetag + '_OUTGASSING.csv')).apply(pd.to_numeric)
 
     laser_power_g = graphite_temperature_df['Laser power setpoint (%)'].values
     heat_flux_g = graphite_temperature_df['Heat flux (MW/m^2)'].values
@@ -35,8 +38,10 @@ if __name__ == '__main__':
     graphite_time_to_equilibrium_temp = graphite_temperature_df['Time to equilibrium (s)'].values
     sample_surface_temperature = sample_temperature_df['Max surface temperature (C)'].values
     pressure_rise = sample_outgassing_df['Peak Pressure (mTorr)'].values
-    pebble_velocity = pebble_velocity_df['Pebble Velocity (cm/s)'].values
-    pebble_velocity_std = pebble_velocity_df['Pebble Velocity Std (cm/s)'].values
+    pressure_rise_g = graphite_outgassing_df['Peak Pressure (mTorr)'].values
+    sample_time_to_equilibrium_temp = sample_temperature_df['Time to equilibrium (s)'].values
+    # pebble_velocity = pebble_velocity_df['Pebble Velocity (cm/s)'].values
+    # pebble_velocity_std = pebble_velocity_df['Pebble Velocity Std (cm/s)'].values
 
     fig = plt.figure(tight_layout=True)
     fig.set_size_inches(5.0, 10)
@@ -65,14 +70,18 @@ if __name__ == '__main__':
     ax1.legend(loc='best', frameon=False)
 
     ax2.plot(
-        heat_flux_s, pressure_rise, color='tab:purple',  marker='>', mec='k', lw=1.5
+        heat_flux_g, pressure_rise_g, color='navy', label='Graphite', marker='s', mec='k', lw=1.5, #color='tab:purple', marker='>', mec='k', lw=1.5
+    )
+
+    ax2.plot(
+        heat_flux_s, pressure_rise, color='tab:red', label='Sample', marker='o', mec='k', lw=1.5
     )
 
     ax2.set_ylabel('Pressure rise (mTorr)')
 
-    ax3.plot(
-        heat_flux_s, pebble_velocity, c='lightblue', mec='k', marker='^', lw=1.5
-    )
+    # ax3.plot(
+    #     heat_flux_s, pebble_velocity, c='lightblue', mec='k', marker='^', lw=1.5
+    # )
 
     ax3.set_xlabel('Heat flux (MW/cm$\\mathregular{^2}$)')
     ax3.set_ylabel('Pebble velocity (cm/s)')
@@ -109,6 +118,11 @@ if __name__ == '__main__':
     ax_t.plot(
         heat_flux_g, graphite_time_to_equilibrium_temp, c='navy', mec='k', marker='s', lw=1.5
     )
+
+    ax_t.plot(
+        heat_flux_s, sample_time_to_equilibrium_temp, color='tab:red', label='Sample', marker='o', mec='k', lw=1.5
+    )
+
     ax_t.set_xlabel('Heat flux (MW/m$^2$)')
     ax_t.set_ylabel('Time to equilibrium temperature (s)')
     ax_t.set_xlim(0, 30)
