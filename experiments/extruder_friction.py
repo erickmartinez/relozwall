@@ -33,9 +33,10 @@ class ExtrusionProcedure(Procedure):
     speed_setting = ListParameter('Extruder speed', units='cm/s', default=0.57, choices=[0.11, 0.57, 1.1])
     start_position_in = FloatParameter('Start position', units='in', default=16.0, minimum=9.0, maximum=28.0)
     displacement_in = FloatParameter('Displacement', units='in', default=6.0, minimum=1.0, maximum=20.0)
-    temperature_setpoint = FloatParameter('Setpoint temperature', units='°C', default=25, minimum=25, maximum=900.0)
-    ramping_rate = FloatParameter('Ramping rate', units='°C/min', default=25.0, minimum=5.0, maximum=80.0)
-    pid_stabilizing_time = FloatParameter('Temperature stabilization time', units='s', minimum=60, maximum=600, default=60)
+    temperature_setpoint = FloatParameter('Setpoint temperature', units='°C', default=25, minimum=25, maximum=915.0)
+    ramping_rate = FloatParameter('Ramping rate', units='°C/min', default=25.0, minimum=5.0, maximum=100.0)
+    pid_stabilizing_time = FloatParameter('Temperature stabilization time', units='s', minimum=60, maximum=600,
+                                          default=60)
     ku = FloatParameter('Ku', minimum=1., maximum=10000., default=5000.0)
     tu = FloatParameter('Tu', minimum=1., maximum=10000., default=15.5)
     is_baseline = BooleanParameter('Is baseline?', default=False)
@@ -69,7 +70,6 @@ class ExtrusionProcedure(Procedure):
         # time.sleep(3.0)
         # log.info(f"Initial pressures: {self.__mx200.pressures}")
 
-
     def execute(self):
         log.info("Setting up linear translator")
         self.__translator = ISC08(address=ISC08_COM)
@@ -80,12 +80,11 @@ class ExtrusionProcedure(Procedure):
         log.info("Setting up DC source")
         self.__dc_source = DCSource(ip_address=DC_SOURCE_IP)
 
-
         [TC1, _, f, _, pot_adc] = self.readout.reading
         d0 = self.adc_to_cm(pot_adc)
         log.info(f"TC1: {TC1:6.2f} °C, F: {f:4.1f} N, x0: {d0:.1f} cm")
         initial_displacement = self.start_position_in * 2.54 - d0
-        initial_moving_time = initial_displacement / 0.57
+        initial_moving_time = abs(initial_displacement / 0.57)
         if abs(initial_displacement) > 0.5:
             log.info(
                 f'The current position ({d0 / 2.54} in) does not match the inital position ({self.start_position_in} in).')
@@ -141,6 +140,7 @@ class ExtrusionProcedure(Procedure):
         ramping = True
         stabilizing = False
         displacement = 0
+        LINE_CLEAR = '\x1b[2K'  # <-- ANSI sequence
 
         while run_pid:
             if self.should_stop():
@@ -150,9 +150,10 @@ class ExtrusionProcedure(Procedure):
             if (current_time - previous_time_reading) >= 0.1:
                 [TC1, _, fi, _, pot_adc] = self.readout.reading
                 previous_time_reading = current_time
-            control = pid(TC1)
-            self.__dc_source.voltage_setpoint = control
-            if ramping and current_ramping_time <= ramping_time:
+                control = pid(TC1)
+                self.__dc_source.voltage_setpoint = control
+
+            if ramping and current_ramping_time <= ramping_time + 0.1:
                 temperature_setpoint = initial_temperature + self.ramping_rate * current_ramping_time / 60.0
                 if temperature_setpoint > self.temperature_setpoint:
                     temperature_setpoint = self.temperature_setpoint
@@ -182,8 +183,8 @@ class ExtrusionProcedure(Procedure):
             if (not ramping) and (not stabilizing) and not moving:
                 print("")
                 self.__translator.move_by_time(moving_time=moving_time, speed_setting=adc_speed_setting)
+                print("")
                 moving = True
-
 
             if (not ramping) and (not stabilizing) and displacement <= self.displacement_in:
                 if (current_time - previous_time) >= dt:
@@ -192,6 +193,7 @@ class ExtrusionProcedure(Procedure):
                     total_time = current_time - t0
                     fi_err = fi * self.load_cell_prediction_error_pct * 1E-2
                     if fi >= force_threshold:
+                        self.translator.stop()
                         msg = f'The force on the sample ({fi} N) is larger than the allowable limit: ' \
                               f'{force_threshold} (N) '
                         print(msg)
@@ -213,6 +215,8 @@ class ExtrusionProcedure(Procedure):
                     }
                     self.emit('results', d)
                     self.emit('progress', 100.0 * displacement / self.displacement_in)
+                    control = pid(TC1)
+                    self.__dc_source.voltage_setpoint = control
                     previous_time = current_time
 
             if displacement >= self.displacement_in or total_time > moving_time:
@@ -220,8 +224,8 @@ class ExtrusionProcedure(Procedure):
 
         self.__dc_source.voltage_setpoint = 0.0
         self.__dc_source.output_off()
-
-        avg_speed = displacement *2.54 / moving_time
+        print("")
+        avg_speed = displacement * 2.54 / moving_time
         log.info(f'Average speed: {avg_speed:.2f} cm/s')
         self.__translator.disconnect()
         self.__dc_source.disconnect()
@@ -253,6 +257,11 @@ class ExtrusionProcedure(Procedure):
 
     def shutdown(self):
         self.unhinibit_sleep()
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for handler in log.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    log.removeHandler(handler)
 
     def __del__(self):
         self.shutdown()
@@ -277,8 +286,8 @@ class MainWindow(ManagedWindow):
                     'temperature_setpoint', 'ramping_rate', 'pid_stabilizing_time', 'ku', 'tu', 'load_cell_range',
                     'load_cell_prediction_error_pct'],
             displays=['sample_name', 'is_baseline', 'speed_setting', 'start_position_in', 'displacement_in',
-                    'temperature_setpoint', 'ramping_rate', 'pid_stabilizing_time', 'ku', 'tu', 'load_cell_range',
-                    'load_cell_prediction_error_pct'],
+                      'temperature_setpoint', 'ramping_rate', 'pid_stabilizing_time', 'ku', 'tu', 'load_cell_range',
+                      'load_cell_prediction_error_pct'],
             x_axis="Time (s)",
             y_axis="Force (N)",
             directory_input=True,
@@ -302,12 +311,6 @@ class MainWindow(ManagedWindow):
         fh.setLevel(logging.DEBUG)
         log.addHandler(fh)
 
-        # create console handler and set level to debug
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-
-        log.addHandler(ch)
-
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)
 
@@ -317,6 +320,18 @@ class MainWindow(ManagedWindow):
 if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.addHandler(logging.NullHandler())
+
+    # create console handler and set level to debug
+    has_console_handler = False
+    if len(log.handlers) > 0:
+        for handler in log.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                has_console_handler = True
+
+    if not has_console_handler:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        log.addHandler(ch)
 
     app = QtGui.QApplication(sys.argv)
     window = MainWindow()

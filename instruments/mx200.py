@@ -16,13 +16,13 @@ class MX200:
     """
 
     __address = 'COM3'
-    __baud_rate = 57600
+    __baud_rate = 115200
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.05
+    __timeout = 0.001
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.05
+    __delay = 0.001
     __keep_alive: bool = False
     __serial: serial.Serial = None
 

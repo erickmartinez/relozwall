@@ -58,7 +58,7 @@ class LaserProcedure(Procedure):
     def startup(self):
         print('***  Startup ****')
         self.__oscilloscope = TBS2000(resource_name=TBS2000_RESOURCE_NAME)
-        self.__mx200 = MX200(address=MX200_COM)
+        self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
         self.__mx200.delay = 0.030
         self.__oscilloscope.display_channel_list((1, 1, 0, 0))
         print(self.__oscilloscope.sesr)
@@ -277,6 +277,13 @@ class LaserProcedure(Procedure):
             self.__on_sleep.uninhibit()
             self.__keep_alive = False
 
+    def shutdown(self):
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for handler in log.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    log.removeHandler(handler)
+
 
 class MainWindow(ManagedWindow):
 
@@ -320,6 +327,18 @@ class MainWindow(ManagedWindow):
 if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.addHandler(logging.NullHandler())
+
+    # create console handler and set level to debug
+    has_console_handler = False
+    if len(log.handlers) > 0:
+        for handler in log.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                has_console_handler = True
+
+    if not has_console_handler:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        log.addHandler(ch)
 
     app = QtGui.QApplication(sys.argv)
     window = MainWindow()

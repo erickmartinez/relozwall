@@ -104,6 +104,11 @@ class FlexuralStressProcedure(Procedure):
 
     def shutdown(self):
         self.unhinibit_sleep()
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for handler in log.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    log.removeHandler(handler)
 
     def acquire_data(self, n, current_time):
         if self.should_stop():
@@ -184,6 +189,18 @@ class MainWindow(ManagedWindow):
 if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.addHandler(logging.NullHandler())
+
+    # create console handler and set level to debug
+    has_console_handler = False
+    if len(log.handlers) > 0:
+        for handler in log.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                has_console_handler = True
+
+    if not has_console_handler:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        log.addHandler(ch)
 
     app = QtGui.QApplication(sys.argv)
     window = MainWindow()
