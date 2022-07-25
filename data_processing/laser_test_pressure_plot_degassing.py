@@ -52,8 +52,12 @@ filelist = [
     'LT_R3N40_100PCT_0.2h_2022-05-18_1',
     'LT_RN41_100PCT_1.0h_2022-06-30_1',
     'LT_R3N41_ROW_97_100PCT_1.0h_2022-07-05_1',
+    'LT_R3N18_100PCT_40GAIN 2022-03-10_1',
+    'LT_R3N18_100PCT_40GAIN 2022-03-10_2',
     'LT_R3N58_100PCT_0.0h_2022-07-11_1',
-    'LT_R3N58_100PCT_0.0h_2022-07-11_2'
+    'LT_R3N58_100PCT_0.0h_2022-07-11_2',
+    'LT_R3N58_ROW100_100PCT_24.0h_2022-07-12_1',
+    'LT_GT001688_100PCT_1.0h_2022-06-30_3'
 ]
 
 # legends = [' 50 % Binder', ' 30 % Binder', ' 20 % Binder', '4:1 GC to BN']
@@ -78,10 +82,13 @@ filelist = [
 
 legends = [
     '66 h', '12 h', '4 h', '1 h', '-2.5 h', '-3.5 h', '0.2 h', '1 h', '1 h',
-    'Pre-baked GC (2 s, 30%)', 'Pre-baked GC (3 s, 30%)'
+    'First (Overnight)', 'Second (Overnight)',
+    'Pre-baked GC (2 s, 30%)', 'Pre-baked GC (3 s, 30%)', 'Pre-baked GC (3 s 30%)',
+    'GT001688'
 ]
 
-colors = plt.cm.cividis(np.linspace(0, 1, len(filelist)))
+colors = plt.cm.brg(np.linspace(0, 1, len(filelist)))
+add_time = 0.8
 
 def get_experiment_params(base_path: str, filename: str):
     # Read the experiment parameters
@@ -121,10 +128,11 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
     mpl.rcParams.update(plot_style)
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(4.5, 3.0)
+    fig.set_size_inches(5.0, 5.0)
 
     base_pressures = np.empty_like(filelist, dtype=np.float64)
     peak_pressures = np.empty_like(filelist, dtype=np.float64)
+    outgass_pressure = np.empty_like(filelist, dtype=np.float64)
     peak_dt = np.empty_like(filelist, dtype=np.float64)
 
     for fn, leg, c, i in zip(filelist, legends, colors, range(len(filelist))):
@@ -138,6 +146,11 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
         pressure = 1000*pressure_data['Pressure (Torr)'].values
         base_pressures[i] = pressure[0]
         peak_pressures[i] = pressure.max()
+        idx_peak = (np.abs(pressure - pressure.max())).argmin()
+        t_peak = time_s[idx_peak]
+        idx_out = (np.abs(time_s - (t_peak+add_time))).argmin()
+        outgass_pressure[i] = pressure[idx_out]
+        t_out = time_s[idx_out]
         idx_peak = (np.abs(pressure - peak_pressures[i])).argmin()
         peak_dt[i] = time_s[idx_peak]
 
@@ -156,7 +169,11 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
         ax.set_ylabel('Pressure (mTorr)')
         # colors.append(line[0].get_color())
 
-    leg = ax.legend(frameon=True, loc='best', fontsize=8)
+    # leg = ax.legend(frameon=True, loc='best', fontsize=8)
+    leg = ax.legend(
+        bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left',
+        ncol=2, mode="expand", borderaxespad=0., prop={'size': 8}
+    )
     for color, text in zip(colors, leg.get_texts()):
         text.set_color(color)
 
@@ -164,13 +181,15 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
     if plot_title is not None:
         ax.set_title(plot_title)
 
-    outgassing_rate = chamber_volume * (peak_pressures - base_pressures) * 1E-3 / peak_dt
+    outgassing_rate = chamber_volume * (outgass_pressure - base_pressures) * 1E-3 / t_out
 
     outgas_df = pd.DataFrame(data={
         'Sample': legends,
         'Base Pressure (mTorr)': base_pressures,
         'Peak Pressure (mTorr)': peak_pressures,
+        'Outgass Pressure (mTorr)': outgass_pressure,
         'Peak dt (s)': peak_dt,
+        'Outgass dt (s)': t_out,
         'Outgassing Rate (Torr L / s)': outgassing_rate
     })
 

@@ -83,7 +83,7 @@ if __name__ == '__main__':
     #     heat_flux_s, pebble_velocity, c='lightblue', mec='k', marker='^', lw=1.5
     # )
 
-    ax3.set_xlabel('Heat flux (MW/cm$\\mathregular{^2}$)')
+    ax3.set_xlabel('Heat flux (MW/m$\\mathregular{^2}$)')
     ax3.set_ylabel('Pebble velocity (cm/s)')
 
     ax1.set_xlim(0, 30)

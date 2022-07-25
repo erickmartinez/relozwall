@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # outgassing_df = outgassing_df[(outgassing_df['Laser Power Setpoint (%)'] == 100) & (outgassing_df['Sample ID'] != 'R3N40')]
     column_names = outgassing_df.columns
     outgassing_df[column_names[2::]] = outgassing_df[column_names[2::]].apply(pd.to_numeric)
-    outgassing_prebaked_df = outgassing_df[outgassing_df['Sample ID'] == 'R3N58']
+    outgassing_highlighted_df = outgassing_df[outgassing_df['Sample ID'] == 'GT001688']
     outgassing_df['dP (mTorr)'] = outgassing_df['Peak Pressure (mTorr)'] - outgassing_df['Base Pressure (mTorr)'].min()
     n = len(outgassing_df)
     outgassed_particles = np.empty(n, dtype=np.float64)
@@ -46,7 +46,8 @@ if __name__ == '__main__':
     base_pressure = outgassing_df['Base Pressure (mTorr)'].values
     norm = mpl.colors.Normalize(vmin=base_pressure.min(), vmax=base_pressure.max())
     cmap = plt.cm.jet
-    mean_erosion_rate = outgassing_df.loc[outgassing_df['Outgassing Rate (Torr L / s m2)'] < 20000.0, 'Erosion Rate (cm/s)'].mean()
+    mean_erosion_rate = outgassing_df.loc[outgassing_df['Sample ID'] != 'GT0016888', 'Erosion Rate (cm/s)'].mean()
+    # mean_erosion_rate = outgassing_df['Erosion Rate (cm/s)'].mean()
     print(f'Errosion Rate Mean for Outgassing < 1E4 Torr L: {mean_erosion_rate:.1f}')
 
 
@@ -74,11 +75,12 @@ if __name__ == '__main__':
         ls='none', c=colors[0], fillstyle='none'
     )
 
+    # Highlighted points
     ax.errorbar(
         # outgassing_df['Gas Concentration x10^15 (1/cm^3)'].values,
-        outgassing_prebaked_df['Outgassing Rate (Torr L / s m2)'],
-        outgassing_prebaked_df['Erosion Rate (cm/s)'],
-        yerr=outgassing_prebaked_df['Erosion Rate Error (cm/s)'],
+        outgassing_highlighted_df['Outgassing Rate (Torr L / s m2)'],
+        outgassing_highlighted_df['Erosion Rate (cm/s)'],
+        yerr=outgassing_highlighted_df['Erosion Rate Error (cm/s)'],
         capsize=2.5, mew=1.25, marker='o', ms=8, elinewidth=1.25,
         ls='none', c='tab:orange', fillstyle='none'
     )
@@ -108,7 +110,7 @@ if __name__ == '__main__':
     # cbar = plt.colorbar(sm, cax=cax)
     # cbar.set_label('Base Pressure (mTorr)')
 
-    ax.set_xlim(left=1000, right=100000)
+    ax.set_xlim(left=100, right=10000)
     ax.set_ylim(bottom=0.0, top=0.5)
     # ax.xaxis.set_major_locator(ticker.MultipleLocator(10.0))
     # ax.xaxis.set_minor_locator(ticker.MultipleLocator(5.0))
