@@ -244,7 +244,7 @@ if __name__ == '__main__':
     time_outgassing_extrapolate = np.logspace(-2, np.log10(10.0 * 3600.0), 10000)
 
     pressure_extrapolate = 10 ** venting_model(time_outgassing_extrapolate, popt)
-    outgassing_extrapolate = venting_model_dpdt(time_outgassing_extrapolate, popt)
+    outgassing_extrapolate = venting_model_dpdt(time_outgassing_extrapolate, popt) * volume_extruder_chamber * 1E-3
     print('Extrapolated venting pressures:')
     print(f'p.min: {pressure_extrapolate.min():.3E}, p.max = {pressure_extrapolate.max():.3E}')
 
@@ -266,6 +266,9 @@ if __name__ == '__main__':
     wl = 7
     sg_mode = 'interp'
     sg_poly_order = 4
+
+    dt = np.gradient(time_transitional).mean()
+    # print(np.gradient(measurement_time_pumpdown))
 
     p_v = pressure_pumpdown[viscous_idx]
     dpdt_ultimate = model_ultimate_derivative(time_transitional, popt_ultimate)
@@ -289,9 +292,6 @@ if __name__ == '__main__':
     # pressure_smooth[transitional_idx] = p_u
 
 
-
-    dt = np.gradient(time_transitional).mean()
-    # print(np.gradient(measurement_time_pumpdown))
 
     pumping_speed = np.empty_like(pressure_pumpdown)
     pumping_speed[viscous_idx] = popt_initial[1] * np.ones(p_v.size)

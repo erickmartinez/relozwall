@@ -1,5 +1,6 @@
 import numpy as np
 import re
+import os
 
 def get_experiment_params(relative_path: str, filename: str):
     # Read the experiment parameters
