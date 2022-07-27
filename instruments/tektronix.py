@@ -44,17 +44,20 @@ class TBS2000:
 
     def __init__(self, resource_name: str = TBS2000_RESOURCE_NAME):
         self.__resource_name = resource_name
+        self.connect()
+        for i in range(1, 3):
+            self.write(f'CH{i:d}:PRObe:GAIN 1.0')
+            self.write(f'CH{i:d}:COUPling DC')
+            sleep(self.__delay)
+        self.horizontal_main_scale = 2.0
+
+    def connect(self):
         self.__rm = pyvisa.ResourceManager()
         self.__instrument: pyvisa.Resource = self.__rm.open_resource(self.__resource_name)
         self.__instrument.read_termination = '\n'
         self.__instrument.write_termination = '\r\n'
         self.reset()
         time.sleep(self.__delay)
-        for i in range(1, 3):
-            self.write(f'CH{i:d}:PRObe:GAIN 1.0')
-            self.write(f'CH{i:d}:COUPling DC')
-            sleep(self.__delay)
-        self.horizontal_main_scale = 2.0
 
     def reset(self):
         # REM = Remark
@@ -365,6 +368,9 @@ class TBS2000:
     @property
     def instrument(self) -> pyvisa.Resource:
         return self.__instrument
+
+    def close(self):
+        self.__instrument.close()
 
     def __del__(self):
         if self.__instrument is not None:

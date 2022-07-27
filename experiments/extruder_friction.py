@@ -33,8 +33,8 @@ class ExtrusionProcedure(Procedure):
     speed_setting = ListParameter('Extruder speed', units='cm/s', default=0.57, choices=[0.11, 0.57, 1.1])
     start_position_in = FloatParameter('Start position', units='in', default=16.0, minimum=9.0, maximum=28.0)
     displacement_in = FloatParameter('Displacement', units='in', default=6.0, minimum=1.0, maximum=20.0)
-    temperature_setpoint = FloatParameter('Setpoint temperature', units='°C', default=25, minimum=25, maximum=915.0)
-    ramping_rate = FloatParameter('Ramping rate', units='°C/min', default=25.0, minimum=5.0, maximum=100.0)
+    temperature_setpoint = FloatParameter('Setpoint temperature', units='C', default=25, minimum=25, maximum=915.0)
+    ramping_rate = FloatParameter('Ramping rate', units='C/min', default=25.0, minimum=5.0, maximum=100.0)
     pid_stabilizing_time = FloatParameter('Temperature stabilization time', units='s', minimum=60, maximum=600,
                                           default=60)
     ku = FloatParameter('Ku', minimum=1., maximum=10000., default=5000.0)

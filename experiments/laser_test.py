@@ -59,7 +59,6 @@ class LaserProcedure(Procedure):
         print('***  Startup ****')
         self.__oscilloscope = TBS2000(resource_name=TBS2000_RESOURCE_NAME)
         self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
-        self.__mx200.delay = 0.030
         self.__oscilloscope.display_channel_list((1, 1, 0, 0))
         print(self.__oscilloscope.sesr)
         print(self.__oscilloscope.all_events)
@@ -278,11 +277,15 @@ class LaserProcedure(Procedure):
             self.__keep_alive = False
 
     def shutdown(self):
+        if self.__mx200 is not None:
+            self.__mx200.close()
+        if self.__oscilloscope is not None:
+            self.__oscilloscope.close()
         # Remove file handlers from logger
         if len(log.handlers) > 0:
-            for handler in log.handlers:
-                if isinstance(handler, logging.FileHandler):
-                    log.removeHandler(handler)
+            for h in log.handlers:
+                if isinstance(h, logging.FileHandler):
+                    log.removeHandler(h)
 
 
 class MainWindow(ManagedWindow):

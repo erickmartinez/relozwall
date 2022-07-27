@@ -1,14 +1,13 @@
 import io
-import time
-import numpy as np
-
-import serial
-from time import sleep
-from io import StringIO
-import pandas as pd
-from serial import SerialException
 import socket
 import struct
+import time
+from time import sleep
+
+import numpy as np
+import pandas as pd
+import serial
+from serial import SerialException
 
 
 class ArduinoTCP:
@@ -134,6 +133,7 @@ class ArduinoTCPLoose:
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
 
     def query_binary(self, q, attempts: int = 1):
+        # https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.__ip_address, self.__port))

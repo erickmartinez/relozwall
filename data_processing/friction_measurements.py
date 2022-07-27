@@ -22,10 +22,10 @@ EXT_READOUT_IP = '192.168.4.2'
 ISC08_COM = 'COM4'
 base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
 pid_stabilizing_time = 600.0  # seconds
-SPEED_CMS = 1.1
+SPEED_CMS = 0.11
 speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
-temperature = 350
-sample = 'R3N51'
+temperature = 715
+sample = 'R3N54'
 baseline = False
 # MOVING_LENGTH = 12.0 # in
 MOVING_LENGTH = 6.0  # 5.0 / 2.54  # in <--- During heating move only 5 cm (or the length of the coil)
@@ -33,9 +33,9 @@ if baseline:
     MOVING_LENGTH = 20.0  # <------- FOR BASELINE 20 INCHES STARTING FROM POSITION = 9.0 IN
 
 plot_csv = True
-csv_file = 'FRICTION_R3N56_900C_1.1CMPS_2022-07-19_1_corrected.csv'
+csv_file = 'FRICTION_R3N54_715C_0.11CMPS_2022-07-11_1.csv'
 # ********************** BASELINE ******************************************
-baseline_csv = 'FRICTION_BASELINE_715C_0.11CMPS_2022-07-19_1.csv'
+baseline_csv = 'FRICTION_BASELINE_SACRIFICIAL_715C_0.11CMPS_2022-07-11_1.csv'
 # **************************************************************************
 RAMPING_RATE = 25.0 # °C/min
 load_cell_prediction_error_pct = 9.8  # %
@@ -156,7 +156,9 @@ if __name__ == "__main__":
             try:
                 force -= f(position)
             except ValueError as ve:
-                print(f'Sample Force: min={force:.1F} N, max={}')
+                print(f'Sample position: min={position.min():.1F} cm, max={position.max():.1F} cm')
+                print(f'Baseline position: min={x_b.min():.1F} cm, max={x_b.max():.1F} cm')
+                raise(ve)
         force_err = force * (2.0 ** 0.5) * load_cell_prediction_error_pct * 1E-2
 
         if not baseline:
