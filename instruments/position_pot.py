@@ -12,13 +12,13 @@ class ArduinoSerial:
     """
 
     __address = None
-    __baud_rate = 57600
+    __baud_rate = 19200  # 38400
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.1
+    __timeout = 0.05
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.1
+    __delay = 0.05
     __serial: serial.Serial = None
 
     def __init__(self, address: str):
@@ -76,24 +76,22 @@ class ArduinoSerial:
         time.sleep(self.__delay)
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
 
-    def query_binary(self, q, attempts: int = 1):
+    def query_binary(self, q, packets: bool = False, size: int = 2):
         data = bytearray()
-        try:
-            self.write(f"{q}")
+        self.write(f"{q}")
+        if packets:
             raw_msg_len = self.__serial.read(4)
             n = struct.unpack('<I', raw_msg_len)[0]
+            time.sleep(self.__delay)
             while len(data) < n:
                 packet = self.__serial.read(n - len(data))
+                time.sleep(self.__delay)
                 if not packet:
                     return None
                 data.extend(packet)
-        except (ConnectionError, ConnectionResetError) as e:
-            self.disconnect()
-            self.connect()
-            attempts += 1
-            while attempts <= 5:
-                print(e)
-                return self.query_binary(q, attempts=attempts)
+        else:
+            data = self.__serial.read(size)
+        #self.__serial.reset_input_buffer()
         return data
 
     def __del__(self):
@@ -103,10 +101,6 @@ class ArduinoSerial:
 class DeflectionReader(ArduinoSerial):
     def __init__(self, address: str):
         super().__init__(address=address)
-        check_connection = self.check_id()
-        if not check_connection:
-            msg = f"DEFLECTION_POT not found in port {self.__address}"
-            raise SerialException(msg)
 
     def check_id(self, attempt: int = 0) -> bool:
         time.sleep(0.25)
@@ -126,14 +120,18 @@ class DeflectionReader(ArduinoSerial):
         else:
             return True
 
-    def reset_clock(self):
-        self.write('z')
+    def get_reading(self, attempts=0):
+        res = self.query_binary('r', size=2)
+        if res is None or len(res) < 2:
+            attempts += 1
+            if attempts < 5:
+                return self.get_reading(attempts=attempts)
+        adc = struct.unpack('<H', res)[0]
+        return adc
 
     @property
     def reading(self):
-        res = self.query_binary('r')
-        (dt_ms, adc) = np.array(list(struct.unpack('<LH', res)))
-        return np.round(dt_ms*0.001,decimals=3), adc
+        return self.get_reading()
 
     def __del__(self):
         super(DeflectionReader, self).__del__()
