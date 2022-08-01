@@ -1,3 +1,4 @@
+import logging
 import time
 
 import numpy as np
@@ -25,6 +26,7 @@ class MX200:
     __delay = 0.001
     __keep_alive: bool = False
     __serial: serial.Serial = None
+    _log: logging.Logger = None
 
     units_mapping = {
         'PA': 'Pascal',
@@ -39,13 +41,30 @@ class MX200:
         self.__keep_alive = bool(keep_alive)
         if self.__keep_alive:
             self.connect()
-        time.sleep(self.__delay)
+            time.sleep(self.__delay)
+
+        self._log = logging.getLogger(__name__)
+        self._log.addHandler(logging.NullHandler())
+        # create console handler and set level to debug
+        has_console_handler = False
+        if len(self._log.handlers) > 0:
+            for h in self._log.handlers:
+                if isinstance(h, logging.StreamHandler):
+                    has_console_handler = True
+        if not has_console_handler:
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.DEBUG)
+            self._log.addHandler(ch)
+
         check_connection = self.check_id()
         if self.__keep_alive:
             self.__serial.flush()
         if not check_connection:
             msg = f"MX200 not found in port {self.__address}"
             raise SerialException(msg)
+
+    def set_logger(self, log: logging.Logger):
+        self._log = log
 
     def connect(self):
         self.__serial = serial.Serial(
@@ -61,11 +80,11 @@ class MX200:
 
     def close(self):
         try:
-            print(f'Closing serial connection to MX200 at {self.__address}.')
+            self._log.debug(f'Closing serial connection to MX200 at {self.__address}.')
             if self.__keep_alive:
                 self.__serial.close()
         except AttributeError as e:
-            print('Connection already closed')
+            self._log.debug('Connection already closed')
 
     @property
     def timeout(self):
@@ -79,11 +98,11 @@ class MX200:
             self.__serial.timeout = value
 
     def check_id(self, attempt: int = 0) -> bool:
-        time.sleep(0.5)
+        time.sleep(0.1)
         old_delay = self.delay
         old_timeout = self.timeout
-        self.delay = 0.5
-        self.timeout = 0.5
+        self.delay = 0.1
+        self.timeout = 0.1
         check_id = self.query('SN')
         self.delay = old_delay
         self.delay = old_timeout
@@ -120,7 +139,11 @@ class MX200:
     def pressure(self, gauge_number: int):
         if 1 <= gauge_number <= 2:
             q = 'S1{0:02d}'.format(gauge_number)
-            pressure = self.query(q)
+            if self.__keep_alive:
+                self.__serial.write(f'{q}\r'.encode('utf-8'))
+                pressure = self.__serial.read(7).decode('utf-8').rstrip("\r\n").rstrip(" ")
+            else:
+                pressure = self.query(q)
             if re.match(r"\d{5}", pressure):
                 pressure = self.ppsee(pressure)
             return pressure
@@ -143,10 +166,14 @@ class MX200:
     def set_units(self, value: str, attempts=0):
         if value in self.units_mapping:
             q = f"W1{value.upper()}"
-            # print(q)
-            r = self.query(q)
+            if self.__keep_alive:
+                self.__serial.write(f'{q}\r'.encode('utf-8'))
+                time.sleep(2.0)
+                r = self.__serial.read(4).decode('utf-8').rstrip("\r\n")
+            else:
+                r = self.query(q, delay=2.0)
             if r != value:
-                # print(f'Units {value} could not be set. Returned {r}')
+                self._log.warning(f'Units {value} could not be set. Query \'{q}\' returned \'{r}\'')
                 if attempts < 3:
                     self.set_units(value, attempts+1)
 
@@ -175,7 +202,7 @@ class MX200:
         if 1 <= adjustment_point <= 4:
             query: str = f"RC{adjustment_point}{str(channel).zfill(2)}"
             result = self.query(q=query)
-            print(result)
+            self._log.debug(result)
             return self.baa(result)
         else:
             raise Warning(f"Invalid adjustment point: {adjustment_point}.")
@@ -189,7 +216,7 @@ class MX200:
             raise Warning(f"Invalid adjustment point: {adjustment_point}.")
         baa = self.integer2baa(set_point)
         query = f"WC{adjustment_point}{str(channel).zfill(2)}{baa}"
-        print(query)
+        self._log.debug(query)
         self.write(q=query)
         # time.sleep(self.__delay)
         # q = 'S1{0:02d}'.format(channel)
@@ -249,12 +276,14 @@ class MX200:
                 ser.write("{0}\r".format(q).encode('utf-8'))
                 sleep(self.__delay)
 
-    def query(self, q: str) -> str:
+    def query(self, q: str, delay: float = None) -> str:
+        if delay is None:
+            delay = self.__delay
         if self.__keep_alive:
             self.__serial.write("{0}\r".format(q).encode('utf-8'))
-            sleep(self.__delay)
+            sleep(delay)
             line = self.__serial.readline()
-            sleep(self.__delay)
+            sleep(delay)
             return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
         else:
             with serial.Serial(
@@ -268,7 +297,7 @@ class MX200:
             ) as ser:
                 sleep(self.__delay)
                 ser.write("{0}\r".format(q).encode('utf-8'))
-                sleep(self.__delay)
+                sleep(delay)
                 line = ser.readline()
                 sleep(self.__delay)
                 return line.decode('utf-8').rstrip("\r\n").rstrip(" ")

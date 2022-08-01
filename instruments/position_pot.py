@@ -1,3 +1,4 @@
+import logging
 import struct
 import numpy as np
 import serial
@@ -12,18 +13,38 @@ class ArduinoSerial:
     """
 
     __address = None
-    __baud_rate = 19200  # 38400
+    __baud_rate = 57600 #19200  # 38400
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.05
+    __timeout = 0.005
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.05
+    __delay = 0.005
     __serial: serial.Serial = None
+    _log: logging.Logger = None
 
     def __init__(self, address: str):
         self.__address = address
         self.connect()
+        self._log = logging.getLogger(__name__)
+        self._log.addHandler(logging.NullHandler())
+        # create console handler and set level to debug
+        has_console_handler = False
+        if len(self._log.handlers) > 0:
+            for handler in self._log.handlers:
+                if isinstance(handler, logging.StreamHandler):
+                    has_console_handler = True
+
+        if not has_console_handler:
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.DEBUG)
+            self._log.addHandler(ch)
+
+    def logger(self) -> logging.Logger:
+        return self._log
+
+    def set_logger(self, log: logging.Logger):
+        self._log = log
 
     def connect(self):
         self.__serial = serial.Serial(
@@ -59,11 +80,11 @@ class ArduinoSerial:
 
     def close(self):
         try:
-            print(f'Closing serial connection to ESP32 at {self.__address}.')
+            self._log.info(f'Closing serial connection to Arduino at {self.__address}.')
             self.__serial.flush()
             self.__serial.close()
         except AttributeError as e:
-            print('Connection already closed')
+            self._log.warning('Connection already closed')
 
     def write(self, q: str):
         self.__serial.write(f'{q}\r'.encode('utf-8'))
@@ -71,7 +92,6 @@ class ArduinoSerial:
 
     def query(self, q: str) -> str:
         self.write(f"{q}")
-        time.sleep(self.__delay)
         line = self.__serial.readline()
         time.sleep(self.__delay)
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
@@ -82,10 +102,8 @@ class ArduinoSerial:
         if packets:
             raw_msg_len = self.__serial.read(4)
             n = struct.unpack('<I', raw_msg_len)[0]
-            time.sleep(self.__delay)
             while len(data) < n:
                 packet = self.__serial.read(n - len(data))
-                time.sleep(self.__delay)
                 if not packet:
                     return None
                 data.extend(packet)
@@ -120,11 +138,12 @@ class DeflectionReader(ArduinoSerial):
         else:
             return True
 
-    def get_reading(self, attempts=0):
+    def get_reading(self, attempts=0) -> int:
         res = self.query_binary('r', size=2)
         if res is None or len(res) < 2:
             attempts += 1
-            if attempts < 5:
+            if attempts < 8:
+                self._log.debug(f'Failed reading position (attempt {attempts} of 8). Trying again...')
                 return self.get_reading(attempts=attempts)
         adc = struct.unpack('<H', res)[0]
         return adc
@@ -133,5 +152,3 @@ class DeflectionReader(ArduinoSerial):
     def reading(self):
         return self.get_reading()
 
-    def __del__(self):
-        super(DeflectionReader, self).__del__()
