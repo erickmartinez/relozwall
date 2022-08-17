@@ -22,6 +22,7 @@ class ArduinoSerial:
     __delay = 0.005
     __serial: serial.Serial = None
     _log: logging.Logger = None
+    _previous_val: int = None
 
     def __init__(self, address: str):
         self.__address = address
@@ -84,7 +85,8 @@ class ArduinoSerial:
             self.__serial.flush()
             self.__serial.close()
         except AttributeError as e:
-            self._log.warning('Connection already closed')
+            if self._log is not None:
+                self._log.warning('Connection already closed')
 
     def write(self, q: str):
         self.__serial.write(f'{q}\r'.encode('utf-8'))
@@ -142,10 +144,14 @@ class DeflectionReader(ArduinoSerial):
         res = self.query_binary('r', size=2)
         if res is None or len(res) < 2:
             attempts += 1
-            if attempts < 8:
-                self._log.debug(f'Failed reading position (attempt {attempts} of 8). Trying again...')
+            if attempts < 3:
+                self._log.info(f'Failed reading position (attempt {attempts+1} of 3). Trying again...')
                 return self.get_reading(attempts=attempts)
+            else:
+                self._log.info(f'Failed reading position (attempt {attempts + 1} of 3). Returning previous value...')
+                return self._previous_val
         adc = struct.unpack('<H', res)[0]
+        self._previous_val = adc
         return adc
 
     @property

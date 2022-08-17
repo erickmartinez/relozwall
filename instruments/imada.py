@@ -96,11 +96,11 @@ class DST44A:
         if match is None:
             logging.warning(f'Received gauge reponse: {data_str}')
             attempts += 1
-            if attempts < 5:
+            if attempts < 10:
                 self.__log.warning('Failed to read the force. Trying again...')
                 return self.read(attempts=attempts)
             else:
-                self.__log.error(f'I tried reading the force {attempts} times and failed. Sorry...')
+                self.__log.info(f'I tried reading the force {attempts} times and failed. Sorry...')
                 return {}
         groups = match.groups()
         s = 1 if groups[0] == '+' else -1

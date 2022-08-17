@@ -12,7 +12,7 @@ import time
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
-from pymeasure.experiment import FloatParameter, ListParameter, Parameter
+from pymeasure.experiment import FloatParameter, ListParameter, Parameter, BooleanParameter
 from pymeasure.experiment import unique_filename
 from serial.serialutil import SerialException
 from instruments.esp32 import ESP32Trigger
@@ -35,11 +35,15 @@ SAMPLING_INTERVAL = 0.005
 IP_LASER = "192.168.3.230"
 
 
+def get_duty_cycle_params(duty_cycle: float, period_ms: float = 1.0) -> tuple:
+    frequency = 1.0E3 / period_ms
+    pulse_width = duty_cycle * period_ms
+
+
 class LaserProcedure(Procedure):
     emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=20.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
     laser_power_setpoint = FloatParameter("Laser Power Setpoint", units="%", default=100, minimum=0.0, maximum=100.0)
-    degassing_time = FloatParameter('Degassing Time', units='h', default='1', minimum=0.0, maximum=1000.0)
     pd_gain = ListParameter('Photodiode Gain', choices=('0', '10', '20', '30', '40', '50', '60', '70'), units='dB',
                             default='30')
     sample_name = Parameter("Sample Name", default="UNKNOWN")
@@ -52,6 +56,8 @@ class LaserProcedure(Procedure):
     pressure_data: pd.DataFrame = None
     __tc_data: pd.DataFrame = None
     __unique_filename: str = None
+    __old_ylr_pulse_width: float = 0.05
+    __old_ylr_frequency: float = 1.0
 
     DATA_COLUMNS = ["Measurement Time (s)", "Photodiode Voltage (V)", "Trigger (V)", "TC1 (C)", "TC2 (C)"]
 
@@ -65,7 +71,6 @@ class LaserProcedure(Procedure):
         self.__mx200.set_logger(log)
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
-        time.sleep(0.1)
         self.__ylr.set_logger(log)
 
     @property
@@ -84,7 +89,25 @@ class LaserProcedure(Procedure):
 
     def execute(self):
         log.info(f"Setting the laser to the current setpoint: {float(self.laser_power_setpoint):.2f} %")
-        self.__ylr.current_setpoint = self.laser_power_setpoint
+        emission_on = False
+        gate_mode = False
+        if self.laser_power_setpoint >= 10.0:
+            self.__ylr.current_setpoint = self.laser_power_setpoint
+        else:
+            period_ms = 1.0
+            frequency = 1.0E3 / period_ms
+            duty_cycle = self.laser_power_setpoint / 20.0
+            log.info(
+                f'Power setpoint {self.laser_power_setpoint} %, using duty cycle of {duty_cycle * 100:.2f} % on 20% '
+                f'setting, with a 1 ms period.')
+            pulse_width = period_ms * duty_cycle
+            self.__ylr.current_setpoint = 20.0
+            self.__ylr.disable_modulation()
+            self.__ylr.enable_gate_mode()
+            gate_mode = True
+            self.__ylr.pulse_repetition_rate = frequency
+            self.__ylr.pulse_width = pulse_width
+
         time.sleep(0.1)
         log.info(f"Laser current setpoint: {float(self.__ylr.current_setpoint):.2f} %")
         try:
@@ -135,20 +158,35 @@ class LaserProcedure(Procedure):
         previous_time = 0.0
         total_time = 0.0
         start_time = time.time()
+        laser_power_value = 0.0
+        laser_power_peak_value = 0.0
+
         while total_time <= self.measurement_time:
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
                 break
             current_time = time.time()
-            if (current_time - previous_time) >= 0.02:
+            if (current_time - previous_time) >= 0.010:
+                total_time = current_time - start_time
                 p = self.__mx200.pressure(2)
-                if p == '':
+                if type(p) == str:
                     p = p_previous
                 pressure.append(p)
                 elapsed_time.append(total_time)
                 p_previous = p
-                total_time = current_time - start_time
+                if total_time < self.emission_time:
+                    laser_power_value = self.__ylr.output_power
+                    power_peak_value = self.__ylr.output_peak_power
+                    if type(power_peak_value) == float:
+                        laser_power_peak_value = max(power_peak_value, laser_power_peak_value)
+                # if total_time >= self.emission_time + 1.0 and emission_on:
+                #     self.__ylr.emission_off()
+                #     emission_on = False
                 previous_time = current_time
+
+
+        log.info(f'YLR output power: {laser_power_value}')
+        log.info(f'YLR output peak power: {laser_power_peak_value}')
 
         if emission_on:
             try:
@@ -156,6 +194,11 @@ class LaserProcedure(Procedure):
                 emission_on = False
             except LaserException as e:
                 log.warning(e)
+
+        if gate_mode:
+            self.__ylr.disable_gate_mode()
+            self.__ylr.enable_modulation()
+            gate_mode = False
 
         # log.info("elapsed time:")
         # log.info(elapsed_time)
@@ -228,9 +271,9 @@ class LaserProcedure(Procedure):
         print(time_tc)
         print(f'len(time_tc): {len(time_tc)}, time_tc.min = {time_tc.min()}, time_tc.max = {time_tc.max()}')
 
-        msk_tmin = time_osc >= time_tc.min()
-        data = data[msk_tmin]
-        reference = reference[msk_tmin]
+        # msk_tmin = time_osc >= time_tc.min()
+        # data = data[msk_tmin]
+        # reference = reference[msk_tmin]
         time_osc = data[columns[0]]
 
         f1 = interpolate.interp1d(time_tc, tc1)
@@ -248,6 +291,7 @@ class LaserProcedure(Procedure):
             }
             self.emit('results', d)
             self.emit('progress', (i + 1) * 100 / len(data))
+            time.sleep(0.0005)
 
         self.__oscilloscope.timeout = 1
 
@@ -281,10 +325,8 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=LaserProcedure,
-            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name",
-                    "degassing_time"],
-            displays=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name",
-                      "degassing_time"],
+            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name"],
+            displays=['emission_time', "measurement_time", "laser_power_setpoint", "pd_gain", "sample_name"],
             x_axis="Measurement Time (s)",
             y_axis="Photodiode Voltage (V)",
             directory_input=True,
@@ -298,9 +340,8 @@ class MainWindow(ManagedWindow):
         sample_name = procedure.sample_name
         laser_setpoint = procedure.laser_power_setpoint
         # photodiode_gain = procedure.pd_gain
-        degassing_time = procedure.degassing_time
 
-        prefix = f'LT_{sample_name}_{laser_setpoint:03.0f}PCT_{degassing_time}h_'
+        prefix = f'LT_{sample_name}_{laser_setpoint:03.0f}PCT_'
         filename = unique_filename(directory, prefix=prefix)
         log_file = os.path.splitext(filename)[0] + '.log'
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')

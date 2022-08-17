@@ -62,6 +62,69 @@ class YLR3000:
                 raise ValueError(r)
             self._log.info(f"Set the laser diode current to: {value:.2f} %")
 
+    @property
+    def output_power(self):
+        r = self.query("ROP")
+        p = re.compile(r'ROP\:\s*(\d+\.?\d*)')
+        m = re.findall(p, r)
+        if len(m) > 0:
+            return float(m[0])
+        return r[4:].strip(" ")
+
+    @property
+    def output_peak_power(self) -> float:
+        r = self.query("RPP")
+        p = re.compile(r'RPP\:\s*(\d+\.?\d*)')
+        m = re.findall(p, r)
+        if len(m) > 0:
+            return float(m[0])
+        return r[4:].strip(" ")
+
+    @property
+    def pulse_repetition_rate(self):
+        r = self.query("RPRR")
+        p = re.compile(r'RPRR\:\s*(\d+\.?\d*)')
+        m = re.findall(p, r)
+        if len(m) > 0:
+            return float(m[0])
+        return r[5:].strip(" ")
+
+    @pulse_repetition_rate.setter
+    def pulse_repetition_rate(self, value: float):
+        """
+        Sets the repetition rate of the pulse
+        Parameters
+        ----------
+        value: float
+            The repetition rate in Hz
+        """
+        value = float(value)
+        q = f"SPRR {value:.1f}"
+        r = self.query(q)
+        if r[0:] == 'ERR':
+            self._log.error(r[4:].strip(" "))
+            raise ValueError(r)
+        self._log.info(f"Set the pulse repetition rate to: {value:.2f} %")
+
+    @property
+    def pulse_width(self):
+        r = self.query("RPW")
+        p = re.compile(r'RPW\:\s*(\d+\.?\d*)?')
+        m = re.findall(p, r)
+        if len(m) > 0:
+            return float(m[0])
+        return r[4:].strip(" ")
+
+    @pulse_width.setter
+    def pulse_width(self, value):
+        value = float(value)
+        q = f"SPW {value:.1f}"
+        r = self.query(q)
+        if r[0:] == 'ERR':
+            self._log.error(r[4:].strip(" "))
+            raise ValueError(r)
+        self._log.info(f"Set the pulse width to: {value:.2f} %")
+
     def disable_analog_control(self):
         r = self.query("DEC")
         if r == "DEC":
@@ -77,15 +140,6 @@ class YLR3000:
             self._log.info("Disabled external aiming beam control.")
         else:
             msg = "Error disabling external aiming beam control."
-            self._log.error(msg)
-            raise LaserException(msg)
-
-    def disable_gate_mode(self):
-        r = self.query("DGM")
-        if r == "DGM":
-            self._log.info("Disabled gate mode.")
-        else:
-            msg = "Emission is on!"
             self._log.error(msg)
             raise LaserException(msg)
 
@@ -111,7 +165,68 @@ class YLR3000:
             self._log.error(msg)
             raise LaserException(msg)
 
-    def emission_off(self, attempts=1):
+    def disable_modulation(self):
+        r = self.query("DMOD")
+        if r == "DMOD":
+            self._log.info("Disabled modulation mode.")
+        elif r == "ERR":
+            msg = "Emission is on!"
+            self._log.error(msg)
+            raise LaserException(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self._log.error(msg)
+            raise LaserException(msg)
+
+    def enable_gate_mode(self):
+        r = self.query("EGM")
+        if r == "EGM":
+            self._log.info("Enabled gate mode.")
+        elif r == "ERR":
+            msg = "Emission is on!"
+            self._log.error(msg)
+            raise LaserException(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self._log.error(msg)
+            raise LaserException(msg)
+
+    def disable_gate_mode(self):
+        r = self.query("DGM")
+        if r == "DGM":
+            self._log.info("Disabled gate mode.")
+        else:
+            msg = "Emission is on!"
+            self._log.error(msg)
+            raise LaserException(msg)
+
+    def enable_pulse_mode(self):
+        r = self.query("EPM")
+        if r == "EPM":
+            self._log.info("Enabled pulse mode.")
+        elif r == "ERR":
+            msg = "Emission is on!"
+            self._log.error(msg)
+            raise LaserException(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self._log.error(msg)
+            raise LaserException(msg)
+
+    def disable_pulse_mode(self):
+        r = self.query("DPM")
+        if r == "DPM":
+            self._log.info("Disabled pulse mode.")
+        elif r == "ERR":
+            msg = "Emission is on!"
+            self._log.error(msg)
+            raise LaserException(msg)
+        else:
+            msg = f"Unknown error: {r}"
+            self._log.error(msg)
+            raise LaserException(msg)
+
+    def emission_off(self):
         r = self.query("EMOFF")
         if r == "EMOFF":
             self._log.info("Stopped emission.")
@@ -130,14 +245,8 @@ class YLR3000:
             raise LaserException(msg)
 
     def read_extended_device_status(self):
-        r = self.query("EPM")
-
-        if r == "EPM":
-            self._log.info("Enabled PULSE Mode.")
-        else:
-            msg = f"Unknown error: {r}"
-            self._log.error(msg)
-            raise ResourceWarning(msg)
+        r = self.query("ESTA")
+        return r[5:].strip(" ")
 
     def connect(self):
         self.__connection.connect((self.__ip_address, LASER_PORT))

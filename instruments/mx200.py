@@ -149,7 +149,7 @@ class MX200:
             return pressure
         else:
             msg = "Invalid gauge number ({0:d}). Valid gauges are 1-2.".format(gauge_number)
-            raise Exception(msg)
+            raise ValueError(msg)
 
     @property
     def serial_number(self) -> str:
@@ -226,7 +226,7 @@ class MX200:
         # return pressure
 
     @staticmethod
-    def ppsee(string_value: str):
+    def ppsee(string_value: str) -> float:
         if string_value is None:
             return -1
         mantissa = float(string_value[0:2]) / 10

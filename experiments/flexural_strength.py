@@ -89,7 +89,6 @@ class FlexuralStressProcedure(Procedure):
         return c['a0'] + c['a1'] * val
 
     def shutdown(self):
-        self.unhinibit_sleep()
         if self.__potReadout is not None:
             self.__potReadout.close()
         if self.__force_gauge is not None:
@@ -103,9 +102,11 @@ class FlexuralStressProcedure(Procedure):
     def acquire_data(self, current_time):
         if self.should_stop():
             log.warning("Caught the stop flag in the procedure")
+            log.info('User hit the \'abort button\'. Shutting down...  '
+                     '')
         # force_data = self.__force_gauge.read()
         force = self.__force_gauge.read()
-        time.sleep(0.0001)
+        time.sleep(0.0025)
         adc_pot = self.__potReadout.reading
         # force = force_data['reading']
         # units = force_data['units']
@@ -124,7 +125,7 @@ class FlexuralStressProcedure(Procedure):
             "Flexural Stress (Pa)": sigma_f,
             "Displacement (mm)": displacement_mm
         }
-        log.info(f"Time: {dt:.3f}, z: {displacement_mm:.2f} mm, Force: {force:.3E}, Flexural Stress: {sigma_f:.3E}.")
+        # log.info(f"Time: {dt:.3f}, z: {displacement_mm:.2f} mm, Force: {force:.3E}, Flexural Stress: {sigma_f:.3E}.")
         self.emit('results', data)
         self.emit('progress', dt * 100.0 / self.experiment_time)
 
