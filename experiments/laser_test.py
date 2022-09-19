@@ -59,7 +59,8 @@ class LaserProcedure(Procedure):
     __old_ylr_pulse_width: float = 0.05
     __old_ylr_frequency: float = 1.0
 
-    DATA_COLUMNS = ["Measurement Time (s)", "Photodiode Voltage (V)", "Trigger (V)", "TC1 (C)", "TC2 (C)"]
+    DATA_COLUMNS = ["Measurement Time (s)", "Photodiode Voltage (V)", "Trigger (V)", "TC1 (C)", "TC2 (C)",
+                    "Pressure (Torr)", "Laser output power (W)", "Laser output peak power (W)"]
 
     def startup(self):
         print('***  Startup ****')
@@ -157,9 +158,12 @@ class LaserProcedure(Procedure):
 
         previous_time = 0.0
         total_time = 0.0
+        power_peak_value = 0.0
+        power_value = 0.0
+
+        laser_output_power = []
+        laser_output_peak_power = []
         start_time = time.time()
-        laser_power_value = 0.0
-        laser_power_peak_value = 0.0
 
         while total_time <= self.measurement_time:
             if self.should_stop():
@@ -174,19 +178,19 @@ class LaserProcedure(Procedure):
                 pressure.append(p)
                 elapsed_time.append(total_time)
                 p_previous = p
-                if total_time < self.emission_time:
-                    laser_power_value = self.__ylr.output_power
+                if total_time < (self.emission_time + 0.5):
+                    power_value = self.__ylr.output_power
                     power_peak_value = self.__ylr.output_peak_power
-                    if type(power_peak_value) == float:
-                        laser_power_peak_value = max(power_peak_value, laser_power_peak_value)
+                    if type(power_peak_value) == str:
+                        power_peak_value = 0.0
+                    if type(power_value) == str:
+                        power_value = 0.0
+                    laser_output_power.append(power_value)
+                    laser_output_peak_power.append(power_peak_value)
                 # if total_time >= self.emission_time + 1.0 and emission_on:
                 #     self.__ylr.emission_off()
                 #     emission_on = False
                 previous_time = current_time
-
-
-        log.info(f'YLR output power: {laser_power_value}')
-        log.info(f'YLR output peak power: {laser_power_peak_value}')
 
         if emission_on:
             try:
@@ -204,6 +208,16 @@ class LaserProcedure(Procedure):
         # log.info(elapsed_time)
         elapsed_time = np.array(elapsed_time, dtype=float)
         pressure = np.array(pressure, dtype=float)
+        laser_output_power = np.array(laser_output_power)
+        laser_output_peak_power = np.array(laser_output_peak_power)
+        log.info(f'YLR output power: {laser_output_power.mean()}')
+        log.info(f'YLR output peak power: {laser_output_peak_power.max()}')
+        laser_output_power_full = np.zeros_like(elapsed_time)
+        laser_output_peak_power_full = np.zeros_like(elapsed_time)
+        msk_power = elapsed_time < (self.emission_time + 0.5)
+        laser_output_power_full[msk_power] = laser_output_power
+        laser_output_peak_power_full[msk_power] = laser_output_peak_power
+
         self.pressure_data = pd.DataFrame(
             data={
                 'Time (s)': elapsed_time,
@@ -245,7 +259,8 @@ class LaserProcedure(Procedure):
 
         ir_df = pd.DataFrame(data={
             'Time (s)': data[columns[0]],
-            'Voltage (V)': data[columns[1]]
+            'PD voltage (V)': data[columns[1]],
+            'Trigger voltage (V)': reference[columns[1]]
         })
 
         filename = f'{os.path.splitext(self.__unique_filename)[0]}_irdata.csv'
@@ -278,8 +293,14 @@ class LaserProcedure(Procedure):
 
         f1 = interpolate.interp1d(time_tc, tc1)
         f2 = interpolate.interp1d(time_tc, tc2)
+        f3 = interpolate.interp1d(elapsed_time, pressure)
+        f4 = interpolate.interp1d(elapsed_time, laser_output_power_full)
+        f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full)
         tc1_interp = f1(time_osc)
         tc2_interp = f2(time_osc)
+        pressure_interp = f3(time_osc)
+        power_interp = f4(time_osc)
+        peak_power_interp = f5(time_osc)
 
         for i in range(len(data)):
             d = {
@@ -287,11 +308,14 @@ class LaserProcedure(Procedure):
                 "Photodiode Voltage (V)": data[columns[1]][i],
                 "Trigger (V)": reference[columns_ref[1]][i],
                 "TC1 (C)": tc1_interp[i],
-                "TC2 (C)": tc2_interp[i]
+                "TC2 (C)": tc2_interp[i],
+                "Pressure (Torr)": pressure_interp[i],
+                "Laser output power (W)": power_interp[i],
+                "Laser output peak power (W)": peak_power_interp[i]
             }
             self.emit('results', d)
             self.emit('progress', (i + 1) * 100 / len(data))
-            time.sleep(0.0005)
+            time.sleep(0.0001)
 
         self.__oscilloscope.timeout = 1
 
