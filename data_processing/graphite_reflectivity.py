@@ -13,8 +13,9 @@ from scipy import interpolate
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
 data_file = 'reflectance_of_graphite_Taft&Philipp_PR1965'
 laser_wavelength = 1.07  # um
-band_pass_wavelength = 0.91 # um
+band_pass_wavelength = 0.91  # um
 interpolation_steps = 2000
+
 
 def um_to_ev(energy: np.ndarray) -> np.ndarray:
     return 1.2398 / energy
@@ -26,7 +27,6 @@ if __name__ == '__main__':
     photon_energy = reflectivity_df['Photon Energy (eV)'].values
     wavelength = 1.2398 / photon_energy
     reflectivity = reflectivity_df['Reflectivity (%)'].values
-
 
     photon_energy = np.round(photon_energy, 3)
 
@@ -43,8 +43,10 @@ if __name__ == '__main__':
     wavelength_interp = wavelength_interp[3:-3]
     reflectivity_interp_wl = f2(wavelength_interp)
 
-    reflectivity_at_laser_wl = f1(1.2398/laser_wavelength)
-    reflectivity_at_bp_wl = f1(1.2398/band_pass_wavelength)
+    reflectivity_at_laser_wl = f1(1.2398 / laser_wavelength)
+    reflectivity_at_bp_wl = f1(1.2398 / band_pass_wavelength)
+    reflectivity_at_laser_wl = f2(laser_wavelength)
+    reflectivity_at_bp_wl = f2(band_pass_wavelength)
     print(f"Reflectance at {laser_wavelength:.3f} um: {reflectivity_at_laser_wl:4.1f} %")
     print(f"Reflectance at {band_pass_wavelength:.3f} um: {reflectivity_at_bp_wl:4.1f} %")
 
@@ -69,7 +71,7 @@ if __name__ == '__main__':
         plot_style = json_file['defaultPlotStyle']
     mpl.rcParams.update(plot_style)
 
-    fig, ax = plt.subplots()  # , constrained_layout=True)
+    fig, ax = plt.subplots( constrained_layout=True)
     fig.set_size_inches(4.75, 3.75)
     ax.set_xlabel('Wavelength ($\\mathregular{\mu m}$)')
     ax.set_ylabel('Reflectance (%)')
@@ -137,7 +139,7 @@ if __name__ == '__main__':
     ax.annotate(
         txt,
         xy=(x1, y1), xycoords='data',  # 'figure pixels', #data',
-        xytext=(-8*offset, 8 * offset), textcoords='offset points',  # 'data',
+        xytext=(-8 * offset, 8 * offset), textcoords='offset points',  # 'data',
         arrowprops=arrowprops,
         bbox=bbox, fontsize=9,
         ha='left'
@@ -160,8 +162,8 @@ if __name__ == '__main__':
 
     axins = inset_axes(ax, width=1.95, height=1.2)
     axins.plot(photon_energy_interp, reflectivity_interp)
-    axins.set_xlim(0,40)
-    axins.set_ylim(0.1,100)
+    axins.set_xlim(0, 40)
+    axins.set_ylim(0.1, 100)
     axins.set_yscale('log')
     axins.set_xlabel('Photon Energy (eV)', fontsize=10)
     axins.set_ylabel('Reflectance (%)', fontsize=10)
@@ -176,7 +178,7 @@ if __name__ == '__main__':
     axins.add_patch(rect)
     # ax.legend(loc='best', frameon=False)
 
-    fig.tight_layout()
+    # fig.tight_layout()
     fig.savefig(os.path.join(base_path, data_file + '_plot.png'), dpi=600)
     fig.savefig(os.path.join(base_path, data_file + '_plot.svg'), dpi=600)
     plt.show()

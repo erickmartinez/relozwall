@@ -15,14 +15,17 @@ import re
 
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
 csv_file = 'GR001C_1cm_probe_smoothed_temperature_data'
-data_file = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\LT_GR001CC_150mT_1cm_100PCT_60GAIN 2022-04-26_1.csv'
+# data_file = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\LT_GR001CC_150mT_1cm_100PCT_60GAIN 2022-04-26_1.csv'
+data_file = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1.csv'
+
 
 q0 = 25.0
 time_constant = 2.1148
 reflectance = 40.4
 
-density_g = 1.76  # g / cm^3 # GR008G
+# density_g = 1.76  # g / cm^3 # GR008G
 # density_g = 1.81 # g / cm^3 # GR001CC
+density_g = 1.698 # measured
 """ 
 It has been found that the values of heat capacity for all
 types of natural and manufactured graphites are basically
@@ -36,8 +39,8 @@ https://poco.entegris.com/content/dam/poco/resources/reference-materials/brochur
 """
 # specific_heat_g = 0.712  # J / g / K
 specific_heat_g = 0.6752  # Markelov, Volga, et al., 1973
-# k0_1 = 85E-2 # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=6310&c=4343521&h=Tz5uoWvr-nhJ13GL1b1lG8HrmYUqV1M_1bOTFQ2MMuiQapxt # GR001C
-k0_1 = 130E-2  # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=7164&c=4343521&h=8qpl24Kn0sh2rXtzPvd5WxQIPQumdO8SE5m3VRfVBFvLJZtj # GR008G
+k0_1 = 85E-2 # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=6310&c=4343521&h=Tz5uoWvr-nhJ13GL1b1lG8HrmYUqV1M_1bOTFQ2MMuiQapxt # GR001C
+# k0_1 = 130E-2  # W / (cm K) https://www.graphitestore.com/core/media/media.nl?id=7164&c=4343521&h=8qpl24Kn0sh2rXtzPvd5WxQIPQumdO8SE5m3VRfVBFvLJZtj # GR008G
 k0_2 = 16.2E-2  # W / (cm K)
 
 # kappa_1 = 1.11 # Thermal diffusivity of copper in cm^2/s

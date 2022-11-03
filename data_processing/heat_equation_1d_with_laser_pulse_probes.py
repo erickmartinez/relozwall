@@ -67,7 +67,7 @@ def get_ut(x: np.ndarray, diffusion_time: np.ndarray, rod_length:float, diffusiv
     # After the laser pulse consider the solution of the heat equation for a 1D rod with insulated ends
     for i, ti in enumerate(time_off):
         for n in range(N+1):
-            arg = ((n * np.pi/L) ** 2.0) * diffusivity * (ti - pulse_length) #(diffusion_time[i+idx_off]-pulse_length)
+            arg = ((n * np.pi/L) ** 2.0) * diffusivity * (ti - emission_time) #(diffusion_time[i+idx_off]-pulse_length)
             a_n = get_an(n, rod_length=L, diffusivity=diffusivity, emission_time=emission_time, flux=flux, T0=T0)
             if n == 0:
                 u[i+idx_off] = a_n

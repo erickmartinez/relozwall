@@ -15,7 +15,6 @@ data_csv = 'EXTRUSION_SACRIFICIAL_20220705_R3N51_FONT_0800C2022-07-07_1_CORRECTE
 surface_cm2 = 0.25 * np.pi * 1.5 ** 2.0
 print(f'Surface Area: {surface_cm2}')
 label = '800 °C'
-label = '800 °C'
 
 """
 Volume and surface area of the outgassing chamber in the extruder system

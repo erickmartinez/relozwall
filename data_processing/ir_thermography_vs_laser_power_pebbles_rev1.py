@@ -1,19 +1,15 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import os
 import json
-from typing import List
-import pandas as pd
-import re
-
-from scipy.signal import savgol_filter
-
-import ir_thermography.thermometry as irt
-import matplotlib.ticker as ticker
+import os
+import matplotlib as mpl
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
+import pandas as pd
 from scipy.optimize import least_squares
-import confidence as cf
+from scipy.signal import savgol_filter
+import ir_thermography.thermometry as irt
+from utils import get_experiment_params
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER'
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
@@ -22,39 +18,14 @@ csv_database = 'pebble_sample_equilibrium_redone_files.csv'
 chamber_volume = 31.57  # L
 max_time = 10.0  # s
 
-heat_flux_at_100pct = 25.2  # MW/m2
+heat_flux_at_100pct = 4.7E3  # kW
+sample_diameter = 0.918  # 2.54 * 3.0 / 8.0
+beam_diameter = 1.5 * 0.8165
+
 correct_reflection = True
+flat_top_threshold = 0.9
 
-
-def get_experiment_params(relative_path: str, filename: str):
-    # Read the experiment parameters
-    results_csv = os.path.join(relative_path, f'{filename}.csv')
-    count = 0
-    params = {}
-    with open(results_csv) as f:
-        for line in f:
-            if line.startswith('#'):
-                if count > 1:
-                    l = line.strip()
-                    print(l)
-                    if l == '#Data:':
-                        break
-                    pattern1 = re.compile("\s+(.*?):\s(.*?)\s(.*?)$")
-                    pattern2 = re.compile("\s+(.*?):\s(.*?)$")
-                    matches1 = pattern1.findall(l)
-                    matches2 = pattern2.findall(l)
-                    if len(matches1) > 0:
-                        params[matches1[0][0]] = {
-                            'value': matches1[0][1],
-                            'units': matches1[0][2]
-                        }
-                    elif len(matches2) > 0:
-                        params[matches2[0][0]] = {
-                            'value': matches2[0][1],
-                            'units': ''
-                        }
-                count += 1
-    return params
+emissivity = (1.0 - 0.01 * 19.2)
 
 
 def model_tanh(t, b):
@@ -79,22 +50,22 @@ def model_asymptotic1(t, b):
 
 def fobj_tanh(b, t, temp):
     temp_max = np.max(temp)
-    return (model_tanh(t, b) - temp) * temp / temp_max
+    return (model_tanh(t, b) - temp)  # * temp / temp_max
 
 
 def fobj_exp(b, t, temp):
     temp_max = np.max(temp)
-    return (model_exp(t, b) - temp)*temp/temp_max
+    return (model_exp(t, b) - temp)  # * temp / temp_max
 
 
 def fobj_asymptotic1(b, t, temp):
     temp_max = np.max(temp)
-    return (model_asymptotic1(t, b) - temp) * temp/temp_max
+    return (model_asymptotic1(t, b) - temp)  # * temp / temp_max
 
 
 def fobj_asymptotic2(b, t, temp):
     temp_max = np.max(temp)
-    return (model_asymptotic2(t, b) - temp) * temp/temp_max
+    return (model_asymptotic2(t, b) - temp)  # * temp / temp_max
 
 
 def model_asymptotic1_jac(b, t, temp):
@@ -144,6 +115,7 @@ def model_exp_jac(b, t, temp):
 
 if __name__ == '__main__':
     thermometry = irt.PDThermometer()
+    thermometry.emissivity = emissivity
     database_df = pd.read_csv(
         os.path.join(base_path, csv_database), comment='#'
     )
@@ -155,8 +127,13 @@ if __name__ == '__main__':
     filelist = database_df['csv']
     fit_data = np.array(database_df['fit'], dtype=bool)
     fit_model = database_df['model']
+    loss = database_df['loss']
     show_plot = np.array(database_df['plot'], dtype=bool)
+    power_setting = database_df['Laser Power Setting (%)']
     n = len(filelist)
+    atan_threshold = np.arctan(flat_top_threshold)
+    norm = mpl.colors.Normalize(vmin=0, vmax=100.0)
+    cmap = plt.cm.jet
     colors = plt.cm.jet(np.linspace(0, 1, n))
 
     base_pressures = np.empty(n, dtype=np.float64)
@@ -182,8 +159,12 @@ if __name__ == '__main__':
     laser_power_setpoint_list = []
     max_temperature = np.empty(len(filelist), dtype=np.float64)
     time_to_equilibrium = np.empty_like(max_temperature)
+    flat_top_time = np.empty_like(max_temperature)
     heat_flux = np.empty_like(max_temperature)
     emission_times = np.empty_like(max_temperature)
+
+    sample_area = 0.25 * np.pi * sample_diameter * sample_diameter
+    heat_flux_factor = 0.01 * (1.0 - np.exp(-2.0 * (sample_diameter / beam_diameter) ** 2.0)) / sample_area
 
     for i, file in enumerate(filelist):
         file = file.strip()
@@ -191,12 +172,13 @@ if __name__ == '__main__':
         print(f"Processing file {i + 1:d} of {n}: {file}")
         experiment_params = get_experiment_params(relative_path=base_path, filename=file)
         photodiode_gain = experiment_params['Photodiode Gain']['value']
-        laser_power_setting = experiment_params['Laser Power Setpoint']['value']
+        laser_power_setting = float(experiment_params['Laser Power Setpoint']['value'])
         laser_power_setpoint_list.append(laser_power_setting)
         emission_time = float(experiment_params['Emission Time']['value'])
         emission_times[i] = emission_time
+        c = cmap(norm(power_setting[i]))
 
-        heat_flux[i] = heat_flux_at_100pct * float(laser_power_setting) * 1E-2
+        heat_flux[i] = heat_flux_at_100pct * laser_power_setting * heat_flux_factor * 0.01
         ir_df = pd.read_csv(os.path.join(base_path, csv_file)).apply(pd.to_numeric)
         ir_df = ir_df[ir_df['Time (s)'] <= max_time]
         ir_df = ir_df[ir_df['Voltage (V)'] > 0.0]
@@ -227,7 +209,7 @@ if __name__ == '__main__':
         reflective_signal_zero_idx = (np.abs(measurement_time)).argmin() + n
         reflection_signal_max_idx = (np.abs(measurement_time - 0.5)).argmin()
         reflection_signal[irradiation_time_idx] = photodiode_voltage[reflective_signal_zero_idx]
-        reflection_signal[reflective_signal_zero_idx - n] = 0.0
+        # reflection_signal[reflective_signal_zero_idx - n] = 0.0
         reflection_signal[reflection_signal_max_idx:reflection_signal_max_idx] = photodiode_voltage[
                                                                                  reflection_signal_max_idx:reflection_signal_max_idx]
         print(f"Baseline signal: {photodiode_voltage[reflective_signal_zero_idx]:.3f} V")
@@ -242,7 +224,7 @@ if __name__ == '__main__':
         if correct_reflection:
             photodiode_corrected = photodiode_voltage - reflection_signal
             pd_corrected_min = photodiode_corrected[irradiation_time_idx].min()
-            photodiode_corrected[irradiation_time_idx] -= pd_corrected_min + 0.5 * noise_level
+            # photodiode_corrected[irradiation_time_idx] -= pd_corrected_min + 0.5 * noise_level
             time_pd_idx = (photodiode_corrected > 0.0)  # & (measurement_time > noise_level)
             measurement_time_pd = measurement_time[time_pd_idx]
             photodiode_voltage_positive = photodiode_corrected[time_pd_idx]
@@ -265,13 +247,13 @@ if __name__ == '__main__':
         print('len(temperature_c):', len(temperature_c))
         print('len(irradiation_time_idx):', len(irradiation_time_idx))
 
-        lbl = f'{float(laser_power_setting):3.0f} % Power'
+        lbl = f'{laser_power_setting:3.0f} % Power'
 
         if show_plot[i]:
             ax1.plot(
                 measurement_time_pd,
                 temperature_c,
-                color=colors[i], lw=1.75, marker='o', fillstyle='none', ls='none',
+                color=c, lw=1.75, marker='o', fillstyle='none', ls='none',
                 label=lbl
             )
 
@@ -280,7 +262,8 @@ if __name__ == '__main__':
         t_peak = measurement_time_pd[t_max_idx]
         print(f't_peak: {t_peak:.3f} s, v_peak: {temp_peak:.2f} °C')
         t0_fit = int(0.01 * t_peak)
-        idx_fit = (measurement_time_pd >= t0_fit) & (measurement_time_pd <= t_peak)
+        t1_fit = min(t_peak * 1.1, irradiation_time.max())
+        idx_fit = (measurement_time_pd >= t0_fit) & (measurement_time_pd <= t1_fit)
         # idx_fit = irradiation_time_idx
         # idx_fit = measurement_time_pd <= t_peak
 
@@ -295,40 +278,44 @@ if __name__ == '__main__':
             jac = model_tanh_jac
             model = model_tanh
             b_guess = [temp_peak, 0.5, 0.1]
-            bounds = ([200.0, 1E-10, -10.0], [2800.0, 2.0, 10.0])
+            bounds = ([800.0, 1E-5, -10.0], [2800.0, 2.0, 10.0])
 
         elif fit_model[i] == 'asymptotic1':
             fobj = fobj_asymptotic1
             jac = model_asymptotic1_jac
             model = model_asymptotic1
-            b_guess = [temp_peak, 1.1, 1E-5]
-            bounds = ([1000.0, 0.001, 0.0], [3000.0, 1E5, 1E10])
+            b_guess = [temp_peak * 1.05, 1.1, 1E-5]
+            bounds = ([800.0, 0.01, 0.0], [3000.0, 1E5, 1E10])
         elif fit_model[i] == 'asymptotic2':
             fobj = fobj_asymptotic2
             jac = model_asymptotic2_jac
             model = model_asymptotic2
             b_guess = [temp_peak, 1.1]
-            bounds = ([1000.0, 1.001], [3000.0, 1E5])
+            bounds = ([800.0, 1.001], [3000.0, 1E5])
         elif fit_model[i] == 'exp':
             fobj = fobj_exp
             jac = model_exp_jac
             model = model_exp
-            b_guess = [temp_peak, 1.0, 0.1]
+            b_guess = [temp_peak * 1.05, 1.0, 0.1]
             bounds = ([800.0, 1E-16, -10.0], [2800.0, 1E3, 10.0])
-
 
         all_tol = np.finfo(np.float64).eps
         if fit_data[i]:
-            res = least_squares(
-                fobj, b_guess, args=(t_fit, temp_fit),
-                bounds=bounds,
-                jac=jac,
-                xtol=all_tol,
-                ftol=all_tol,
-                gtol=all_tol,
-                # loss='soft_l1', f_scale=0.1,
-                verbose=2
-            )
+            try:
+                res = least_squares(
+                    fobj, b_guess, args=(t_fit, temp_fit),
+                    bounds=bounds,
+                    jac=jac,
+                    xtol=all_tol,
+                    ftol=all_tol,
+                    gtol=all_tol,
+                    loss=loss[i], f_scale=0.1,
+                    verbose=2
+                )
+            except ValueError as ve:
+                print('Failed')
+                print('x0:', b_guess, 'model:', fit_model[i])
+                raise ve
             popt = res.x
             # pcov = cf.get_pcov(res)
 
@@ -341,16 +328,20 @@ if __name__ == '__main__':
             temp_extrapolate = model(time_extrapolate, popt)
             if fit_model[i] == 'tanh':
                 tc = (3.0 - popt[2]) / popt[1]
+                t0_ft = (atan_threshold - popt[2]) / popt[1]
                 limit_temp = model_tanh(tc, popt)
             elif fit_model[i] == 'asymptotic1':
-                tc = np.power(0.995*popt[2]/(1.0-0.995), 1.0/popt[1]) + t_fit.min()
+                tc = np.power(0.995 * popt[2] / (1.0 - 0.995), 1.0 / popt[1]) + t_fit.min()
                 limit_temp = 0.995 * popt[0]
+                t0_ft = np.power(flat_top_threshold * popt[2] / (1.0 - flat_top_threshold), 1.0 / popt[1]) + t_fit.min()
             elif fit_model[i] == 'asymptotic2':
-                tc = t_fit.min() / (1.0 - (0.995 ** (1.0 / popt[1])) )
+                tc = t_fit.min() / (1.0 - (0.995 ** (1.0 / popt[1])))
+                t0_ft = t_fit.min() / (1.0 - (flat_top_threshold ** (1.0 / popt[1])))
                 limit_temp = 0.995 * popt[0]
             elif fit_model[i] == 'exp':
-                tc = (popt[2] - np.log(1-0.995))/popt[1]
-                limit_temp = 0.995*popt[0]
+                tc = (popt[2] - np.log(1.0 - 0.995)) / popt[1]
+                limit_temp = 0.995 * popt[0]
+                t0_ft = (popt[2] - np.log(1.0 - flat_top_threshold)) / popt[1]
 
             print(f'99.5% of final temperature: {tc:g} s, {limit_temp:.0f} °C ({fit_model[i]})')
             if len(temperature_c) > 0:
@@ -360,10 +351,11 @@ if __name__ == '__main__':
                 max_temperature[i] = 20.0
 
             time_to_equilibrium[i] = tc
+            flat_top_time[i] = max(irradiation_time.max() - t0_ft, 0.0)
 
             if show_plot[i]:
                 ax1.plot(
-                    time_extrapolate, temp_extrapolate, color=colors[i], ls='--', lw=1.0
+                    time_extrapolate, temp_extrapolate, color=c, ls='--', lw=1.0
                 )
 
                 ax1.plot(
@@ -381,7 +373,7 @@ if __name__ == '__main__':
 
         offset = 1
         connectionstyle = "angle3,angleA=0,angleB=90"
-        bbox = dict(boxstyle="round", fc="w", alpha=1.0, ec=colors[i])  # , fc="wheat", alpha=1.0)
+        bbox = dict(boxstyle="round", fc="w", alpha=1.0, ec=c)  # , fc="wheat", alpha=1.0)
         """
         arrowprops = dict(
             arrowstyle="->", color="k",
@@ -404,10 +396,11 @@ if __name__ == '__main__':
         temperature_irradiation = temperature_c[irradiation_time_idx]
         if show_plot[i]:
             ax1.text(
-                t0 + emission_time * np.random.uniform(low=(1.0 - 0.075 * i / n), high=(1.0 + 0.065 * i / n)),
-                temperature_irradiation[-1] * np.random.uniform(low=(0.95 - 0.075 * i / n), high=(0.975 + 0.05 * i / n)),
-                f'{float(laser_power_setting):3.0f} %',
-                color=colors[i],
+                min(t0 + emission_time, 8.0) * np.random.uniform(low=(1.0 - 0.075 * i / n), high=(1.0 + 0.065 * i / n)),
+                temperature_irradiation[-1] * np.random.uniform(low=(0.95 - 0.075 * i / n),
+                                                                high=(0.975 + 0.05 * i / n)),
+                f'{laser_power_setting:3.0f} %',
+                color=c,
                 ha='right', bbox=bbox
             )
 
@@ -433,7 +426,7 @@ if __name__ == '__main__':
     ax2.set_ylabel('Pressure increase (mTorr)')
 
     ax1.set_ylabel('Surface temperature (°C)')
-    ax1.set_ylim(top=3000, bottom=1000)
+    ax1.set_ylim(top=3000, bottom=500)
     # ax2.set_ylim(top=40)
     ax1.set_xlabel('Time (s)')
     ax1.set_xlim(-0.5, max_time)
@@ -458,8 +451,8 @@ if __name__ == '__main__':
     # ax2.yaxis.set_major_locator(ticker.MultipleLocator(10))
     # ax2.yaxis.set_minor_locator(ticker.MultipleLocator(5))
 
-    ax1.set_title('Surface Temperature')
-    ax2.set_title('Chamber Pressure')
+    ax1.set_title('Surface temperature - pebble sample')
+    ax2.set_title('Chamber pressure - pebble sample')
     filetag = os.path.splitext(csv_database)[0]
 
     outgassing_rate = chamber_volume * (peak_pressures - base_pressures) * 1E-3 / peak_dt
@@ -476,7 +469,8 @@ if __name__ == '__main__':
         'Laser power setpoint (%)': laser_power_setpoint_list,
         'Heat flux (MW/m^2)': heat_flux,
         'Max surface temperature (C)': max_temperature,
-        'Time to equilibrium (s)': time_to_equilibrium
+        'Time to equilibrium (s)': time_to_equilibrium,
+        'Flat top time (s)': flat_top_time
     })
 
     temperature_vs_power_df.to_csv(os.path.join(base_path, f'{filetag}_surface_temperature.csv'), index=False)

@@ -15,7 +15,7 @@ import platform
 
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
 # data_file = 'LT_GR008G_4mTorr-contact-shield_080PCT_60GAIN 2022-05-06_1'
-data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
+data_file = 'LT_GR008G_100mTorr_100PCT_50GAIN 2022-05-03_1'
 
 time_constant_1, time_constant_2 = 2.1148, 2.1148
 emissivity = 1.0 - (36.9 / 100)
@@ -150,24 +150,26 @@ if __name__ == '__main__':
     reflective_signal_zero_idx = (np.abs(measurement_time)).argmin() + n
     reflection_signal_max_idx = (np.abs(measurement_time - 0.5)).argmin()
     reflection_signal[irradiation_time_idx] = photodiode_voltage[reflective_signal_zero_idx]
-    reflection_signal[reflective_signal_zero_idx - n] = 0.0
+    # reflection_signal[reflective_signal_zero_idx - n] = 0.0
     reflection_signal[reflection_signal_max_idx:reflection_signal_max_idx] = photodiode_voltage[reflection_signal_max_idx:reflection_signal_max_idx]
     print(f"Baseline signal: {photodiode_voltage[reflective_signal_zero_idx]:.3f} V")
     thermometry.gain = int(photodiode_gain)
     print(f"Calibration Factor: {thermometry.calibration_factor}")
     thermometry.emissivity = emissivity
+    print(f"Emissivity: {thermometry.emissivity}")
 
     photodiode_corrected = photodiode_voltage - reflection_signal
     pd_corrected_min = photodiode_corrected[irradiation_time_idx].min()
-    photodiode_corrected[irradiation_time_idx] -= pd_corrected_min + 0.5 * noise_level
-    time_pd_idx = (photodiode_corrected > 0.0) & (photodiode_corrected > noise_level)
+    print(f'pd_corrected_min: {pd_corrected_min:.3f} V')
+    # photodiode_corrected[irradiation_time_idx] -= pd_corrected_min + 0.5 * noise_level
+    time_pd_idx = (photodiode_corrected > 0.0) #& (photodiode_corrected > noise_level)
     measurement_time_pd = measurement_time[time_pd_idx]
     photodiode_voltage_positive = photodiode_corrected[time_pd_idx]
-    measurement_time_pd = measurement_time_pd[n:-2]
-    photodiode_voltage_positive = photodiode_voltage_positive[n:-2]
+    # measurement_time_pd = measurement_time_pd[n:-2]
+    # photodiode_voltage_positive = photodiode_voltage_positive[n:-2]
 
     temperature_pd = thermometry.get_temperature(voltage=photodiode_voltage_positive) - 273.15
-    temperature_pd = savgol_filter(temperature_pd, 15, 2)
+    # temperature_pd = savgol_filter(temperature_pd, 15, 2)
 
     print(f't0 = {t0:.3f} s')
 
