@@ -6,18 +6,21 @@ import os
 import json
 from matplotlib.ticker import ScalarFormatter
 from scipy import stats
+import platform
 
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\Sample_50'
 # csv_file = 'Sample50_debris_distribution_3kW_1s.csv'
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
-# csv_file = r'R3N40_-2.5h_DEGASSING_20220517_230330504_results.csv'
-csv_file = 'R3N21_100PCT_POWER_20220415_160521140_RESULTS.csv'
-tray_width_mm = 21.0 * 0.5 * 25.4
+# base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample\pebble_velocity'
+# csv_file = r'R3N40_66h_DEGASSING_20220516_171725212_results.csv'
+# csv_file = 'R3N18_Single_Exposure_20220311_181146661.csv'
+csv_file = 'R3N41_ROW109_results.csv'
+tray_width_mm = 296.8625
 units = 'mm'
 
-label = "100% Laser Power"
+label = "50% Laser Power"
 
 height = 5. * 2.54  # cm
 # x_center = 0.5 * 8 * 2.54  #
@@ -26,12 +29,17 @@ y_center = 0.5 * 1.0 * 2.54
 g = 9.8E2  # cm/s^2
 
 if __name__ == "__main__":
+    if platform.system() == 'Windows':
+        base_path = "\\\\?\\" + base_path
+        print(base_path)
     df = pd.read_csv(filepath_or_buffer=os.path.join(base_path, csv_file), sep=",").reset_index(drop=True)
     df = df.drop(columns=df.columns[0])
     df = df.apply(pd.to_numeric)
+    if units == 'mm':
+        x_center *= 10
     xm = df['XM'].values - x_center
     ym = df['YM'].values
-    ym = ym.max() - ym - y_center
+    ym = ym.max() - ym #- y_center
     rm = np.sqrt(xm**2.0 + ym**2.0)
     if units == 'mm':
         rm *= 0.1

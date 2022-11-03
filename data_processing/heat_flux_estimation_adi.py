@@ -3,14 +3,14 @@ import numpy as np
 import matplotlib.pylab as plt
 import pandas as pd
 import os
-
+from utils import get_experiment_params
 from matplotlib import ticker
 
 from heat_flux_adi import simulate_adi_temp
 from scipy.signal import savgol_filter
 import matplotlib as mpl
 import json
-import ir_thermography.thermometry as irt
+# import ir_thermography.thermometry as irt
 import re
 import shutil
 import platform
@@ -21,17 +21,19 @@ from scipy import interpolate
 
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
 data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
-data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
-data_file = 'LT_GR008G_4mTorr_contact_shield_020PCT_70GAIN 2022-05-05_1'
+# data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
+data_file = 'LT_GR008G_100mTorr_100PCT_50GAIN 2022-05-03_1'
+# data_file = 'LT_GR008G_4mTorr_contact_shield_020PCT_70GAIN 2022-05-05_1'
 load_model = True
-# saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P5.70E+03'
+saved_h5 = 'ADI_k1_7.41E-01_chi_0.60_P4.70E+03'
 # saved_h5 = 'ADI_k1_1.09E+00_chi_0.60_P3.61E+03'
-saved_h5 = 'ADI_k1_7.41E-01_chi_0.60_P1.20E+03'
+# saved_h5 = 'ADI_k1_7.41E-01_chi_0.60_P1.20E+03'
 
 time_constant = 1.5#2.1148
 # time_constant = 0.5
+qmax = 4.7E3
 # qmax = 5.55E3 * 0.65
-qmax = 4.80E3 * 0.25
+# qmax = 4.80E3 * 0.25
 emissivity = 1.0 - (36.9 / 100)
 reflectance = 40.4
 
@@ -100,37 +102,6 @@ rho_2 = rho_ss304l(T_a + 273.15)
 kappa_2 = k0_2 / (cp_2 * rho_2)
 
 
-def get_experiment_params(relative_path: str, filename: str):
-    # Read the experiment parameters
-    results_csv = os.path.join(relative_path, f'{filename}.csv')
-    count = 0
-    params = {}
-    with open(results_csv) as f:
-        for line in f:
-            if line.startswith('#'):
-                if count > 1:
-                    l = line.strip()
-                    print(l)
-                    if l == '#Data:':
-                        break
-                    pattern1 = re.compile("\s+(.*?):\s(.*?)\s(.*?)$")
-                    pattern2 = re.compile("\s+(.*?):\s(.*?)$")
-                    matches1 = pattern1.findall(l)
-                    matches2 = pattern2.findall(l)
-                    if len(matches1) > 0:
-                        params[matches1[0][0]] = {
-                            'value': matches1[0][1],
-                            'units': matches1[0][2]
-                        }
-                    elif len(matches2) > 0:
-                        params[matches2[0][0]] = {
-                            'value': matches2[0][1],
-                            'units': ''
-                        }
-                count += 1
-    return params
-
-
 def correct_thermocouple_response(measured_temperature, measured_time, tau):
     n = len(measured_time)
     k = int(n / 15)
@@ -190,7 +161,7 @@ if __name__ == "__main__":
     if platform.system() == 'Windows':
         temperature_path = r'\\?\\' + temperature_path
 
-    thermometry = irt.PDThermometer()
+    # thermometry = irt.PDThermometer()
 
     surface_temperature_df = pd.read_csv(os.path.join(temperature_path, f'{data_file}_surface_temp.csv'),
                                          comment='#').apply(pd.to_numeric)
@@ -203,7 +174,7 @@ if __name__ == "__main__":
     # tc_time = thermocouple_df['Time (s)']
     # temperature_a = thermocouple_df['Temperature A (C)'].values
 
-    thermometry.emissivity = emissivity
+    # thermometry.emissivity = emissivity
 
     if not load_model:
         hf_file = simulate_adi_temp(
@@ -323,7 +294,8 @@ if __name__ == "__main__":
     fig.set_size_inches(5.0, 3.5)
 
     p0 = 0.5 * np.pi * qmax * (0.5 * beam_diameter) ** 2.0
-    estimated_power_density = p0 * (1.0 - np.exp(-2.0 * (2.0 * R_sample / beam_diameter) ** 2.0))
+    # estimated_power_density = p0 * (1.0 - np.exp(-2.0 * (2.0 * R_sample / beam_diameter) ** 2.0))
+    estimated_power_density = qmax * (1.0 - np.exp(-2.0 * (2.0 * R_sample / beam_diameter) ** 2.0)) / (np.pi * R_sample ** 2.0)
     ax.plot(
         measurement_time, surface_temperature, ls='none', label=f'Photodiode',
         c='tab:red', marker='o', fillstyle='none'
@@ -332,11 +304,16 @@ if __name__ == "__main__":
     ax.plot(tc_time, ta_corrected, label=f'T(x=1.0 cm) (corrected)', ls='none',
             color='tab:olive', marker='^', fillstyle='none')
     ax.plot(elapsed_time, t_front,
-            label=f'Q={estimated_power_density * 0.01:.1f} MW/m$^{{\\mathregular{{2}}}}$, x=0.0 cm', c='tab:red',
+            label=f'Fit', c='tab:red',
             ls='-')
-    ax.plot(elapsed_time, tp1, label=f'Q={estimated_power_density * 0.01:.1f} MW/m$^{{\\mathregular{{2}}}}$, x=1.0 cm',
+    ax.plot(elapsed_time, tp1, label='Fit',
             c='tab:green',
             ls='-')
+
+    ax.set_title(
+        f'$P=${qmax / 1000.0:.1f} kW, $I=${estimated_power_density * 0.01:.1f} MW/m$^{{\\mathregular{{2}}}}$, x=1.0 cm',
+        fontweight='regular'
+    )
 
     leg = ax.legend(
         loc='upper right', ncol=1, frameon=False
@@ -345,7 +322,7 @@ if __name__ == "__main__":
     ax.tick_params(axis='y', right=True, zorder=10, which='both')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Temperature (°C)')
-    ax.set_title(f'3D Model, {laser_power_setting} % Power')
+    # ax.set_title(f'3D Model, {laser_power_setting} % Power')
     ax.set_xlim((0., 2.0))
     ax.set_ylim(bottom=0.0)
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.125))

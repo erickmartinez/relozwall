@@ -68,7 +68,7 @@ def get_ut(x: np.ndarray, diffusion_time: np.ndarray, diffusivity: float, emissi
     # After the laser pulse consider the solution of the heat equation for a 1D rod with insulated ends
     for i, ti in enumerate(time_off):
         for n in range(N+1):
-            arg = ((n * np.pi/L) ** 2.0) * diffusivity * (ti - pulse_length) #(diffusion_time[i+idx_off]-pulse_length)
+            arg = ((n * np.pi/L) ** 2.0) * diffusivity * (ti - emission_time) #(diffusion_time[i+idx_off]-pulse_length)
             a_n = get_an(n, x, diffusivity=diffusivity, emission_time=emission_time, flux=flux, T0=T0)
             if n == 0:
                 u[i+idx_off] = a_n
@@ -84,6 +84,7 @@ if __name__ == '__main__':
     x = np.linspace(0.0, length, num=x_points)
     t = np.linspace(0.0, t_max, num=t_points)
     u = get_ut(x=x, diffusion_time=t, diffusivity=alpha, emission_time=pulse_length, flux=F1, T0=inital_temperature)
+    diffusion_length = 2.0 * np.sqrt(alpha*t.max())
 
     with open('plot_style.json', 'r') as file:
         json_file = json.load(file)
@@ -111,6 +112,7 @@ if __name__ == '__main__':
 
     ax.set_xlabel('x (cm)')
     ax.set_ylabel('T (°C)')
+    ax.axvline(x=diffusion_length, ls='--', color='tab:grey', lw=1.25)
 
     ax.set_xlim(0, length)
     ax.set_ylim(bottom=20)

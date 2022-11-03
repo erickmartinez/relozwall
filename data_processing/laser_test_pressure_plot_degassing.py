@@ -88,7 +88,7 @@ legends = [
 ]
 
 colors = plt.cm.brg(np.linspace(0, 1, len(filelist)))
-add_time = 0.8
+add_time = 0.88
 
 def get_experiment_params(base_path: str, filename: str):
     # Read the experiment parameters
@@ -142,17 +142,20 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
         pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(base_path, pressure_csv))
         pressure_data = pressure_data.apply(pd.to_numeric)
         time_s = pressure_data['Time (s)'].values
-        time_s -= time_s.min()
+        time_s -= time_s.min() + 0.5
         pressure = 1000*pressure_data['Pressure (Torr)'].values
         base_pressures[i] = pressure[0]
         peak_pressures[i] = pressure.max()
         idx_peak = (np.abs(pressure - pressure.max())).argmin()
         t_peak = time_s[idx_peak]
-        idx_out = (np.abs(time_s - (t_peak+add_time))).argmin()
+        p_2 = pressure[idx_peak+1:]
+        p_out = pressure[-1]
+
+        idx_out = (np.abs(pressure - p_out)).argmin()
         outgass_pressure[i] = pressure[idx_out]
-        t_out = time_s[idx_out]
+        t_out = time_s[-1]
         idx_peak = (np.abs(pressure - peak_pressures[i])).argmin()
-        peak_dt[i] = time_s[idx_peak]
+        peak_dt[i] = t_out # time_s[idx_peak]
 
 
         # title_str = 'Sample ' + params['Sample Name']['value'] + ', '
@@ -181,7 +184,7 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
     if plot_title is not None:
         ax.set_title(plot_title)
 
-    outgassing_rate = chamber_volume * (outgass_pressure - base_pressures) * 1E-3 / t_out
+    outgassing_rate = chamber_volume * (outgass_pressure - base_pressures) * 1E-3 / peak_dt
 
     outgas_df = pd.DataFrame(data={
         'Sample': legends,
@@ -189,7 +192,6 @@ def plot_pressure(base_path: str, filelist: List, legends: List, output_filename
         'Peak Pressure (mTorr)': peak_pressures,
         'Outgass Pressure (mTorr)': outgass_pressure,
         'Peak dt (s)': peak_dt,
-        'Outgass dt (s)': t_out,
         'Outgassing Rate (Torr L / s)': outgassing_rate
     })
 

@@ -26,8 +26,8 @@ if __name__ == '__main__':
     fig, ax = plt.subplots(ncols=1, nrows=1)  # , constrained_layout=True)
     fig.set_size_inches(4.5, 3.5)
 
-    norm = mpl.colors.Normalize(vmin=0.0, vmax=1000)
-    cmap = plt.cm.jet_r
+    norm = mpl.colors.Normalize(vmin=25.0, vmax=1000)
+    cmap = plt.cm.jet
 
     markers = ['o', 's', '^']
 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     mean_friction = np.array(mean_friction)
     print(f'Mean friction: {mean_friction.mean()} N/cm^2')
     ax.set_xlabel('Speed (cm/s)')
-    ax.set_ylabel('F/A (N/cm$^2$)')
+    ax.set_ylabel('Friction (N/cm$^{\mathregular{2}}$)')
     ax.set_title(f'Sample length: {sample_length:.1f} cm')
     ax.legend(loc='lower right', frameon=True)
 

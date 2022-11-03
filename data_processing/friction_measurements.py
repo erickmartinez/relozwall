@@ -156,9 +156,7 @@ if __name__ == "__main__":
             try:
                 force -= f(position)
             except ValueError as ve:
-                print(f'Sample position: min={position.min():.1F} cm, max={position.max():.1F} cm')
-                print(f'Baseline position: min={x_b.min():.1F} cm, max={x_b.max():.1F} cm')
-                raise(ve)
+                print(f'Sample Force: min={force:.1F} N, max={}')
         force_err = force * (2.0 ** 0.5) * load_cell_prediction_error_pct * 1E-2
 
         if not baseline:

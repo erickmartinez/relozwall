@@ -9,7 +9,7 @@
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PWD;
 
-WiFiServer wifiServer(3001);
+WiFiServer wifiServer(3001)w;
 WiFiClient client;
 
 IPAddress local_IP(192, 168, 4, 3);

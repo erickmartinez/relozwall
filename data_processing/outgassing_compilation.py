@@ -42,7 +42,9 @@ if __name__ == '__main__':
     ax1 = fig.add_subplot(gs[0])
     ax2 = fig.add_subplot(gs[1])
 
-    colors = ['C0', 'C1', 'C2', 'C3', 'C4']
+    colors = ['C0', 'C2', 'C1', 'C3', 'C4']
+    norm = mpl.colors.Normalize(vmin=25.0, vmax=1000)
+    cmap = plt.cm.jet
 
     for i, fn, lbl in zip(range(len(files)), files, labels):
         df = pd.read_csv(os.path.join(base_dir, fn + '.csv')).apply(pd.to_numeric)
@@ -69,8 +71,10 @@ if __name__ == '__main__':
 
     # ax1.set_xlabel('Time (min)')
     ax2.set_xlabel('Time (min)')
-    ax1.set_ylabel('$T$ (°C)')
-    ax2.set_ylabel('$Q_{\mathrm{tot}}$ (Torr $\\cdot$ L / m${^2}$ s)')
+    ax1.set_ylabel('°C')
+    ax2.set_ylabel('Torr $\\cdot$ L / (m$^{\mathregular{2}}$ s)')
+    ax1.set_title('Baking temperature')
+    ax2.set_title('Front surface outgassing')
 
     ax1.set_xlim(left=0, right=15)
     ax2.set_xlim(left=0, right=15)
@@ -78,6 +82,10 @@ if __name__ == '__main__':
     ax1.set_ylim(bottom=20, top=1000)
     ax2.set_ylim(bottom=0, top=20)
 
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(2.5))
+    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
+    ax2.xaxis.set_major_locator(ticker.MultipleLocator(2.5))
+    ax2.xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
     ax2.yaxis.set_major_locator(ticker.MultipleLocator(10.0))
     ax2.yaxis.set_minor_locator(ticker.MultipleLocator(5.0))
 
