@@ -1,14 +1,13 @@
 import io
-import time
-import numpy as np
-
-import serial
-from time import sleep
-from io import StringIO
-import pandas as pd
-from serial import SerialException
 import socket
 import struct
+import time
+from time import sleep
+import logging
+import numpy as np
+import pandas as pd
+import serial
+from serial import SerialException
 
 
 class ArduinoTCP:
@@ -18,11 +17,24 @@ class ArduinoTCP:
     __connection: socket.socket = None
     __ip_address: str = None
     __port: int = 3001
+    _log: logging.Logger = None
 
     def __init__(self, ip_address: str, port: int = 3001):
         self.__ip_address = ip_address
         self.__port = port
         self.connect()
+        self._log = logging.getLogger(__name__)
+        self._log.addHandler(logging.NullHandler())
+        # create console handler and set level to debug
+        has_console_handler = False
+        if len(self._log.handlers) > 0:
+            for h in self._log.handlers:
+                if isinstance(h, logging.StreamHandler):
+                    has_console_handler = True
+        if not has_console_handler:
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.DEBUG)
+            self._log.addHandler(ch)
 
     def connect(self):
         self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -36,6 +48,9 @@ class ArduinoTCP:
             self.__connection.close()
             self.__connection = None
 
+    def set_logger(self, log: logging.Logger):
+        self._log = log
+
     def query(self, q: str, attempts=1) -> str:
         try:
             self.__connection.sendall(f"{q}\r".encode('utf-8'))
@@ -44,7 +59,7 @@ class ArduinoTCP:
             self.connect()
             attempts += 1
             if attempts < 5:
-                print(e)
+                logging.warning(e)
                 return self.query(q=q, attempts=attempts)
         buffer = b''
         while b'\n' not in buffer:
@@ -74,7 +89,7 @@ class ArduinoTCP:
             self.connect()
             attempts += 1
             while attempts <= 5:
-                print(e)
+                logging.warning(e)
                 return self.query_binary(q, attempts=attempts)
         return rows, cols, data
 
@@ -86,7 +101,7 @@ class ArduinoTCP:
             self.connect()
             attempts += 1
             if attempts <= 5:
-                print(e)
+                logging.warning(e)
                 self.write(q=q, attempts=attempts)
 
     def __del__(self):
@@ -134,6 +149,7 @@ class ArduinoTCPLoose:
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
 
     def query_binary(self, q, attempts: int = 1):
+        # https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.__ip_address, self.__port))
@@ -168,7 +184,6 @@ class ArduinoTCPLoose:
             if attempts <= 5:
                 print(e)
                 self.write(q=q, attempts=attempts)
-
 
 
 class ArduinoSerial:
@@ -485,10 +500,10 @@ class DualTCLoggerTCP(ArduinoTCP):
             res = self.query('t?')
             log_time = float(res) / 1000.0
         except AttributeError as e:
-            print(res, e)
+            self._log.error(res, e)
             raise AttributeError(e)
         except ValueError as e:
-            print(res, e)
+            self._log.error(res, e)
             raise ValueError(e)
         return log_time
 
@@ -510,9 +525,9 @@ class DualTCLoggerTCP(ArduinoTCP):
             rows, cols, res = self.query_binary('r')
             # print('rows:', rows, 'cols:', cols, 'len(res):', len(res))
             if rows == 0:
-                print('Error reading the temperatre log. Response:')
-                print(res)
-                print('Trying again...')
+                self._log.warning('Error reading the temperatre log. Response:')
+                self._log.warning(res)
+                self._log.warning('Trying again...')
                 attempts += 1
                 if attempts < 0:
                     return self.read_temperature_log(attempts=attempts)
@@ -523,7 +538,7 @@ class DualTCLoggerTCP(ArduinoTCP):
             # df.reset_index(drop=True, inplace=True)
             # df = df.apply(pd.to_numeric, errors='coerce')
         except ValueError as e:
-            print(res, e)
+            self._log.error(res, e)
             raise ValueError(e)
 
         if error_empty:
@@ -558,7 +573,7 @@ class ExtruderReadout(ArduinoTCP):
         # self.delay = old_delay
         # self.timeout = old_timeout
         if check_id != 'EXTRUDER_READOUT':
-            print(f"Error checking id at {self.__ip_address}. Response: '{check_id}'")
+            self._log.warning(f"Error checking id at {self.__ip_address}. Response: '{check_id}'")
             if attempt <= 3:
                 attempt += 1
                 return self.check_id(attempt=attempt)
@@ -577,10 +592,10 @@ class ExtruderReadout(ArduinoTCP):
                 if attempts <= 5:
                     return self.get_reading(attempts=attempts)
         except AttributeError as e:
-            print(res, e)
+            self._log.error(res, e)
             raise AttributeError(e)
         except ValueError as e:
-            print(res, e)
+            self._log.error(res, e)
             raise ValueError(e)
         # time.sleep(0.01)
         return result
@@ -597,7 +612,7 @@ class ExtruderReadout(ArduinoTCP):
         r = self.query('z')
         # sleep(1.0)
         if r == '':
-            print('Error taring')
+            self._log.warning('Error taring. Trying again..')
             return self.zero()
         # self.timeout = old_timeout
         # self.delay = old_delay
@@ -609,10 +624,10 @@ class ExtruderReadout(ArduinoTCP):
             res = self.query('c?')
             cf = float(res)
         except AttributeError as e:
-            print(res, e)
+            self._log.error(res, e)
             raise AttributeError(e)
         except ValueError as e:
-            print(res, e)
+            self._log.error(res, e)
             raise ValueError(e)
         return cf
 

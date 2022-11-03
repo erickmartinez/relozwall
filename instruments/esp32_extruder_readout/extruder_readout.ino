@@ -92,7 +92,7 @@ float adc2inches(uint16_t value) {
 }
 
 void lcdUpdate(float t1, float t2, float f, int pot) {
-  char buff[60]; // Buffer big enough for 7-character float
+  char buff[128]; // Buffer big enough for 7-character float
   display.clearDisplay();
   display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
@@ -225,12 +225,12 @@ void setup() {
   // the library initializes this with an Adafruit splash screen.
   display.display();
   delay(1000); // Pause for 1 seconds
-
+  display.cp437(false);
   // Clear the buffer
   display.clearDisplay();
 
   // Draw a single pixel in white
-  display.drawPixel(10, 10, WHITE);
+  // display.drawPixel(10, 10, WHITE);
   lcdInterval = 250;
   interval = 30000;
   lcdPreviousMillis = 0;
@@ -250,7 +250,7 @@ void loop() {
   }
 
    if ((!client) || (!client.connected())) {
-    if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 5) {
+    if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 10) {
       readTC1();
       readTC2();
       adcAverage();
@@ -269,7 +269,7 @@ void loop() {
     while (client.connected() ) {
       currentMillis = millis();
 
-      if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 5) {
+      if ((unsigned long) (currentMillis - sensorsPreviousMillis) >= 10) {
         readTC1();
         readTC2();
         adcAverage();
