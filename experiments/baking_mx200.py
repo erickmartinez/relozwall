@@ -11,17 +11,20 @@ import time
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
-from pymeasure.experiment import IntegerParameter, FloatParameter
+from pymeasure.experiment import Parameter, FloatParameter
 from pymeasure.experiment import unique_filename
 from instruments.mx200 import MX200
 import sched
 import datetime
 from instruments.inhibitor import WindowsInhibitor
 
+MX200_COM = 'COM3'
+
 
 class BakingProcedure(Procedure):
     experiment_time = FloatParameter('Experiment Time', units='h', default=1)
     interval = FloatParameter('Sampling Interval', units='s', default=1)
+    sample_name = Parameter("Sample Name", default="UNKNOWN")
     __mx200: MX200 = None
     __scheduler: sched.scheduler = None
     __time_start: datetime.datetime = None
@@ -29,7 +32,6 @@ class BakingProcedure(Procedure):
     __thread: threading.Thread = None
     __on_sleep: WindowsInhibitor = None
     __mx200_delay: float = 0.05
-    port = 'COM3'
     __keep_alive: bool = False
     __failed_readings = 0
     __max_attempts = 10
@@ -40,9 +42,9 @@ class BakingProcedure(Procedure):
 
     def startup(self):
         log.info("Setting up Televac MX200")
-        self.__mx200 = MX200(address=self.port)
-        time.sleep(1.0)
-        self.__mx200_delay = self.__mx200.delay
+        self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
+        # time.sleep(1.0)
+        # self.__mx200_delay = self.__mx200.delay
         time.sleep(1.0)
         self.__mx200.units = 'MT'
         time.sleep(1.0)
@@ -56,27 +58,67 @@ class BakingProcedure(Procedure):
         self.__failed_readings = 0
         log.info("Starting the loop of {0:d} datapoints.".format(self.__ndata_points))
         log.info("Date time at start of measurement: {dt}.".format(dt=self.__time_start))
+        p_previous = self.__mx200.pressure(1)
         delay = 0
         events = []
         n = 1
-        while delay <= self.experiment_time * 3600:
-            # event_id = self.__scheduler.enter(delay=delay, priority=1, action=self.get_bme_data, argument=(n,))
-            bme_event_id = self.__scheduler.enterabs(
-                time=self.__time_start.timestamp() + delay, priority=1,
-                action=self.acquire_data, argument=(n,)
-            )
-            delay += self.interval
-            events.append(bme_event_id)
-            n += 1
-
-        self.__thread = threading.Thread(target=self.__scheduler.run)
         self.inhibit_sleep()
-        self.__thread.start()
-        self.__thread.join()
+        previous_time = 0.0
+        total_time = 0.0
+        start_time = time.time()
+        experiment_time_s = self.experiment_time * 3600.0
+
+        while total_time <= experiment_time_s:
+            if self.should_stop():
+                log.warning("Caught the stop flag in the procedure")
+                break
+            current_time = time.time()
+            if (current_time - previous_time) >= self.interval:
+                total_time = current_time - start_time
+                pressure = self.__mx200.pressure(1)
+                if type(pressure) == str:
+                    log.warning("Could not read pressure at time: {0}. Message: {1}".format(
+                        total_time, pressure
+                    ))
+                    pressure = p_previous
+
+                data = {
+                    "Time (h)": total_time / 3600.,
+                    "Pressure CH1 (Torr)": pressure
+                }
+                self.emit('results', data)
+                self.emit('progress', 100.0 * total_time / experiment_time_s)
+
+                p_previous = pressure
+                previous_time = current_time
+
+        # while delay <= self.experiment_time * 3600:
+        #     # event_id = self.__scheduler.enter(delay=delay, priority=1, action=self.get_bme_data, argument=(n,))
+        #     bme_event_id = self.__scheduler.enterabs(
+        #         time=self.__time_start.timestamp() + delay, priority=1,
+        #         action=self.acquire_data, argument=(n,)
+        #     )
+        #     delay += self.interval
+        #     events.append(bme_event_id)
+        #     n += 1
+        #
+        # self.__thread = threading.Thread(target=self.__scheduler.run)
+        # self.__thread.start()
+        # self.__thread.join()
 
     def shutdown(self):
         self.kill_queue()
         self.unhinibit_sleep()
+        if self.__mx200 is not None:
+            self.__mx200.close()
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for h in log.handlers:
+                if isinstance(h, logging.FileHandler):
+                    log.removeHandler(h)
+                if isinstance(h, logging.NullHandler):
+                    log.removeHandler(h)
+                    log.addHandler(logging.NullHandler())
 
     def kill_queue(self):
         self.unhinibit_sleep()
@@ -143,8 +185,8 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=BakingProcedure,
-            inputs=['experiment_time', 'interval'],
-            displays=['experiment_time', 'interval'],
+            inputs=['experiment_time', 'sample_name', 'interval'],
+            displays=['experiment_time', 'sample_name', 'interval'],
             x_axis="Time (h)",
             y_axis="Pressure CH1 (Torr)",
             directory_input=True,
@@ -153,7 +195,10 @@ class MainWindow(ManagedWindow):
 
     def queue(self):
         directory = self.directory
-        filename = unique_filename(directory, prefix='BAKING_')
+        procedure: BakingProcedure = self.make_procedure()
+        sample_name = procedure.sample_name
+        prefix = f'BAKING_{sample_name}_'
+        filename = unique_filename(directory, prefix=prefix)
         log_file = os.path.splitext(filename)[0] + ' .log'
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(log_file)

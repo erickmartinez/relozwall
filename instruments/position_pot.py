@@ -15,14 +15,14 @@ class ArduinoSerial:
     __address = None
     __baud_rate = 57600 #19200  # 38400
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.005
+    __timeout = 0.006
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.005
+    __delay = 0.006
     __serial: serial.Serial = None
     _log: logging.Logger = None
-    _previous_val: int = None
+    _previous_val: int = 0
 
     def __init__(self, address: str):
         self.__address = address
@@ -57,7 +57,7 @@ class ArduinoSerial:
             stopbits=self.__stopbits,
             xonxoff=self.__xonxoff
         )
-        time.sleep(self.__delay)
+        time.sleep(0.1)
 
     @property
     def timeout(self):
@@ -115,19 +115,24 @@ class ArduinoSerial:
         return data
 
     def __del__(self):
-        self.close()
+        try:
+            self.close()
+        except SerialException as e:
+            self._log.error(e)
 
 
 class DeflectionReader(ArduinoSerial):
     def __init__(self, address: str):
         super().__init__(address=address)
+        if not self.check_id():
+            raise SerialException(f"Could not find deflection pot in {address}.")
 
     def check_id(self, attempt: int = 0) -> bool:
-        time.sleep(0.25)
+        # time.sleep(0.25)
         old_delay = self.delay
         old_timeout = self.timeout
-        self.delay = 0.25
-        self.timeout = 0.25
+        self.delay = 0.02
+        self.timeout = 0.02
         check_id = self.query('i')
         self.delay = old_delay
         self.timeout = old_timeout
@@ -145,10 +150,10 @@ class DeflectionReader(ArduinoSerial):
         if res is None or len(res) < 2:
             attempts += 1
             if attempts < 3:
-                self._log.info(f'Failed reading position (attempt {attempts+1} of 3). Trying again...')
+                self._log.warning(f'Failed reading position (attempt {attempts+1} of 3). Trying again...')
                 return self.get_reading(attempts=attempts)
             else:
-                self._log.info(f'Failed reading position (attempt {attempts + 1} of 3). Returning previous value...')
+                self._log.warning(f'Failed reading position (attempt {attempts + 1} of 3). Returning previous value...')
                 return self._previous_val
         adc = struct.unpack('<H', res)[0]
         self._previous_val = adc

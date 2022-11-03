@@ -25,6 +25,8 @@ class DST44A:
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
     __delay = 0.005
+    __previous: float = 0.0
+    __previous_json: dict = {}
 
     __D_PATTERN = re.compile(r"(\+|\-)(\d+\.?\d*)([OKN])([TP])([LOHE])")
 
@@ -92,30 +94,36 @@ class DST44A:
             self.__serial.write("D\r".encode('utf-8'))
             time.sleep(self.__delay)
             data_str = self.__serial.read(10).decode('utf-8').rstrip("\r").rstrip(" ")
+            self.__serial.flush()
         match = self.__D_PATTERN.match(data_str)
         if match is None:
             logging.warning(f'Received gauge reponse: {data_str}')
             attempts += 1
-            if attempts < 10:
-                self.__log.warning('Failed to read the force. Trying again...')
+            if attempts < 3:
+                self.__log.warning(f'Failed to read the force. Trying again. (Attempt {attempts+1}/3)')
                 return self.read(attempts=attempts)
             else:
-                self.__log.info(f'I tried reading the force {attempts} times and failed. Sorry...')
-                return {}
+                self.__log.warning(f'I tried reading the force {attempts} times and failed. Returning previous value.')
+                if json:
+                    return self.__previous_json
+                return self.__previous
         groups = match.groups()
         s = 1 if groups[0] == '+' else -1
         reading = s * float(groups[1])
+        self.__previous = reading
         if json:
             units = self.__units[groups[2]]
             mode = self.__modes[groups[3]]
             judgment = self.__judgments[groups[4]]
-            return {
+            r = {
                 'reading': reading,
                 'units': units,
                 'mode': mode,
                 'judgement': judgment,
                 'judgement_code': groups[4],
             }
+            self.__previous_json
+            return r
         return reading
 
     def zero(self):
