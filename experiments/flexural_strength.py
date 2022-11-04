@@ -3,6 +3,7 @@ import os
 import sys
 
 import numpy as np
+from serial import SerialException
 
 sys.path.append('../')
 sys.modules['cloudpickle'] = None
@@ -63,11 +64,13 @@ class FlexuralStressProcedure(Procedure):
         time.sleep(0.1)
         self.__force_gauge.set_logger(log)
         self.__force_gauge.units('N')
+        time.sleep(0.1)
         log.info(f"Setting up Pot readout on port {self.deflection_pot_port}")
         self.__potReadout = DeflectionReader(address=self.deflection_pot_port)
         time.sleep(0.1)
+        log.info(f"Current position: {self.adc_to_mm(self.__potReadout.reading)} mm")
         self.__potReadout.set_logger(log)
-        time.sleep(0.1)
+        time.sleep(0.2)
 
     def execute(self):
         previous_time = 0.0
@@ -182,6 +185,7 @@ class MainWindow(ManagedWindow):
 if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.addHandler(logging.NullHandler())
+    log.setLevel(logging.DEBUG)
 
     # create console handler and set level to debug
     has_console_handler = False

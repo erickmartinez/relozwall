@@ -214,7 +214,7 @@ class LaserProcedure(Procedure):
         log.info(f'YLR output peak power: {laser_output_peak_power.max()}')
         laser_output_power_full = np.zeros_like(elapsed_time)
         laser_output_peak_power_full = np.zeros_like(elapsed_time)
-        msk_power = elapsed_time < (self.emission_time + 0.5)
+        msk_power = elapsed_time <= (self.emission_time + 0.5)
         laser_output_power_full[msk_power] = laser_output_power
         laser_output_peak_power_full[msk_power] = laser_output_peak_power
 
@@ -275,8 +275,10 @@ class LaserProcedure(Procedure):
         filename = f'{os.path.splitext(self.__unique_filename)[0]}_tcdata.csv'
         tc_data.to_csv(filename, index=False)
 
-        data = data[data[columns[0]] <= time_tc.max()]
-        reference = reference[reference[columns_ref[0]] <= time_tc.max()]
+        time_osc = data[columns[0]]
+        msk_tc = time_osc <= time_tc.max()
+        data = data[msk_tc]
+        reference = reference[msk_tc]
         time_osc = data[columns[0]]
         print('time_osc:')
         print(time_osc)
@@ -286,21 +288,39 @@ class LaserProcedure(Procedure):
         print(time_tc)
         print(f'len(time_tc): {len(time_tc)}, time_tc.min = {time_tc.min()}, time_tc.max = {time_tc.max()}')
 
+        if time_osc.max() > time_osc.max():
+            log.info(f'Time osc max ({time_osc.max()}) is larger than time tc max ({time_tc.max()}).')
+        if time_osc.max() < time_osc.max():
+            log.info(f'Time tc max ({time_tc.max()}) is larger than time osc max ({time_osc.max()}).')
+
         # msk_tmin = time_osc >= time_tc.min()
         # data = data[msk_tmin]
         # reference = reference[msk_tmin]
-        time_osc = data[columns[0]]
+        f1 = interpolate.interp1d(time_tc, tc1, bounds_error=None)
+        f2 = interpolate.interp1d(time_tc, tc2, bounds_error=None)
+        f3 = interpolate.interp1d(elapsed_time, pressure, bounds_error=None)
+        f4 = interpolate.interp1d(elapsed_time, laser_output_power_full, bounds_error=None)
+        f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full, bounds_error=None)
 
-        f1 = interpolate.interp1d(time_tc, tc1)
-        f2 = interpolate.interp1d(time_tc, tc2)
-        f3 = interpolate.interp1d(elapsed_time, pressure)
-        f4 = interpolate.interp1d(elapsed_time, laser_output_power_full)
-        f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full)
-        tc1_interp = f1(time_osc)
-        tc2_interp = f2(time_osc)
-        pressure_interp = f3(time_osc)
-        power_interp = f4(time_osc)
-        peak_power_interp = f5(time_osc)
+        if time_osc.max() <= time_tc.max():
+            tc1_interp = f1(time_osc)
+            tc2_interp = f2(time_osc)
+            pressure_interp = f3(time_osc)
+            power_interp = f4(time_osc)
+            peak_power_interp = f5(time_osc)
+        else:
+            msk_interp = time_osc <= time_tc.max()
+            time_osc_interp = time_osc[msk_interp]
+            tc1_interp = np.zeros_like(time_osc_interp)
+            tc2_interp = np.zeros_like(time_osc_interp)
+            pressure_interp = np.zeros_like(time_osc_interp)
+            power_interp = np.zeros_like(time_osc_interp)
+            peak_power_interp = np.zeros_like(time_osc_interp)
+            tc1_interp[msk_interp] = f1(time_osc_interp)
+            tc2_interp[msk_interp] = f2(time_osc_interp)
+            pressure_interp[msk_interp] = f3(time_osc_interp)
+            power_interp[msk_interp] = f4(time_osc_interp)
+            peak_power_interp[msk_interp] = f5(time_osc_interp)
 
         for i in range(len(data)):
             d = {
@@ -318,6 +338,11 @@ class LaserProcedure(Procedure):
             time.sleep(0.0001)
 
         self.__oscilloscope.timeout = 1
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for h in log.handlers:
+                if isinstance(h, logging.FileHandler):
+                    log.removeHandler(h)
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
@@ -342,6 +367,9 @@ class LaserProcedure(Procedure):
             for h in log.handlers:
                 if isinstance(h, logging.FileHandler):
                     log.removeHandler(h)
+                if isinstance(h, logging.NullHandler):
+                    log.removeHandler(h)
+                    log.addHandler(logging.NullHandler())
 
 
 class MainWindow(ManagedWindow):
