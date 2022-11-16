@@ -15,6 +15,7 @@ class YLR3000:
     __connection: socket.socket = None
     __ip_address: str = LASER_IP
     _log: logging.Logger = None
+    _aiming_beam_on: bool = False
 
     def __init__(self, IP: str = LASER_IP):
         self.__ip_address = IP
@@ -41,6 +42,39 @@ class YLR3000:
 
     def set_logger(self, log: logging.Logger):
         self._log = log
+
+    @property
+    def aiming_beam_on(self) -> bool:
+        return self._aiming_beam_on
+
+    @aiming_beam_on.setter
+    def aiming_beam_on(self, setting:bool):
+        setting = bool(setting)
+        self._aiming_beam_on = setting
+        if setting:
+            r = self.query("ABN")
+            if r == "ABN":
+                self._log.info("Aiming beam is on.")
+            elif r == "ERR":
+                msg = "Cannot enable guide beam because external guide control is enabled."
+                self._log.error(msg)
+                raise LaserException(msg)
+            else:
+                msg = f"Unknown error: {r}"
+                self._log.error(msg)
+                raise LaserException(msg)
+        else:
+            r = self.query("ABF")
+            if r == "ABF":
+                self._log.info("Aiming beam is off.")
+            elif r == "ERR":
+                msg = "Cannot disable guide beam because external guide control is enabled."
+                self._log.error(msg)
+                raise LaserException(msg)
+            else:
+                msg = f"Unknown error: {r}"
+                self._log.error(msg)
+                raise LaserException(msg)
 
     @property
     def current_setpoint(self) -> float:
