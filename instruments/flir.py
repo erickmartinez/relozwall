@@ -51,6 +51,7 @@ class Camera:
     _log: logging.Logger = None
     _image_prefix: str = None
     _print_info: bool = False
+    _fast_timeout: bool = False
 
     def __init__(self):
         self._system: PySpin.System = PySpin.System.GetInstance()
@@ -61,7 +62,10 @@ class Camera:
             self._nodemap: PySpin.NodeMap = self._cam.GetNodeMap()
             self._path_to_images = self._path_to_images
         except PySpin.SpinnakerException as ex:
+            self.log(f'Error: {ex}')
             raise Exception(f'Error: {ex}')
+        self.disable_gamma()
+
 
     @property
     def number_of_images(self) -> int:
@@ -69,7 +73,7 @@ class Camera:
             acquisition_mode = self._cam.AcquisitionMode.GetValue
             if acquisition_mode == PySpin.AcquisitionMode_SingleFrame:
                 return 1
-        return self._number_of_images
+        return self.acquisition_frame_count
 
     @number_of_images.setter
     def number_of_images(self, number_of_images_to_set: int):
@@ -79,7 +83,7 @@ class Camera:
 
     @property
     def acquisition_time(self) -> float:
-        return min(int(self._number_of_images / self._frame_rate), 1)
+        return self.acquisition_frame_count / self._frame_rate
 
     @acquisition_time.setter
     def acquisition_time(self, acquisition_time_s):
@@ -114,6 +118,27 @@ class Camera:
     @image_prefix.setter
     def image_prefix(self, prefix):
         self._image_prefix = prefix
+
+    @property
+    def fast_timeout(self) -> bool:
+        return self._fast_timeout
+
+    @fast_timeout.setter
+    def fast_timeout(self, value: bool):
+        self._fast_timeout = bool(value)
+
+    @property
+    def trigger_delay(self) -> int:
+        return int(self._cam.TriggerDelay.GetValue())
+
+    @trigger_delay.setter
+    def trigger_delay(self, delay_to_set: int):
+        delay_to_set = int(abs(delay_to_set))
+        if self._cam.TriggerDelay.GetAccessMode() != PySpin.RW:
+            self.log('Unable to access the trigger delay in write mode', logging.WARNING)
+        delay_to_set = max(9, delay_to_set)
+        delay_to_set = min(self._cam.TriggerDelay.GetMax(), delay_to_set)
+        self._cam.TriggerDelay.SetValue(delay_to_set)
 
     def print_device_info(self):
         self.log('*** DEVICE INFORMATION ***\n')
@@ -340,6 +365,11 @@ class Camera:
                 self.log('Trigger source set to software...')
             elif self._chosen_trigger == TriggerType.HARDWARE:
                 self._cam.TriggerSource.SetValue(PySpin.TriggerSource_Line0)
+                self.log("Changing trigger source to Line0")
+                if self._cam.TriggerActivation.GetAccessMode() != PySpin.RW:
+                    self.log("Couldn't change trigger activation to Rising Edge", logging.ERROR)
+                self._cam.TriggerActivation.SetValue(PySpin.TriggerActivation_LevelHigh)
+                self.log("Changing trigger activation to RisingEdge")
                 self.log('Trigger source set to hardware...')
             self._cam.TriggerMode.SetValue(PySpin.TriggerMode_On)
             self.log('Trigger mode turned back on...')
@@ -365,6 +395,49 @@ class Camera:
         return True
 
     @property
+    def gamma(self) -> float:
+        if self._cam.Gamma.GetAccessMode() < PySpin.RO:
+            self.log('Unable to access gamma value. Aborting...', logging.ERROR)
+            return
+        return float(self._cam.Gamma.GetValue())
+
+    @gamma.setter
+    def gamma(self, new_value: float):
+        new_value = abs(float(new_value))
+        try:
+            self.enable_gamma()
+            if self._cam.Gamma.GetAccessMode() != PySpin.RW:
+                self.log('Unable to change gamma. Aborting...', logging.ERROR)
+                self.log(f'Gamma access mode: {self._cam.Gamma.GetAccessMode()}')
+                self.log(f'Requested access mode: {PySpin.RW}')
+                return
+            new_value = max(self._cam.Gamma.GetMin(), new_value)
+            new_value = min(self._cam.Gamma.GetMax(), new_value)
+            self._cam.Gamma.SetValue(new_value)
+            self.log(f'Set the value of gamma to {new_value}')
+        except PySpin.SpinnakerException as ex:
+            self.log(f'Error: {ex}', logging.ERROR)
+            return False
+        return True
+
+    def disable_gamma(self):
+        if self._cam.GammaEnable.GetAccessMode() != PySpin.RW:
+            self.log('Unable to disable gamma. Aborting...', logging.ERROR)
+            return False
+        self._cam.GammaEnable.SetValue(False)
+        self.log('Disabled gammma')
+        return True
+
+
+    def enable_gamma(self):
+        if self._cam.GammaEnable.GetAccessMode() != PySpin.RW:
+            self.log('Unable to enable gamma. Aborting...', logging.ERROR)
+            return False
+        self._cam.GammaEnable.SetValue(True)
+        self.log('Enable gammma')
+        return True
+
+    @property
     def acquisition_frame_count(self):
         if self._cam.AcquisitionFrameCount.GetAccessMode() < PySpin.RO:
             self.log('Error accessing acquisition frame count', logging.ERROR)
@@ -374,12 +447,20 @@ class Camera:
     @acquisition_frame_count.setter
     def acquisition_frame_count(self, frame_count: int):
         frame_count = max(2, int(abs(frame_count)))
-        if self._cam.AcquisitionFrameCount.GetAccessMode() != PySpin.RW:
-            self.log('Unable to change acquisition frame count', logging.ERROR)
+        try:
+            if self._cam.AcquisitionFrameCount.GetAccessMode() != PySpin.RW:
+                self.log('Unable to change acquisition frame count', logging.ERROR)
+                return False
+            frame_count = min(self._cam.AcquisitionFrameCount.GetMax(), frame_count)
+            self._cam.AcquisitionFrameCount.SetValue(frame_count)
+            if self._cam.AcquisitionBurstFrameCount.GetAccessMode() != PySpin.RW:
+                self.log('Unable to change acquisition burst frame count', logging.ERROR)
+            burst_frame_count = min(self._cam.AcquisitionBurstFrameCount.GetMax(), frame_count)
+            self._cam.AcquisitionBurstFrameCount.SetValue(burst_frame_count)
+            self._number_of_images = frame_count
+        except PySpin.SpinnakerException as ex:
+            self.log(f'Error: {ex}', logging.ERROR)
             return False
-        frame_count = min(self._cam.AcquisitionFrameCount.GetMax(), frame_count)
-        self._cam.AcquisitionFrameCount.SetValue(frame_count)
-        self._number_of_images = frame_count
         return True
 
     def acquire_images(self):
@@ -409,7 +490,6 @@ class Camera:
             # By default, if no specific color processing algorithm is set, the image
             # processor will default to NEAREST_NEIGHBOR method.
             # processor.SetColorProcessing(PySpin.HQ_LINEAR)
-            # processor.SetColorProcessing(PySpin.HQ_LINEAR)
 
             # Get the value of exposure time to set an appropriate timeout for GetNextImage
             exposure = self.exposure
@@ -418,7 +498,7 @@ class Camera:
                 return False
             # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency
             # with the unit being used in GetNextImage
-            timeout = (int)(1000.0 / self.frame_rate + 10)
+            fast_timeout = (int)(1000.0 / self.frame_rate + 20)
             # timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10)
             self.execute_trigger()
             previous_seconds = 0
@@ -427,10 +507,9 @@ class Camera:
             if self.acquisition_mode == 'single frame':
                 self.log('Acquisition mode: single frame')
                 try:
-                    # self.grab_next_image_by_trigger()
                     if self._cam.ExposureTime.GetAccessMode() == PySpin.RW or self._cam.ExposureTime.GetAccessMode() == PySpin.RO:
                         # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency with the unit being used in GetNextImage
-                        timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 1000)
+                        timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10000)
                         self.log(f'Acquisition timeout: {timeout}')
                     image_result = self._cam.GetNextImage(timeout)
                     if image_result.IsIncomplete():
@@ -465,7 +544,6 @@ class Camera:
                     return False
                     # self.execute_trigger()
                 # previous_seconds = current_seconds
-                self._cam.EndAcquisition()
 
             else:
                 for i in range(self._number_of_images):
@@ -473,6 +551,11 @@ class Camera:
                     # if (current_seconds - previous_seconds) >= 1.0:
                     try:
                         # self.grab_next_image_by_trigger()
+                        if not self._fast_timeout:
+                            timeout = 50000
+                            self._fast_timeout = True
+                        else:
+                            timeout = fast_timeout
                         image_result = self._cam.GetNextImage(timeout)
                         if image_result.IsIncomplete():
                             self.log('Image incomplete with image status %d...' % image_result.GetImageStatus(),
@@ -506,7 +589,7 @@ class Camera:
                         return False
                         # self.execute_trigger()
                     # previous_seconds = current_seconds
-                self._cam.EndAcquisition()
+            self._cam.EndAcquisition()
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}', logging.ERROR)
             return False
@@ -515,13 +598,17 @@ class Camera:
         return True
 
     def execute_trigger(self):
-        if self._chosen_trigger == TriggerType.SOFTWARE:
-            # if self._cam.TriggerSoftware.GetAccessMode() != PySpin.WO:
-            #     raise PySpin.SpinnakerException('Unable to execute trigger. Aborting...')
-            self._cam.TriggerSoftware.Execute()
-            # TODO: Blackfly and Flea3 GEV cameras need 2 second delay after software trigger
-        elif self._chosen_trigger == TriggerType.HARDWARE:
-            self.log('Use the hardware to trigger image acquisition.')
+        try:
+            if self._chosen_trigger == TriggerType.SOFTWARE:
+                if self._cam.TriggerSoftware.GetAccessMode() != PySpin.WO:
+                    raise PySpin.SpinnakerException('Unable to execute trigger. Aborting...')
+                self._cam.TriggerSoftware.Execute()
+                # TODO: Blackfly and Flea3 GEV cameras need 2 second delay after software trigger
+            elif self._chosen_trigger == TriggerType.HARDWARE:
+                self.log('Use the hardware to trigger image acquisition.')
+        except PySpin.SpinnakerException as ex:
+            self.log(f'Error: {ex}', logging.ERROR)
+            return
 
     @property
     def device_serial_number(self) -> str:

@@ -143,7 +143,6 @@ class LaserProcedure(Procedure):
         et = esp32.pulse_duration
         log.info(f'Pulse duration: {et:.2f} s.')
 
-        # Prevent computer from going to sleep mode
         self.__oscilloscope.timeout = 1000
         t1 = time.time()
         tc_logger.log_time = self.measurement_time
@@ -301,26 +300,29 @@ class LaserProcedure(Procedure):
         f3 = interpolate.interp1d(elapsed_time, pressure, bounds_error=None)
         f4 = interpolate.interp1d(elapsed_time, laser_output_power_full, bounds_error=None)
         f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full, bounds_error=None)
+        tmin = max(elapsed_time.min(), time_osc.min(), time_tc.min())
+        tmax = min(elapsed_time.max(), time_osc.max(), time_tc.max())
+        time_interp = np.linspace(tmin, tmax, len(data))
 
-        if time_osc.max() <= time_tc.max():
-            tc1_interp = f1(time_osc)
-            tc2_interp = f2(time_osc)
-            pressure_interp = f3(time_osc)
-            power_interp = f4(time_osc)
-            peak_power_interp = f5(time_osc)
-        else:
-            msk_interp = time_osc <= time_tc.max()
-            time_osc_interp = time_osc[msk_interp]
-            tc1_interp = np.zeros_like(time_osc_interp)
-            tc2_interp = np.zeros_like(time_osc_interp)
-            pressure_interp = np.zeros_like(time_osc_interp)
-            power_interp = np.zeros_like(time_osc_interp)
-            peak_power_interp = np.zeros_like(time_osc_interp)
-            tc1_interp[msk_interp] = f1(time_osc_interp)
-            tc2_interp[msk_interp] = f2(time_osc_interp)
-            pressure_interp[msk_interp] = f3(time_osc_interp)
-            power_interp[msk_interp] = f4(time_osc_interp)
-            peak_power_interp[msk_interp] = f5(time_osc_interp)
+        # if time_osc.max() <= time_tc.max():
+        tc1_interp = f1(time_interp)
+        tc2_interp = f2(time_interp)
+        pressure_interp = f3(time_interp)
+        power_interp = f4(time_interp)
+        peak_power_interp = f5(time_interp)
+        # else:
+        #     msk_interp = time_osc <= time_tc.max()
+        #     time_osc_interp = time_osc[msk_interp]
+        #     tc1_interp = np.zeros_like(time_osc_interp)
+        #     tc2_interp = np.zeros_like(time_osc_interp)
+        #     pressure_interp = np.zeros_like(time_osc_interp)
+        #     power_interp = np.zeros_like(time_osc_interp)
+        #     peak_power_interp = np.zeros_like(time_osc_interp)
+        #     tc1_interp[msk_interp] = f1(time_osc_interp)
+        #     tc2_interp[msk_interp] = f2(time_osc_interp)
+        #     pressure_interp[msk_interp] = f3(time_osc_interp)
+        #     power_interp[msk_interp] = f4(time_osc_interp)
+        #     peak_power_interp[msk_interp] = f5(time_osc_interp)
 
         for i in range(len(data)):
             d = {
