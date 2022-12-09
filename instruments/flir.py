@@ -52,6 +52,7 @@ class Camera:
     _image_prefix: str = None
     _print_info: bool = False
     _fast_timeout: bool = False
+    debug: bool = False
 
     def __init__(self):
         self._system: PySpin.System = PySpin.System.GetInstance()
@@ -61,11 +62,12 @@ class Camera:
             self._cam.Init()
             self._nodemap: PySpin.NodeMap = self._cam.GetNodeMap()
             self._path_to_images = self._path_to_images
+            # self._cam.DeviceMaxThroughput.SetValue(811057600)  # 311057600
+            self._cam.DeviceLinkThroughputLimit.SetValue(500000000)
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}')
             raise Exception(f'Error: {ex}')
         self.disable_gamma()
-
 
     @property
     def number_of_images(self) -> int:
@@ -428,7 +430,6 @@ class Camera:
         self.log('Disabled gammma')
         return True
 
-
     def enable_gamma(self):
         if self._cam.GammaEnable.GetAccessMode() != PySpin.RW:
             self.log('Unable to enable gamma. Aborting...', logging.ERROR)
@@ -498,7 +499,7 @@ class Camera:
                 return False
             # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency
             # with the unit being used in GetNextImage
-            fast_timeout = (int)(1000.0 / self.frame_rate + 20)
+            fast_timeout = (int) (1000.0 / self.frame_rate + 100 + self.exposure/1000)
             # timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10)
             self.execute_trigger()
             previous_seconds = 0
@@ -509,7 +510,7 @@ class Camera:
                 try:
                     if self._cam.ExposureTime.GetAccessMode() == PySpin.RW or self._cam.ExposureTime.GetAccessMode() == PySpin.RO:
                         # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency with the unit being used in GetNextImage
-                        timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10000)
+                        timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 1000 + self.trigger_delay/1000)
                         self.log(f'Acquisition timeout: {timeout}')
                     image_result = self._cam.GetNextImage(timeout)
                     if image_result.IsIncomplete():
@@ -518,16 +519,17 @@ class Camera:
 
                     else:
                         # Print image information
-                        width = image_result.GetWidth()
-                        height = image_result.GetHeight()
-                        self.log(
-                            'Grabbed image 1/1, width = %d, height = %d' % (width, height))
+                        if self.debug:
+                            width = image_result.GetWidth()
+                            height = image_result.GetHeight()
+                            self.log(
+                                'Grabbed image 1/1, width = %d, height = %d' % (width, height))
 
                         # Convert image to Mono8
                         image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
 
                         # Create a unique filename
-                        filename = '%s-%d.jpg' % (image_prefix, i)
+                        filename = '%s-%d.jpg' % (image_prefix, i+1)
                         full_filename = os.path.join(self._path_to_images, filename)
 
                         # Save image
@@ -551,34 +553,36 @@ class Camera:
                     # if (current_seconds - previous_seconds) >= 1.0:
                     try:
                         # self.grab_next_image_by_trigger()
-                        if not self._fast_timeout:
-                            timeout = 50000
-                            self._fast_timeout = True
+                        if i == 0:
+                            timeout = 5000
                         else:
                             timeout = fast_timeout
-                        image_result = self._cam.GetNextImage(timeout)
+                        # image_result = self._cam.GetNextImage(timeout)
+                        image_result = self.safe_grab(timeout=timeout)
                         if image_result.IsIncomplete():
                             self.log('Image incomplete with image status %d...' % image_result.GetImageStatus(),
                                      logging.WARNING)
 
                         else:
                             # Print image information
-                            width = image_result.GetWidth()
-                            height = image_result.GetHeight()
-                            self.log(
-                                'Grabbed Image %d/%d, width = %d, height = %d' % (i, self._number_of_images, width, height))
+                            if self.debug:
+                                width = image_result.GetWidth()
+                                height = image_result.GetHeight()
+                                self.log(
+                                    'Grabbed Image %d/%d, width = %d, height = %d' % (
+                                    i+1, self._number_of_images, width, height))
 
                             # Convert image to Mono8
                             image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
 
                             # Create a unique filename
-                            filename = '%s-%d.jpg' % (image_prefix, i)
+                            filename = '%s-%d.jpg' % (image_prefix, i+1)
                             full_filename = os.path.join(self._path_to_images, filename)
 
                             # Save image
                             image_converted.Save(full_filename)
 
-                            self.log('Image saved at %s' % full_filename)
+                            self.log('(%d/%d) Image saved at %s' % (i+1, self._number_of_images, full_filename) )
 
                             # Release image
                             image_result.Release()
@@ -596,6 +600,18 @@ class Camera:
         # self.acquisition_mode = PySpin.AcquisitionMode_Continuous
         # self.log('Acquisition mode set back to continuous...')
         return True
+
+    def safe_grab(self, timeout=1000, attempts=0) -> PySpin.Image:
+        try:
+            image_result = self._cam.GetNextImage(timeout)
+        except PySpin.SpinnakerException as ex:
+            logging.warning(f'Error: {ex}')
+            if attempts < 3:
+                attempts += 1
+                return self.safe_grab(timeout=timeout, attempts=attempts)
+            else:
+                raise ex
+        return image_result
 
     def execute_trigger(self):
         try:
@@ -628,12 +644,26 @@ class Camera:
 
     def log(self, msg: str, level=logging.INFO):
         if self._log is not None:
-            self._log.log(level=level, msg=msg)
+            if isinstance(self._log, logging.Logger):
+                self._log.log(level=level, msg=msg)
+            else:
+                print(msg)
         else:
             print(msg)
 
-    def __del__(self):
+    def reset(self):
+        self.reset_trigger()
+        self.reset_frame_rate()
+        self.reset_exposure()
+        self.reset_gain()
+        self.acquisition_mode = PySpin.AcquisitionMode_Continuous
+
+    def shutdown(self):
+        self.reset()
         self._cam.DeInit()
         del self._cam
         self._cam_list.Clear()
         self._system.ReleaseInstance()
+
+    def __del__(self):
+        self.shutdown()

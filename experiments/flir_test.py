@@ -2,30 +2,32 @@ from instruments.flir import Camera, TriggerType
 from PySpin import PySpin
 import time
 
-path_to_images = r'C:\Users\ARPA-E\Documents\FLIR TEST'
+path_to_images = r'C:\Users\ARPA-E\Documents\FLIR TEST\SAFE_GRAB'
 # path_to_images = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\LASER_TRIGGER'
-acquisition_time = 3.0
+acquisition_time = 1.0
 
 
 def main():
     cam = Camera()
     cam.path_to_images = path_to_images
-    cam.image_prefix = 'GAMMA_TEST'
+    cam.image_prefix = 'THROUGHPUT_TEST'
     cam.print_device_info()
-    cam.gain = 0.0
-    cam.frame_rate = 50
-    cam.exposure = 6E5
+    cam.gain = 4.0
+    cam.frame_rate = 200
+    cam.exposure = 100
     cam.acquisition_time = acquisition_time
     # cam.number_of_images = 5
     # cam.gamma = 0.5
     cam.disable_gamma()
+    cam.trigger_delay = 9
     print(f'Current Gain: {cam.gain}')
     print(f'The exposure read from the camera: {cam.exposure}')
     print(f'The frame rate read from the camera is: {cam.frame_rate} Hz')
     print(f'The number of images to take: {cam.number_of_images}')
     print(f'The acquisition time is: {cam.acquisition_time} s')
+    print(f'The trigger delay is: {cam.trigger_delay} us')
     cam.chosen_trigger = TriggerType.SOFTWARE
-    cam.acquisition_mode = PySpin.AcquisitionMode_SingleFrame
+    cam.acquisition_mode = PySpin.AcquisitionMode_MultiFrame
     # cam.configure_trigger(trigger_type=PySpin.TriggerSelector_FrameStart)
     cam.configure_trigger(trigger_type=PySpin.TriggerSelector_AcquisitionStart)
 

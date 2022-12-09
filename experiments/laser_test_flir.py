@@ -38,7 +38,13 @@ TBS2000_RESOURCE_NAME = 'USB0::0x0699::0x03C7::C010461::INSTR'
 
 
 def trigger_camera(cam: Camera):
-    cam.acquire_images()
+    try:
+        cam.acquire_images()
+    except PySpin.SpinnakerException as ex:
+        log.error(ex)
+        cam.shutdown()
+        raise ex
+    return
 
 
 def get_duty_cycle_params(duty_cycle: float, period_ms: float = 1.0) -> tuple:
@@ -51,7 +57,8 @@ class LaserProcedure(Procedure):
     measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
     laser_power_setpoint = FloatParameter("Laser Power Setpoint", units="%", default=100, minimum=0.0, maximum=100.0)
     camera_exposure_time = FloatParameter("Camera exposure time", minimum=1, units='us', default=1E4)
-    camera_acquisition_time = FloatParameter("Camera acquisition time", units="s", minimum=0.01, maximum=600, default=2.0)
+    camera_acquisition_time = FloatParameter("Camera acquisition time", units="s", minimum=0.01, maximum=600,
+                                             default=2.0)
     camera_frame_rate = FloatParameter("Frame rate", units="Hz", minimum=1, maximum=200, default=60)
     camera_gain = FloatParameter("Gain", units="dB", minimum=0, maximum=47.994, default=0)
     acquisition_mode = ListParameter("Acquisition mode", choices=('Continuous', 'Single', 'Multi frame'),
@@ -119,20 +126,25 @@ class LaserProcedure(Procedure):
             filename = f'{os.path.splitext(self.__unique_filename)[0]}_pressure.csv'
             self.pressure_data.to_csv(filename, index=False)
 
-    def get_image_path(self):
-        path_to_images = self.directory  # os.path.join(self.directory, os.path.splitext(self.__unique_filename)[0] + '_images')
+    def get_image_path(self, acquisition_mode):
+        if acquisition_mode == 'Single':
+            path_to_images = self.directory
+        else:
+            base_name = os.path.splitext(self.__unique_filename)[0]
+            path_to_images = os.path.join(self.directory, base_name + '_images')
+            log.info(f'Image captures will be stored at:\n{path_to_images}')
         if not os.path.exists(path_to_images):
             os.makedirs(path_to_images)
         return path_to_images
 
     def execute(self):
-        self.__camera.path_to_images = self.get_image_path()
+        self.__camera.path_to_images = self.get_image_path(acquisition_mode=self.acquisition_mode)
         self.__camera.image_prefix = os.path.splitext(os.path.basename(self.__unique_filename))[0]
         # self.__camera.print_device_info()
         self.__camera.gain = float(self.camera_gain)
-        self.__camera.frame_rate = float(self.camera_frame_rate)
         self.__camera.exposure = float(self.camera_exposure_time)
         self.__camera.trigger_delay = int(self.trigger_delay)
+        self.__camera.frame_rate = float(self.camera_frame_rate)
         self.__camera.number_of_images = 1
         if self.acquisition_mode == 'Continuous':
             self.__camera.acquisition_mode = PySpin.AcquisitionMode_Continuous
@@ -157,6 +169,8 @@ class LaserProcedure(Procedure):
         log.info(f'The frame rate read from the camera is: {self.__camera.frame_rate} Hz')
         log.info(f'The number of images to take: {self.__camera.number_of_images}')
         log.info(f'The acquisition time is: {self.__camera.acquisition_time} s')
+        log.info(f'The trigger delay is: {self.__camera.trigger_delay} us.')
+        self.camera_frame_rate = self.__camera.frame_rate
 
         flir_trigger = threading.Thread(target=trigger_camera, args=(self.__camera,))
 
@@ -222,25 +236,21 @@ class LaserProcedure(Procedure):
 
         previous_time = 0.0
         total_time = 0.0
-        power_peak_value = 0.0
-        power_value = 0.0
 
         laser_output_power = []
         laser_output_peak_power = []
         start_time = time.time()
         trigger_voltage = []
 
+        flir_trigger.start()
         started_acquisition = False
-        if 1==1: #self.acquisition_mode == 'Continuous':
-            flir_trigger.start()
-            started_acquisition = True
 
         while total_time <= self.measurement_time + 0.0025:
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
                 break
             current_time = time.time()
-            if current_time - start_time >= 0.49 and not started_acquisition:
+            if current_time - start_time >= 0.4 and not started_acquisition:
                 # flir_trigger.start()
                 self.__camera.fast_timeout = True
                 started_acquisition = True
@@ -254,17 +264,18 @@ class LaserProcedure(Procedure):
                 if type(p) == str:
                     p = p_previous
                 pressure.append(p)
-                elapsed_time.append(total_time)
+
                 p_previous = p
-                if total_time < (self.emission_time + 0.5):
-                    power_value = self.__ylr.output_power
-                    power_peak_value = self.__ylr.output_peak_power
-                    if type(power_peak_value) == str:
-                        power_peak_value = 0.0
-                    if type(power_value) == str:
-                        power_value = 0.0
-                    laser_output_power.append(power_value)
-                    laser_output_peak_power.append(power_peak_value)
+                # if total_time < (self.emission_time + 0.5):
+                power_value = self.__ylr.output_power
+                power_peak_value = self.__ylr.output_peak_power
+                if type(power_peak_value) == str:
+                    power_peak_value = 0.0
+                if type(power_value) == str:
+                    power_value = 0.0
+                laser_output_power.append(power_value)
+                laser_output_peak_power.append(power_peak_value)
+                elapsed_time.append(total_time)
                 previous_time = current_time
 
         if emission_on:
@@ -287,11 +298,11 @@ class LaserProcedure(Procedure):
         laser_output_peak_power = np.array(laser_output_peak_power)
         # log.info(f'YLR output power: {laser_output_power.mean()}')
         # log.info(f'YLR output peak power: {laser_output_peak_power.max()}')
-        laser_output_power_full = np.zeros_like(elapsed_time)
-        laser_output_peak_power_full = np.zeros_like(elapsed_time)
-        msk_power = elapsed_time <= (self.emission_time + 0.5)
-        laser_output_power_full[msk_power] = laser_output_power
-        laser_output_peak_power_full[msk_power] = laser_output_peak_power
+        laser_output_power_full = laser_output_power  # np.zeros_like(elapsed_time)
+        laser_output_peak_power_full = laser_output_peak_power  # np.zeros_like(elapsed_time)
+        # msk_power = elapsed_time <= (self.emission_time + 0.5)
+        # laser_output_power_full[msk_power] = laser_output_power
+        # laser_output_peak_power_full[msk_power] = laser_output_peak_power
         # elapsed_time -= elapsed_time.min()
 
         self.pressure_data = pd.DataFrame(
@@ -397,11 +408,8 @@ class LaserProcedure(Procedure):
             self.__mx200.close()
         if self.__ylr is not None:
             self.__ylr.disconnect()
-        self.__camera.reset_frame_rate()
-        self.__camera.reset_trigger()
-        self.__camera.reset_exposure()
-        self.__camera.reset_gain()
-        self.__camera.acquisition_mode = PySpin.AcquisitionMode_Continuous
+        self.__camera.reset()
+
         if self.__oscilloscope is not None:
             self.__oscilloscope.timeout = 1
             self.__oscilloscope.close()
@@ -420,9 +428,11 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=LaserProcedure,
-            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time", "camera_exposure_time",
+            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time",
+                    "camera_exposure_time",
                     "camera_frame_rate", "camera_gain", "acquisition_mode", "trigger_delay", "sample_name"],
-            displays=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time", "camera_exposure_time",
+            displays=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time",
+                      "camera_exposure_time",
                       "camera_frame_rate", "camera_gain", "acquisition_mode", "trigger_delay", "sample_name"],
             x_axis="Measurement Time (s)",
             y_axis="Pressure (Torr)",
@@ -430,13 +440,21 @@ class MainWindow(ManagedWindow):
         )
         self.setWindowTitle('Laser test (camera)')
 
+    def clear_log(self):
+        if len(log.handlers) > 0:
+            for h in log.handlers:
+                if isinstance(h, logging.NullHandler):
+                    log.removeHandler(h)
+                    log.addHandler(logging.NullHandler())
+
     def queue(self):
         directory = self.directory
 
         procedure: LaserProcedure = self.make_procedure()
         sample_name = procedure.sample_name
         laser_setpoint = procedure.laser_power_setpoint
-        # photodiode_gain = procedure.pd_gain
+
+        self.clear_log()
 
         prefix = f'LCT_{sample_name}_{laser_setpoint:03.0f}PCT_'
         filename = unique_filename(directory, prefix=prefix)
