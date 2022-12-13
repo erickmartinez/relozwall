@@ -499,7 +499,7 @@ class Camera:
                 return False
             # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency
             # with the unit being used in GetNextImage
-            fast_timeout = (int) (1000.0 / self.frame_rate + 100 + self.exposure/1000)
+            fast_timeout = (int) (1000.0 / self.frame_rate + 20 + self.exposure/1000)
             # timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10)
             self.execute_trigger()
             previous_seconds = 0
@@ -554,7 +554,7 @@ class Camera:
                     try:
                         # self.grab_next_image_by_trigger()
                         if i == 0:
-                            timeout = 5000
+                            timeout = 1000
                         else:
                             timeout = fast_timeout
                         # image_result = self._cam.GetNextImage(timeout)

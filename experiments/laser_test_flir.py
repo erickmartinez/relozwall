@@ -50,6 +50,7 @@ def trigger_camera(cam: Camera):
 def get_duty_cycle_params(duty_cycle: float, period_ms: float = 1.0) -> tuple:
     frequency = 1.0E3 / period_ms
     pulse_width = duty_cycle * period_ms
+    return frequency, pulse_width
 
 
 class LaserProcedure(Procedure):
@@ -63,7 +64,7 @@ class LaserProcedure(Procedure):
     camera_gain = FloatParameter("Gain", units="dB", minimum=0, maximum=47.994, default=0)
     acquisition_mode = ListParameter("Acquisition mode", choices=('Continuous', 'Single', 'Multi frame'),
                                      default='Continuous')
-    trigger_delay = FloatParameter("Trigger delay", units="us", minimum=9, maximum=10E6)
+    # trigger_delay = FloatParameter("Trigger delay", units="us", minimum=9, maximum=10E6)
     sample_name = Parameter("Sample Name", default="UNKNOWN")
     __camera: Camera = None
     __oscilloscope: TBS2000 = None
@@ -143,7 +144,7 @@ class LaserProcedure(Procedure):
         # self.__camera.print_device_info()
         self.__camera.gain = float(self.camera_gain)
         self.__camera.exposure = float(self.camera_exposure_time)
-        self.__camera.trigger_delay = int(self.trigger_delay)
+        # self.__camera.trigger_delay = int(self.trigger_delay)
         self.__camera.frame_rate = float(self.camera_frame_rate)
         self.__camera.number_of_images = 1
         if self.acquisition_mode == 'Continuous':
@@ -169,7 +170,7 @@ class LaserProcedure(Procedure):
         log.info(f'The frame rate read from the camera is: {self.__camera.frame_rate} Hz')
         log.info(f'The number of images to take: {self.__camera.number_of_images}')
         log.info(f'The acquisition time is: {self.__camera.acquisition_time} s')
-        log.info(f'The trigger delay is: {self.__camera.trigger_delay} us.')
+        # log.info(f'The trigger delay is: {self.__camera.trigger_delay} us.')
         self.camera_frame_rate = self.__camera.frame_rate
 
         flir_trigger = threading.Thread(target=trigger_camera, args=(self.__camera,))
@@ -250,11 +251,11 @@ class LaserProcedure(Procedure):
                 log.warning("Caught the stop flag in the procedure")
                 break
             current_time = time.time()
-            if current_time - start_time >= 0.4 and not started_acquisition:
+            if current_time - start_time >= 0.3 and not started_acquisition:
                 # flir_trigger.start()
                 self.__camera.fast_timeout = True
                 started_acquisition = True
-            if (current_time - previous_time) >= 0.010:
+            if (current_time - previous_time) >= 0.015:
                 total_time = current_time - start_time
                 if (total_time >= 0.5) and (total_time <= self.emission_time):
                     trigger_voltage.append(3.0)
@@ -408,7 +409,8 @@ class LaserProcedure(Procedure):
             self.__mx200.close()
         if self.__ylr is not None:
             self.__ylr.disconnect()
-        self.__camera.reset()
+        if self.__camera is not None:
+            self.__camera.reset()
 
         if self.__oscilloscope is not None:
             self.__oscilloscope.timeout = 1
@@ -430,10 +432,10 @@ class MainWindow(ManagedWindow):
             procedure_class=LaserProcedure,
             inputs=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time",
                     "camera_exposure_time",
-                    "camera_frame_rate", "camera_gain", "acquisition_mode", "trigger_delay", "sample_name"],
+                    "camera_frame_rate", "camera_gain", "acquisition_mode", "sample_name"],
             displays=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time",
                       "camera_exposure_time",
-                      "camera_frame_rate", "camera_gain", "acquisition_mode", "trigger_delay", "sample_name"],
+                      "camera_frame_rate", "camera_gain", "acquisition_mode", "sample_name"],
             x_axis="Measurement Time (s)",
             y_axis="Pressure (Torr)",
             directory_input=True,
