@@ -5,7 +5,7 @@ import os
 from scipy.signal import savgol_filter
 
 
-def get_experiment_params(relative_path: str, filename: str):
+def get_experiment_params(relative_path: str, filename: str, debug=False):
     # Read the experiment parameters
     results_csv = os.path.join(relative_path, f'{filename}.csv')
     count = 0
@@ -15,7 +15,8 @@ def get_experiment_params(relative_path: str, filename: str):
             if line.startswith('#'):
                 if count > 1:
                     l = line.strip()
-                    print(l)
+                    if debug:
+                        print(l)
                     if l == '#Data:':
                         break
                     pattern1 = re.compile("\s+(.*?):\s(.*?)\s(.*?)$")
