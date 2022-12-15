@@ -19,10 +19,11 @@ import matplotlib.ticker as ticker
 
 
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\test\BEAM_PROFILER_REALIGNED_LASER'
+base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\BEAM_PROFILING_20221212'
 center = np.array([590, 593])
 center = np.array([500, 500])
-pixel_size = 207.2227  # pixels/cm
-
+# pixel_size = 207.2227  # pixels/cm
+pixel_size = 209.9845  # pixels/cm
 
 def file_list(path='./', extension: str = ".txt"):
     files = []
@@ -121,7 +122,7 @@ def main(logger: logging.Logger):
     xyc = [xy, im_laser.shape]
     n = np.prod(im_laser.shape)
 
-    b0 = [100, im_laser.flatten().max() * 0.9, center[0], center[1]]
+    b0 = [200, im_laser.flatten().max() * 0.7, center[0], center[1]]
     b0 = [b0[0], np.log10(b0[1]), b0[2], b0[3]]
     # b0 = [500, im_laser.flatten().max()*0.1]
     all_tol = (np.finfo(np.float64).eps) #** (1.0 / 2.0)
@@ -132,7 +133,7 @@ def main(logger: logging.Logger):
         args=(xyc, im_laser.astype(float)),
         method='trf',
         # bounds=([20, 1], [500, im_laser.flatten().max()*1.5]),#, im_laser.shape[0], im_laser.shape[1]]),
-        bounds=([10, 1E-1, 1E-1, 1E-1], [max(im_laser.shape), 255, im_laser.shape[0], im_laser.shape[1]]),
+        bounds=([5, 1E-2, 1E-2, 1E-2], [max(im_laser.shape), 255, im_laser.shape[0], im_laser.shape[1]]),
         # bounds=(
         # [10, -1, 0.01, 0.01], [max(im_laser.shape), np.log10(255), im_laser.shape[1], im_laser.shape[0]]),
         xtol=all_tol,

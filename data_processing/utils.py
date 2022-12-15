@@ -87,3 +87,10 @@ def correct_thermocouple_response(measured_temperature, measured_time, tau):
     # dTdt = savgol_filter(dTdt, k - 2, 3)
     r = measured_temperature + tau * dTdt
     return savgol_filter(r, k - 4, 3)
+
+
+def specific_heat_of_graphite(temperature: float, **kwargs):
+    units = kwargs.get('units', 'K')
+    T = temperature if units == 'K' else (temperature + 273.15)
+    cp = 0.538657 + 9.11129E-6*T - 90.2725*(T**(-1)) - 43449.3*(T**(-2.0)) + 1.59309E7*(T**(-3.0)) - 1.43688E9*(T**(-4.0))
+    return cp*4.184
