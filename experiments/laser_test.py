@@ -175,20 +175,17 @@ class LaserProcedure(Procedure):
                 if type(p) == str:
                     p = p_previous
                 pressure.append(p)
-                elapsed_time.append(total_time)
+
                 p_previous = p
-                if total_time < (self.emission_time + 0.5):
-                    power_value = self.__ylr.output_power
-                    power_peak_value = self.__ylr.output_peak_power
-                    if type(power_peak_value) == str:
-                        power_peak_value = 0.0
-                    if type(power_value) == str:
-                        power_value = 0.0
-                    laser_output_power.append(power_value)
-                    laser_output_peak_power.append(power_peak_value)
-                # if total_time >= self.emission_time + 1.0 and emission_on:
-                #     self.__ylr.emission_off()
-                #     emission_on = False
+                power_value = self.__ylr.output_power
+                power_peak_value = self.__ylr.output_peak_power
+                if type(power_peak_value) == str:
+                    power_peak_value = 0.0
+                if type(power_value) == str:
+                    power_value = 0.0
+                laser_output_power.append(power_value)
+                laser_output_peak_power.append(power_peak_value)
+                elapsed_time.append(total_time)
                 previous_time = current_time
 
         if emission_on:
@@ -203,19 +200,18 @@ class LaserProcedure(Procedure):
             self.__ylr.enable_modulation()
             gate_mode = False
 
-        # log.info("elapsed time:")
-        # log.info(elapsed_time)
         elapsed_time = np.array(elapsed_time, dtype=float)
+        elapsed_time -= elapsed_time.min()
         pressure = np.array(pressure, dtype=float)
         laser_output_power = np.array(laser_output_power)
         laser_output_peak_power = np.array(laser_output_peak_power)
-        log.info(f'YLR output power: {laser_output_power.mean()}')
-        log.info(f'YLR output peak power: {laser_output_peak_power.max()}')
-        laser_output_power_full = np.zeros_like(elapsed_time)
-        laser_output_peak_power_full = np.zeros_like(elapsed_time)
-        msk_power = elapsed_time <= (self.emission_time + 0.5)
-        laser_output_power_full[msk_power] = laser_output_power
-        laser_output_peak_power_full[msk_power] = laser_output_peak_power
+        # log.info(f'YLR output power: {laser_output_power.mean()}')
+        # log.info(f'YLR output peak power: {laser_output_peak_power.max()}')
+        laser_output_power_full = laser_output_power  # np.zeros_like(elapsed_time)
+        laser_output_peak_power_full = laser_output_peak_power  # np.zeros_like(elapsed_time)
+        # msk_power = elapsed_time <= (self.emission_time + 0.5)
+        # laser_output_power_full[msk_power] = laser_output_power
+        # laser_output_peak_power_full[msk_power] = laser_output_peak_power
 
         self.pressure_data = pd.DataFrame(
             data={
