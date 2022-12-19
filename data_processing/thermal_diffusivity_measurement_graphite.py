@@ -44,8 +44,8 @@ import logging
 import sys
 from utils import specific_heat_of_graphite
 
-base_dir = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\HEAT_FLUX'
-csv_file = 'LT_GRAPHITE_ROD_015PCT_2022-12-14_1.csv'
+base_dir = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\HEAT_FLUX\NO_BEAM_EXPANDER'
+csv_file = 'LT_GRAPHITE_ROD_015PCT_2022-12-16_1.csv'
 tc_time_constant = 0.256
 density_g = 1.661
 
@@ -60,7 +60,7 @@ x_probe_1 = 5 / 10.0
 # x_probe_2 = 5.04-(0.275*2.54)
 x_probe_2 = 14.6 / 10.0
 
-dx = 0.2# 0.2 #0.5 * 8.04 / 10
+dx = 0.5# 0.2 #0.5 * 8.04 / 10
 
 debug = False
 N = 100
@@ -237,7 +237,7 @@ if __name__ == '__main__':
         measured_time=time_s, tau=tc_time_constant
     )
 
-    msk_delay = (tc1 - temp_t0) > 0.5
+    msk_delay = (tc1 - temp_t0) >= 0.5
     t_msk = time_s[msk_delay]
     t0 = t_msk[0]
     idx_t0 = np.argmin(np.abs(time_s - t0) > 0) - 1
@@ -270,7 +270,7 @@ if __name__ == '__main__':
     u_exp = np.vstack((tc1, tc2)).T
     all_tol = np.finfo(np.float64).eps
     b0_log = np.array([0.1, 100, 0.5, 1.46])
-    b0 = np.array([0.01, 50])
+    b0 = np.array([0.1, 115])
     logger.info('Starting least squares (log)')
     res_log = least_squares(
         fobj2_log, np.log10(b0_log),
