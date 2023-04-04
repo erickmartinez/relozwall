@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     load_plt_style()
     fig, ax = plt.subplots(ncols=1, nrows=2, constrained_layout=True)
-    fig.set_size_inches(4.0, 5.0)
+    fig.set_size_inches(4.0, 4.75)
 
     ax[0].errorbar(
         sphere_df['850 um %'], sphere_df['Erosion Rate (cm/s)']['mean'],
@@ -69,6 +69,8 @@ if __name__ == '__main__':
         mew=1.25, capsize=3.5, capthick=1.25, ecolor='C0', fillstyle='none'
     )
 
+    ax[0].set_title('Recession rate')
+
     ax[1].errorbar(
         binder_df['Binder content (%)'], binder_df['Erosion Rate (cm/s)']['mean'],
         yerr=binder_df['Erosion rate error (cm/s)']['rss'],
@@ -78,8 +80,10 @@ if __name__ == '__main__':
         mew=1.25, capsize=3.5, capthick=1.25, ecolor='C1', fillstyle='none'
     )
 
-    ax[0].set_xlabel('Weight % of 850 $\mathregular{\mu}$m spheres')
-    ax[0].set_ylabel('Erosion rate (cm/s)')
+    ax[1].set_title('Recession rate')
+
+    ax[0].set_xlabel('Wt % of 850 $\mathregular{\mu}$m spheres')
+    ax[0].set_ylabel('cm/s')
     # ax.set_xlim(0,100)
     ax[0].xaxis.set_major_locator(ticker.MultipleLocator(20))
     ax[0].xaxis.set_minor_locator(ticker.MultipleLocator(5))
@@ -89,11 +93,11 @@ if __name__ == '__main__':
     ax[0].set_ylim(0.05, 0.25)
     ax[0].set_xlim(-5, 105)
     ax[0].text(
-        -0.0, -0.2, '185 $\mathregular{\mu}$m', transform=ax[0].transAxes, fontsize=10, fontweight='regular',
+        -0.0, -0.25, '185 $\mathregular{\mu}$m', transform=ax[0].transAxes, fontsize=11, fontweight='regular',
         va='bottom', ha='center'
     )
     ax[0].text(
-        1.0, -0.2, '850 $\mathregular{\mu}$m', transform=ax[0].transAxes, fontsize=10, fontweight='regular',
+        1.0, -0.25, '850 $\mathregular{\mu}$m', transform=ax[0].transAxes, fontsize=11, fontweight='regular',
         va='bottom', ha='center'
     )
 
@@ -105,7 +109,7 @@ if __name__ == '__main__':
     ax[1].set_ylim(0.025, 0.225)
 
     ax[1].set_xlabel('Binder content wt %')
-    ax[1].set_ylabel('Erosion rate (cm/s)')
+    ax[1].set_ylabel('cm/s')
 
     ax[1].xaxis.set_major_locator(ticker.MultipleLocator(5))
     ax[1].xaxis.set_minor_locator(ticker.MultipleLocator(1))

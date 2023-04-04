@@ -104,6 +104,10 @@ def simulate_adi_temp(laser_power: float, r_holder: float, r_sample: float,
       probe_size_mm: float
         The size of the thermocouple probe in mm. Default: 3 mm
 
+      save_probes_only: bool
+        If true, it will only save the temperature on the probes as a function of time.
+        Otherwise, it will save the temperature at every point of the MxN matrix
+
     """
     M = int(kwargs.get('r_points', 200))  # number of intervals in r
     N = int(kwargs.get('x_points', 400))  # number of intervals in x
@@ -121,6 +125,7 @@ def simulate_adi_temp(laser_power: float, r_holder: float, r_sample: float,
     x_tc_1 = float(kwargs.get('x_tc_1', 1.0)) # Position of probe 1 in cm along the x axis and the surface of the rod
     x_tc_2 = float(kwargs.get('x_tc_2', 2.0)) # Position of probe 2 in cm along the x axis and the surface of the rod
     probe_size = float(kwargs.get('probe_size_mm', 2.0)) # The size of the probe in mm
+    save_probes_only = bool(kwargs.get('save_probes_only'), False)
     R = r_holder
     R_sample = r_sample
     L = length  # the length of the cylinder in cm
@@ -194,6 +199,8 @@ def simulate_adi_temp(laser_power: float, r_holder: float, r_sample: float,
         print(f'Size of x: {x.size}, N: {N}')
         print(f'Size of r: {r.size}, M: {M}')
         print(f'r(idx={idx_r}) = {r[idx_r]} cm')
+        print(f'x1(idx={idx_x1}) = {x[idx_x1]} cm')
+        print(f'x1(idx={idx_x2}) = {x[idx_x2]} cm')
         print(f'R = {r[-1]} cm')
         print(f'Exposed length: {exposed_x:.2f} cm')
         print("***** Thermal conductivities *****")
@@ -340,13 +347,12 @@ def simulate_adi_temp(laser_power: float, r_holder: float, r_sample: float,
         return temperature + 273.15
 
 
-
     start_time = time.time()
     step_time = time.time()
     while t_now <= t_max:
         if count % (report_every - 1) == 0 and debug:
             print(
-                f'Time: {t_now:4.3f} s, T(r={r[0]:3.3f}, x={x[0]:3.3f}) = {U_k1[0, 0]:6.1f}, T(r={r[idx_r]:3.3f}, x={x[idx_x1]:3.3f}) = {U_k1[idx_r, idx_x1-probe_idx_delta:idx_x1+probe_idx_delta].mean():6.1f}, T(r={r[-1]:3.3f}, x={x[idx_h]:3.3f}) = {U_k1[-1, idx_h]:5.1f}, Wall Time: {(time.time() - start_time) / 60.0:8.2f} min, Step Time: {(time.time() - step_time):6.3E} s')
+                f'Time: {t_now:4.3f} s, T(r={r[0]:3.3f}, x={x[0]:3.3f}) = {U_k1[0, 0]:6.1f}, T(r={r[idx_r]:3.3f}, x={x[idx_x1]:3.3f}) = {U_k1[idx_r, idx_x1-probe_idx_delta:idx_x1+probe_idx_delta].mean():6.1f}, T(r={r[-1]:3.3f}, x={x[idx_x2]:3.3f}) = {U_k1[-1, idx_x2]:5.1f}, Wall Time: {(time.time() - start_time) / 60.0:8.2f} min, Step Time: {(time.time() - step_time):6.3E} s')
 
         temperature_p1[count] = U_k1[idx_r, idx_x1-probe_idx_delta:idx_x1+probe_idx_delta].mean()
         temperature_p2[count] = U_k1[idx_r, idx_x2]
@@ -354,7 +360,7 @@ def simulate_adi_temp(laser_power: float, r_holder: float, r_sample: float,
         u_min = min(u_min, U_k1.flatten().flatten().min())
         u_max = max(u_max, U_k1.flatten().flatten().max())
 
-        if save_h5:
+        if save_h5 and not save_probes_only:
             with h5py.File(hf_filename + '.h5', 'a') as hf:
                 ds_name = f'/data/T_{count:d}'
                 hf.create_dataset(ds_name, data=U_k1)
@@ -459,6 +465,9 @@ def simulate_adi_temp(laser_power: float, r_holder: float, r_sample: float,
         with h5py.File(hf_filename + '.h5', 'a') as hf:
             hf['data'].attrs['T_min'] = u_min
             hf['data'].attrs['T_max'] = u_max
+            if save_probes_only:
+                u_probes = np.stack([time_s, temperature_p1, temperature_p2]).T
+                hf['data/probe_temperature'] = u_probes
         return hf_filename
     else:
         return time_s, temperature_p1, temperature_p2
