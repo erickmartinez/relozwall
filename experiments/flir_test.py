@@ -14,12 +14,12 @@ def main():
     cam.print_device_info()
     cam.gain = 4.0
     cam.frame_rate = 200
-    cam.exposure = 100
+    cam.exposure = 5
     cam.acquisition_time = acquisition_time
     # cam.number_of_images = 5
     # cam.gamma = 0.5
     cam.disable_gamma()
-    cam.trigger_delay = 9
+    # cam.trigger_delay = 9
     print(f'Current Gain: {cam.gain}')
     print(f'The exposure read from the camera: {cam.exposure}')
     print(f'The frame rate read from the camera is: {cam.frame_rate} Hz')
@@ -30,8 +30,8 @@ def main():
     cam.acquisition_mode = PySpin.AcquisitionMode_MultiFrame
     # cam.configure_trigger(trigger_type=PySpin.TriggerSelector_FrameStart)
     cam.configure_trigger(trigger_type=PySpin.TriggerSelector_AcquisitionStart)
-
     cam.acquire_images()
+    time.sleep(5.0)
     cam.reset_frame_rate()
     cam.reset_trigger()
     cam.reset_exposure()

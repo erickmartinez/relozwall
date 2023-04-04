@@ -58,10 +58,9 @@ class ExtruderPIDProcedure(Procedure):
         [TC1, _, _, _, _] = extruder_readout.reading
         pid.set_auto_mode(True, last_output=TC1)
 
-        current_time = 0.0
         previous_time = 0.0
         total_time = 0.0
-        dt = 0.5
+        dt = 0.2
         n = int(self.experiment_time * 60 / dt) + 1
         log.info(f"Starting the loop of {n:d} datapoints.")
         counter = 0
@@ -94,13 +93,14 @@ class ExtruderPIDProcedure(Procedure):
 
         self.__dc_source.voltage_setpoint = 0.0
         self.__dc_source.output_off()
-        del extruder_readout
+        # del extruder_readout
         # self.__dc_source.trigger_abort()
 
     def shutdown(self):
         self.unhinibit_sleep()
         if self.__dc_source is not None:
             self.__dc_source.output_off()
+            self.__dc_source.disconnect()
         # Remove file handlers from logger
         if len(log.handlers) > 0:
             for handler in log.handlers:

@@ -151,7 +151,7 @@ class LaserProcedure(Procedure):
         # Start firing sequence
         elapsed_time = []
         pressure = []
-        p_previous = self.__mx200.pressure(2)
+        p_previous = self.__mx200.pressure(1)
 
         esp32.fire()
 
@@ -171,7 +171,7 @@ class LaserProcedure(Procedure):
             current_time = time.time()
             if (current_time - previous_time) >= 0.010:
                 total_time = current_time - start_time
-                p = self.__mx200.pressure(2)
+                p = self.__mx200.pressure(1)
                 if type(p) == str:
                     p = p_previous
                 pressure.append(p)

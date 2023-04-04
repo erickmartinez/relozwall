@@ -118,6 +118,7 @@ class MX200:
     @property
     def pressures(self) -> dict:
         response: str = self.query("S1")
+        time.sleep(self.__delay)
         pressures_str = response.split()
         if len(pressures_str) == 0:
             return None
@@ -199,7 +200,7 @@ class MX200:
         channel = int(channel)
         if 2 < channel < 1:
             raise Warning(f"Channel '{channel}' is not available.")
-        if 1 <= adjustment_point <= 4:
+        if 1 <= adjustment_point <= 5:
             query: str = f"RC{adjustment_point}{str(channel).zfill(2)}"
             result = self.query(q=query)
             self._log.debug(result)
@@ -218,6 +219,10 @@ class MX200:
         query = f"WC{adjustment_point}{str(channel).zfill(2)}{baa}"
         self._log.debug(query)
         self.write(q=query)
+        # r = self.query(q=query)
+        # if re.match(r"\d{5}", r):
+        #     r = self.ppsee(r)
+        # return r
         # time.sleep(self.__delay)
         # q = 'S1{0:02d}'.format(channel)
         # pressure = self.query(q)

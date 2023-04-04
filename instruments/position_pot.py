@@ -15,11 +15,11 @@ class ArduinoSerial:
     __address = None
     __baud_rate = 57600 #19200  # 38400
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.006
+    __timeout = 0.01
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.006
+    __delay = 0.01
     __serial: serial.Serial = None
     _log: logging.Logger = None
     _previous_val: int = 0
@@ -111,7 +111,8 @@ class ArduinoSerial:
                 data.extend(packet)
         else:
             data = self.__serial.read(size)
-        #self.__serial.reset_input_buffer()
+        self.__serial.reset_input_buffer()
+        self.__serial.flush()
         return data
 
     def __del__(self):
@@ -131,8 +132,8 @@ class DeflectionReader(ArduinoSerial):
         # time.sleep(0.25)
         old_delay = self.delay
         old_timeout = self.timeout
-        self.delay = 0.02
-        self.timeout = 0.02
+        self.delay = 0.05
+        self.timeout = 0.05
         check_id = self.query('i')
         self.delay = old_delay
         self.timeout = old_timeout

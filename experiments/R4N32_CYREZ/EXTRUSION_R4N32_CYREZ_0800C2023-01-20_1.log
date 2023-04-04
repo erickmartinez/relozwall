@@ -1,0 +1,14 @@
+2023-01-20 16:27:22,905 - INFO - Setting up Televac MX200
+2023-01-20 16:27:27,584 - INFO - Setting up power supply
+2023-01-20 16:27:28,267 - INFO - Setting up linear translator
+2023-01-20 16:27:30,119 - INFO - Initial pressures = {1: 0.29, 2: 0.29} Torr
+2023-01-20 16:27:30,119 - INFO - Initializing Extruder Readout...
+2023-01-20 16:27:30,259 - INFO - Taring the load cell...
+2023-01-20 16:27:33,346 - INFO - Getting the initial position and initial temperature
+2023-01-20 16:27:33,741 - INFO - Initial position: 21.8 cm
+2023-01-20 16:27:33,741 - INFO - Initial temperature: 116.00 °C
+2023-01-20 16:27:33,746 - INFO - Ramping rate: 25.0 °C/min
+2023-01-20 16:27:33,746 - INFO - Ramping time: 27.4 min
+2023-01-20 16:27:33,746 - INFO - Setting up PID controller
+2023-01-20 16:27:33,746 - INFO - Setting up DC voltage
+2023-01-20 18:14:19,695 - INFO - Turning off the ouput of the DC power supply.

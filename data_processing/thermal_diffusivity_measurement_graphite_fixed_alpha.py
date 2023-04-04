@@ -56,11 +56,15 @@ density_g = 1.661
 
 pulse_length = 10.0
 sample_length_cm = 4.922
-x_probe_1 = 0.52
+x_probe_1 = 5 / 10.0
 # x_probe_2 = 5.04-(0.275*2.54)
-x_probe_2 = 1.84
+x_probe_2 = 14.6 / 10.0
 
-dx = 0.1# 0.2 #0.5 * 8.04 / 10
+k0 = 0.85
+cp = specific_heat_of_graphite(21.5, units='C')
+alpha = k0 / cp / density_g
+
+dx = 0.1 #0.5 * 8.04 / 10
 
 debug = False
 N = 100
@@ -161,30 +165,27 @@ def fobj(b, diffusion_time, temperature, x: np.ndarray, rod_length: float,
 
 
 def fobj2(b, diffusion_time, temperature, x: np.ndarray, rod_length: float,
-          emission_time: float, T0: float, dx_probe: float, weights=1):
-    r = (get_mean_ut(x_center=x, diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=b[0],
-                    emission_time=emission_time, flux=b[1], T0=T0, dx_probe=dx_probe) - temperature) - weights
+          emission_time: float, T0: float, dx_probe: float):
+    r = get_mean_ut(x_center=x, diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=b[0],
+                    emission_time=emission_time, flux=b[1], T0=T0, dx_probe=dx_probe) - temperature
     return r.flatten()
 
 def fobj2_log(b, diffusion_time, temperature, x: np.ndarray, rod_length: float,
-          emission_time: float, T0: float, dx_probe: float, weights=1.0):
-    r = (get_mean_ut(x_center=np.array([10**b[2], 10**b[3]]), diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=10**b[0],
-                    emission_time=emission_time, flux=10**b[1], T0=T0, dx_probe=dx_probe) - temperature) * weights
-    # r = get_mean_ut(x_center=x, diffusion_time=diffusion_time, rod_length=rod_length,
-    #                 diffusivity=10 ** b[0],
-    #                 emission_time=emission_time, flux=10 ** b[1], T0=T0, dx_probe=dx_probe) - temperature
+          emission_time: float, T0: float, dx_probe: float):
+    r = get_mean_ut(x_center=np.array([10**b[2], 10**b[3]]), diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=10**b[0],
+                    emission_time=emission_time, flux=10**b[1], T0=T0, dx_probe=dx_probe) - temperature
     return r.flatten()
 
-def fobj3(b, diffusion_time, temperature, x: np.ndarray, rod_length: float,
-          emission_time: float, T0: float, dx_probe: float, weights=1.0):
-    r = (get_mean_ut(x_center=x, diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=b[0],
-                    emission_time=emission_time, flux=b[1], T0=T0, dx_probe=dx_probe) - temperature) * weights
+def fobj3(b, diffusivity, diffusion_time, temperature, x: np.ndarray, rod_length: float,
+          emission_time: float, T0: float, dx_probe: float, weights=1):
+    r = (get_ut(x=x, diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=diffusivity,
+                    emission_time=emission_time, flux=b[0], T0=T0) - temperature) * weights
     return r.flatten()
 
 def fobj3_log(b, diffusivity, diffusion_time, temperature, x: np.ndarray, rod_length: float,
-          emission_time: float, T0: float, dx_probe: float, weights = 1):
-    r = (get_mean_ut(x_center=np.array([10**b[2], 10**b[3]]), diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=diffusivity,
-                    emission_time=emission_time, flux=10**b[0], T0=T0, dx_probe=dx_probe) - temperature) * weights
+          emission_time: float, T0: float, dx_probe: float, weights=1):
+    r = (get_ut(x=np.array([10**b[1], 10**b[2]]), diffusion_time=diffusion_time, rod_length=rod_length, diffusivity=diffusivity,
+                    emission_time=emission_time, flux=10**b[0], T0=T0) - temperature) * weights
     return r.flatten()
 
 
@@ -240,6 +241,9 @@ if __name__ == '__main__':
     # dt12 = tc1[0] - tc2[0]
     # tc1 -= dt12
 
+    cp = specific_heat_of_graphite(tc1[0], units='K')
+    alpha = k0 / cp / density_g
+
     temp_t0 = tc1[0]
 
     tc1_corrected = correct_thermocouple_response(
@@ -255,6 +259,7 @@ if __name__ == '__main__':
     msk_delay = (tc1 - temp_t0) >= 0.5
     t_msk = time_s[msk_delay]
     t0 = t_msk[0]
+    logger.info(f't0: {t0:.3f} s')
     idx_t0 = max(np.argmin(np.abs(time_s - t0) > 0) - 0, 0)
     t0 = time_s[idx_t0]
     msk_delay = time_s >= t0
@@ -265,8 +270,6 @@ if __name__ == '__main__':
     tc2_corrected = tc2_corrected[msk_delay]
     n = tc1.size
     time_s -= time_s.min()
-
-
 
     msk_laser_on = laser_output_power > 0.0
     laser_mean_power = laser_output_power[msk_laser_on].mean()
@@ -279,34 +282,34 @@ if __name__ == '__main__':
 
 
     def func(diffusion_time, b):
-        r = get_mean_ut(x_center=x, diffusion_time=diffusion_time, rod_length=sample_length_cm, diffusivity=b[0],
-                        emission_time=pulse_length, flux=b[1], T0=tc2[0], dx_probe=dx)
+        r = get_ut(x=x, diffusion_time=diffusion_time, rod_length=sample_length_cm, diffusivity=alpha,
+                        emission_time=pulse_length, flux=b[0], T0=tc2[0])
         return r.flatten()
 
 
     u_exp = np.vstack((tc1, tc2)).T
-    weights = np.ones_like(u_exp)
     temp_peak = tc1.max()
-    idx_peak = np.argmin(np.abs(tc1 - temp_peak))
-    logger.info(f'T_max: {temp_peak:.2f} K')
-    weights[0:idx_peak] = 10.0
+    msk_before_peak = tc1 < temp_peak
+    weights = np.ones_like(u_exp)
+    weights[msk_before_peak, :] = 10.0
     all_tol = np.finfo(np.float64).eps
-    b0_log = np.array([0.85, 174, 0.5, 1.6])
-    b0 = np.array([0.1, 300])
+    b0_log = np.array([1.3, 174, 0.5, 1.46])
+    b0_log = np.array([300, 0.6, 1.8])
+    b0 = np.array([0.1, 115])
     logger.info('Starting least squares (log)')
-    x = np.array([x_probe_1, x_probe_2])
-    x_log = np.log10(x)
     res_log = least_squares(
-        fobj2_log, np.log10(b0_log),
-        # loss='soft_l1', f_scale=0.1,
+        fobj3_log, np.log10(b0_log),
+        loss='soft_l1', f_scale=0.1,
         jac='2-point',
         # args=(time_s, u_exp, sample_length_cm, pulse_length, tc1[0]),
-        args=(time_s, u_exp, x, sample_length_cm, pulse_length, tc1[0], dx, weights),
-        # bounds=([-2, 1], [np.inf, np.inf]),
-        bounds=([-1, 1, -1, 0], [10, 10, 0, np.log10(sample_length_cm)]),
-        xtol=all_tol**0.5,
-        ftol=all_tol**0.5,
-        gtol=all_tol**0.5,
+        # args=(time_s, u_exp, x, sample_length_cm, pulse_length, tc1[0], dx),
+        # bounds=([1E-10, 1E-5, 0.0], [np.inf, np.inf, pulse_length]),
+        args=(alpha, time_s, u_exp, x, sample_length_cm, pulse_length, tc1[0], dx, weights),
+        # bounds=([-10, -5, -1, -1], [50, 50, np.log10(sample_length_cm), np.log10(sample_length_cm)]),
+        bounds=([1, -1, 0], [10, np.log10(sample_length_cm), np.log10(sample_length_cm)]),
+        xtol=all_tol**0.3,
+        ftol=all_tol**0.3,
+        gtol=all_tol**0.3,
         max_nfev=10000 * len(u_exp.flatten()),
         x_scale='jac',
         verbose=2
@@ -314,32 +317,32 @@ if __name__ == '__main__':
     logger.info(f'res_log.x: {10**res_log.x}')
     logger.info('Starting least squares (linear)')
     popt_log = res_log.x
-    x = 10**popt_log[2:4]
+    x = 10**popt_log[1:3]
     res = least_squares(
-        fobj2, 10**popt_log[0:2],
-        # loss='soft_l1', f_scale=0.1,
+        fobj3, 10**popt_log[0],
+        loss='soft_l1', f_scale=0.1,
         jac='3-point',
         # args=(time_s, u_exp, sample_length_cm, pulse_length, tc1[0]),
-        args=(time_s, u_exp, x, sample_length_cm, pulse_length, tc1[0], dx, weights),
+        args=(alpha, time_s, u_exp, x, sample_length_cm, pulse_length, tc1[0], dx, weights),
         # bounds=([1E-10, 1E-5, 0.0], [np.inf, np.inf, pulse_length]),
-        bounds=([0.01, 10], [np.inf, np.inf]),
-        xtol=all_tol**0.5,
-        ftol=all_tol**0.5,
-        gtol=all_tol**0.5,
+        bounds=([10], [np.inf]),
+        xtol=all_tol,
+        ftol=all_tol,
+        gtol=all_tol,
         max_nfev=10000 * len(u_exp.flatten()),
         x_scale='jac',
         verbose=2
     )
 
     popt = res.x
-    a_fit = popt[0]
-    flux_fit = popt[1]
+    a_fit = alpha #popt[0]
+    flux_fit = popt[0]
     pcov = cf.get_pcov(res)
     ci = cf.confint(n=n, pars=popt, pcov=pcov)
     tpred = np.linspace(0, time_s.max(), 1000)
     ypred, lpb, upb = cf.predint(x=tpred, xd=time_s, yd=u_exp, func=func, res=res)
-    temperature_fit = get_ut(x=x, diffusion_time=time_s, rod_length=sample_length_cm, diffusivity=popt[0],
-                             emission_time=pulse_length, flux=popt[1], T0=tc2_corrected[0])
+    temperature_fit = get_ut(x=x, diffusion_time=time_s, rod_length=sample_length_cm, diffusivity=alpha,
+                             emission_time=pulse_length, flux=popt[0], T0=tc2_corrected[0])
 
     output_df = pd.DataFrame(data={
         'Time (s)': time_s,
@@ -347,8 +350,8 @@ if __name__ == '__main__':
         'TC2 (C)': tc2,
         'TC1 corrected (C)': tc1_corrected,
         'TC2 corrected (C)': tc2_corrected,
-        'TC1 fit (C)': temperature_fit[:, 0],
-        'TC2 fit (C)': temperature_fit[:, 1],
+        'TC1 fit (C)': temperature_fit[:, 0]-273.15,
+        'TC2 fit (C)': temperature_fit[:, 1]-273.15,
     })
 
     output_df.to_csv(os.path.join(base_dir, os.path.splitext(csv_file)[0] + '_corrected.csv'), index=False)
@@ -380,7 +383,7 @@ if __name__ == '__main__':
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Temperature (K)')
     ax.set_xlim(left=0.0, right=time_s.max())
-    ax.set_ylim(bottom=290)
+    ax.set_ylim(bottom=290.0)
     ax.legend(
         loc='best', frameon=True, prop={'size': 9}
     )
@@ -413,9 +416,12 @@ if __name__ == '__main__':
         tpred, u_fit[:, 1], label=f'Fit x={x[1]:.2f} cm', zorder=3, color='r',
     )
 
-    title_txt = rf'$\alpha_{{fit}} = {utils.latex_float(a_fit, 3)}$, 95% CI: [${utils.latex_float(ci[0][0], 4)}, {utils.latex_float(ci[0][1], 4)}$] cm$^2$/s'
-    title_txt += '\n'
-    title_txt += rf'$F_{{fit}} = {utils.latex_float(flux_fit, 3)}$, 95% CI: [${utils.latex_float(ci[1][0], 4)}, {utils.latex_float(ci[1][1], 4)}$] K/cm'
+    title_txt = rf'$F_{{fit}} = {utils.latex_float(flux_fit, 3)}$, 95% CI: [${utils.latex_float(ci[0][0], 4)}, {utils.latex_float(ci[0][1], 4)}$] K/cm'
+
+
+    # title_txt = rf'$\alpha_{{fit}} = {utils.latex_float(a_fit, 3)}$, 95% CI: [${utils.latex_float(ci[0][0], 4)}, {utils.latex_float(ci[0][1], 4)}$] cm$^2$/s'
+    # title_txt += '\n'
+    # title_txt += rf'$F_{{fit}} = {utils.latex_float(flux_fit, 3)}$, 95% CI: [${utils.latex_float(ci[1][0], 4)}, {utils.latex_float(ci[1][1], 4)}$] K/cm'
 
     ax.set_title(title_txt, fontweight='regular')
 
@@ -427,9 +433,9 @@ if __name__ == '__main__':
     logger.info(f'K: {K0:.3f} W/cm/K')
     logger.info(f'Heat flux: {heat_flux:.3E} W/cm^2')
 
-    if len(popt) > 3:
-        logger.info(f'z0: {popt[2]:.3f} cm')
-        logger.info(f'z1: {popt[3]:.3f} cm')
+    if len(popt_log) > 2:
+        logger.info(f'z0: {x[0]:.3f} cm')
+        logger.info(f'z1: {x[1]:.3f} cm')
 
     # ax_t.xaxis.set_minor_locator(ticker.MultipleLocator(2.0))
     # ax_t.xaxis.set_minor_locator(ticker.MultipleLocator(1.0))
