@@ -27,6 +27,7 @@ DC_SOURCE_IP = '192.168.1.3'
 MX200_COM = 'COM3'
 ISC08_COM = 'COM4'
 NUMBER_OF_SAMPLES = 10000
+s2min = 1.0/60.0
 
 
 class ExtrusionProcedure(Procedure):
@@ -53,8 +54,8 @@ class ExtrusionProcedure(Procedure):
 
     __pot_a0: float = 8.45
     __pot_a1: float = 0.0331
-    __pid_ku = 5000.0
-    __pid_tu = 15.5
+    __pid_ku = 15.0
+    __pid_tu = 60.0
 
     __translator_velocity = 0.57
     __velocity_adc_setpoint = 55
@@ -113,7 +114,7 @@ class ExtrusionProcedure(Procedure):
         dt = max(1.0, experiment_time / NUMBER_OF_SAMPLES)
 
         log.info(f"Ramping rate: {self.temperature_ramp_rate:.1f} °C/min")
-        log.info(f"Ramping time: {ramping_time / 60.0:.1f} min")
+        log.info(f"Ramping time: {ramping_time * s2min:.1f} min")
 
 
         if self.dc_source_mode == 'PID':
@@ -153,7 +154,7 @@ class ExtrusionProcedure(Procedure):
                     log.warning("Caught the stop flag in the procedure")
                     break
                 current_time = time.time()
-                if (current_time - previous_time_reading) >= 0.1:
+                if (current_time - previous_time_reading) >= 0.2:
                     [TC1, TC2, force, load_cell_adc, pot_adc] = extruder_readout.reading
                     previous_time_reading = current_time
                 current_position = self.adc_to_cm(pot_adc)
@@ -164,7 +165,7 @@ class ExtrusionProcedure(Procedure):
                 self.__previous_pressure = pressures
                 control = pid(TC1)
                 self.__dc_source.voltage_setpoint = control
-                if ramping and temperature_setpoint < self.temperature_setpoint:
+                if ramping and temperature_setpoint <= self.temperature_setpoint:
                     temperature_setpoint = initial_temperature + self.temperature_ramp_rate * current_ramping_time / 60.0
                     # if temperature_setpoint >= self.temperature_setpoint:
                     #     temperature_setpoint = self.temperature_setpoint
@@ -175,11 +176,12 @@ class ExtrusionProcedure(Procedure):
                     pid.setpoint = temperature_setpoint
                     current_ramping_time = current_time - start_time
                     print(
-                        f"T = {TC1:>6.2f} °C, (Setpoint: {temperature_setpoint:>6.1f} °C), Ramping Time: {current_ramping_time:>5.2f} s",
+                        f"T = {TC1:>6.2f} °C, (Setpoint: {temperature_setpoint:>6.1f} °C), Ramping Time: {current_ramping_time*s2min:>5.2f} min",
                         end='\r', flush=True)
                     time.sleep(0.01)
 
-                if ramping and current_ramping_time >= ramping_time and not stabilizing:
+                if ramping and temperature_setpoint >= self.temperature_setpoint and not stabilizing:
+                    pid.setpoint =  self.temperature_setpoint
                     ramping = False
                     stabilizing = True
                     print("")
@@ -188,7 +190,7 @@ class ExtrusionProcedure(Procedure):
 
                 if stabilizing and current_stabilizing_time <= self.temperature_stabilization_time * 60.0:
                     # Line Cleaning: https://stackoverflow.com/questions/5419389/how-to-overwrite-the-previous-print-to-stdout
-                    print(f"T = {TC1:>6.2f} °C, (Setpoint: {temperature_setpoint:>6.1f} °C), Stabilizing Time: {current_time - stabilizing_time_t0:>5.2f} s", end='\r', flush=True)
+                    print(f"T = {TC1:>6.2f} °C, (Setpoint: {temperature_setpoint:>6.1f} °C), Stabilizing Time: {(current_time - stabilizing_time_t0)*s2min:>5.2f} min", end='\r', flush=True)
                     current_stabilizing_time = current_time - stabilizing_time_t0
                 if stabilizing and current_stabilizing_time >= self.temperature_stabilization_time * 60.0 and not baking:
                     stabilizing = False
@@ -211,7 +213,7 @@ class ExtrusionProcedure(Procedure):
 
                 if baking:
                     print(
-                        f"T = {TC1:>6.2f} °C, (Setpoint: {temperature_setpoint:>6.1f} °C), Baking Time: {(current_time - baking_t0) / 60.0:>5.1f} s",
+                        f"T = {TC1:>6.2f} °C, (Setpoint: {temperature_setpoint:>6.1f} °C), Baking Time: {(current_time - baking_t0)*s2min:>5.1f} min",
                         end='\r',
                         flush=True)
                     time.sleep(0.01)
@@ -293,9 +295,17 @@ class ExtrusionProcedure(Procedure):
         if self.__mx200 is not None:
             self.__mx200.close()
         self.unhinibit_sleep()
+        # Remove file handlers from logger
+        if len(log.handlers) > 0:
+            for h in log.handlers:
+                if isinstance(h, logging.FileHandler):
+                    log.removeHandler(h)
+                if isinstance(h, logging.NullHandler):
+                    log.removeHandler(h)
+                    log.addHandler(logging.NullHandler())
 
-    def __del__(self):
-        self.shutdown()
+    # def __del__(self):
+    #     self.shutdown()
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:

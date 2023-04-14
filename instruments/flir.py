@@ -1,7 +1,7 @@
 import PySpin
 import os
 import logging
-
+from exif import Image as ImageInfo
 
 class TriggerType:
     SOFTWARE = 1
@@ -23,6 +23,18 @@ acquisition_mode_map = {
     PySpin.AcquisitionMode_MultiFrame: 'multi frame',
     PySpin.AcquisitionMode_SingleFrame: 'single frame'
 }
+
+def modify_img_metadata(path_to_img: str, meta_dict: dict):
+    try:
+        with open(path_to_img, 'rb') as img_file:
+            img = ImageInfo(img_file)
+        for key in meta_dict:
+            val = meta_dict[key]
+            img.key = val
+        with open(path_to_img, 'wb') as new_img_file:
+            new_img_file.write(img.get_file())
+    except Exception as ex:
+        print(ex)
 
 
 class Camera:
@@ -52,6 +64,7 @@ class Camera:
     _image_prefix: str = None
     _print_info: bool = False
     _fast_timeout: bool = False
+    __busy: bool = False
     debug: bool = False
 
     def __init__(self):
@@ -62,12 +75,22 @@ class Camera:
             self._cam.Init()
             self._nodemap: PySpin.NodeMap = self._cam.GetNodeMap()
             self._path_to_images = self._path_to_images
-            # self._cam.DeviceMaxThroughput.SetValue(811057600)  # 311057600
+            # self._cam.DeviceMaxThroughput.SetValue(811057600)  # 311057600 <<<< Not writable
             self._cam.DeviceLinkThroughputLimit.SetValue(500000000)
+            self._cam.ChunkModeActive.SetValue(True)
+            self._cam.ChunkSelector.SetValue(PySpin.ChunkSelector_FrameID)
+            self._cam.ChunkEnable.SetValue(True)
+            self._cam.ChunkSelector.SetValue(PySpin.ChunkSelector_Timestamp)
+            self._cam.ChunkEnable.SetValue(True)
+            self.set_buffers(300)
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}')
             raise Exception(f'Error: {ex}')
         self.disable_gamma()
+
+    @property
+    def busy(self) -> bool:
+        return self.__busy
 
     @property
     def number_of_images(self) -> int:
@@ -245,6 +268,39 @@ class Camera:
         frame_rate_value = abs(float(frame_rate_value))
         self.configure_frame_rate(frame_rate_value=frame_rate_value)
 
+    def set_buffers(self, num_buffers):
+        # Retrieve Stream Parameters device nodemap
+        s_node_map = self._cam.GetTLStreamNodeMap()
+        # Retrieve Buffer Handling Mode Information
+        handling_mode = PySpin.CEnumerationPtr(s_node_map.GetNode('StreamBufferHandlingMode'))
+        if not PySpin.IsAvailable(handling_mode) or not PySpin.IsWritable(handling_mode):
+            self.log('Unable to set Buffer Handling mode (node retrieval). Aborting...', level=logging.WARNING)
+            return False
+
+        handling_mode_entry = PySpin.CEnumEntryPtr(handling_mode.GetCurrentEntry())
+        if not PySpin.IsAvailable(handling_mode_entry) or not PySpin.IsReadable(handling_mode_entry):
+            self.log('Unable to set Buffer Handling mode (Entry retrieval). Aborting...', level=logging.WARNING)
+            return False
+
+        # Retrieve and modify Stream Buffer Count
+        buffer_count = PySpin.CIntegerPtr(s_node_map.GetNode('StreamBufferCountManual'))
+        if not PySpin.IsAvailable(buffer_count) or not PySpin.IsWritable(buffer_count):
+            self.log('Unable to set Buffer Count (Integer node retrieval). Aborting...', level=logging.WARNING)
+            return False
+
+        # Display Buffer Info
+        self.log('Default Buffer Handling Mode: %s' % handling_mode_entry.GetDisplayName())
+        self.log('Default Buffer Count: %d' % buffer_count.GetValue())
+        self.log('Maximum Buffer Count: %d' % buffer_count.GetMax())
+
+        buffer_count.SetValue(num_buffers)
+
+        self.log('Buffer count now set to: %d' % buffer_count.GetValue())
+
+        handling_mode_entry = handling_mode.GetEntryByName('OldestFirst')
+        handling_mode.SetIntValue(handling_mode_entry.GetValue())
+        print('nBuffer Handling Mode has been set to %s' % handling_mode_entry.GetDisplayName())
+
     def configure_frame_rate(self, frame_rate_value: float):
         frame_rate_value = abs(float(frame_rate_value))
         try:
@@ -338,9 +394,9 @@ class Camera:
             trigger_type = PySpin.TriggerSelector_AcquisitionStart
 
         if self._chosen_trigger == TriggerType.SOFTWARE:
-            self.log('Software trigger chosen ...', logging.ERROR)
+            self.log('Software trigger chosen ...', logging.INFO)
         elif self._chosen_trigger == TriggerType.HARDWARE:
-            self.log('Hardware trigger chose ...', logging.ERROR)
+            self.log('Hardware trigger chose ...', logging.INFO)
 
         try:
             # Ensure trigger mode off
@@ -370,7 +426,7 @@ class Camera:
                 self.log("Changing trigger source to Line0")
                 if self._cam.TriggerActivation.GetAccessMode() != PySpin.RW:
                     self.log("Couldn't change trigger activation to Rising Edge", logging.ERROR)
-                self._cam.TriggerActivation.SetValue(PySpin.TriggerActivation_LevelHigh)
+                self._cam.TriggerActivation.SetValue(PySpin.TriggerActivation_RisingEdge)
                 self.log("Changing trigger activation to RisingEdge")
                 self.log('Trigger source set to hardware...')
             self._cam.TriggerMode.SetValue(PySpin.TriggerMode_On)
@@ -499,12 +555,13 @@ class Camera:
                 return False
             # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency
             # with the unit being used in GetNextImage
-            fast_timeout = (int) (1000.0 / self.frame_rate + 20 + self.exposure/1000)
+            fast_timeout = (int) (1000.0 / self.frame_rate + 10 + self.exposure/1000)
             # timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10)
             self.execute_trigger()
             previous_seconds = 0
             elapsed_time = 0
             i = 0
+            self.__busy = True
             if self.acquisition_mode == 'single frame':
                 self.log('Acquisition mode: single frame')
                 try:
@@ -513,6 +570,7 @@ class Camera:
                         timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 1000 + self.trigger_delay/1000)
                         self.log(f'Acquisition timeout: {timeout}')
                     image_result = self._cam.GetNextImage(timeout)
+
                     if image_result.IsIncomplete():
                         self.log('Image incomplete with image status %d...' % image_result.GetImageStatus(),
                                  logging.WARNING)
@@ -542,7 +600,8 @@ class Camera:
                         # self.log(f'Released image {i}')
                         i += 1
                 except PySpin.SpinnakerException as ex:
-                    self.log(f'Error: {ex}', logging.ERROR)
+                    self.log(f'Error acquiring single image: {ex}', logging.ERROR)
+                    self.__busy = False
                     return False
                     # self.execute_trigger()
                 # previous_seconds = current_seconds
@@ -554,16 +613,19 @@ class Camera:
                     try:
                         # self.grab_next_image_by_trigger()
                         if i == 0:
-                            timeout = 1000
+                            timeout = 200
                         else:
                             timeout = fast_timeout
-                        # image_result = self._cam.GetNextImage(timeout)
-                        image_result = self.safe_grab(timeout=timeout)
+                        image_result = self._cam.GetNextImage(timeout)
+                        # image_result = self.safe_grab(timeout=timeout)
                         if image_result.IsIncomplete():
                             self.log('Image incomplete with image status %d...' % image_result.GetImageStatus(),
                                      logging.WARNING)
 
                         else:
+                            chunk_data = image_result.GetChunkData()
+                            frame_id = chunk_data.GetFrameID()
+                            timestamp = chunk_data.GetTimestamp()
                             # Print image information
                             if self.debug:
                                 width = image_result.GetWidth()
@@ -576,7 +638,8 @@ class Camera:
                             image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
 
                             # Create a unique filename
-                            filename = '%s-%d.jpg' % (image_prefix, i+1)
+                            # filename = '%s-%d.jpg' % (image_prefix, i+1)
+                            filename = '%s-%d-%s.jpg' % (image_prefix, i+1, timestamp)
                             full_filename = os.path.join(self._path_to_images, filename)
 
                             # Save image
@@ -589,16 +652,19 @@ class Camera:
                             # self.log(f'Released image {i}')
                             i += 1
                     except PySpin.SpinnakerException as ex:
-                        self.log(f'Error: {ex}', logging.ERROR)
+                        self.log(f'Error acquiring images: {ex}', logging.ERROR)
+                        self.__busy = False
                         return False
                         # self.execute_trigger()
                     # previous_seconds = current_seconds
             self._cam.EndAcquisition()
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}', logging.ERROR)
+            self.__busy = False
             return False
         # self.acquisition_mode = PySpin.AcquisitionMode_Continuous
         # self.log('Acquisition mode set back to continuous...')
+        self.__busy = False
         return True
 
     def safe_grab(self, timeout=1000, attempts=0) -> PySpin.Image:

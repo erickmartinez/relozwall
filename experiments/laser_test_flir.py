@@ -140,7 +140,7 @@ class LaserProcedure(Procedure):
 
     def execute(self):
         self.__camera.path_to_images = self.get_image_path(acquisition_mode=self.acquisition_mode)
-        self.__camera.image_prefix = os.path.splitext(os.path.basename(self.__unique_filename))[0]
+        self.__camera.image_prefix = self.sample_name + '_IMG'
         # self.__camera.print_device_info()
         self.__camera.gain = float(self.camera_gain)
         self.__camera.exposure = float(self.camera_exposure_time)
@@ -231,7 +231,7 @@ class LaserProcedure(Procedure):
         # Start firing sequence
         elapsed_time = []
         pressure = []
-        p_previous = self.__mx200.pressure(2)
+        p_previous = self.__mx200.pressure(1)
 
         esp32.fire()
 
@@ -243,7 +243,7 @@ class LaserProcedure(Procedure):
         start_time = time.time()
         trigger_voltage = []
 
-        flir_trigger.start()
+        # flir_trigger.start()
         started_acquisition = False
 
         while total_time <= self.measurement_time + 0.0025:
@@ -252,7 +252,7 @@ class LaserProcedure(Procedure):
                 break
             current_time = time.time()
             if current_time - start_time >= 0.3 and not started_acquisition:
-                # flir_trigger.start()
+                flir_trigger.start()
                 self.__camera.fast_timeout = True
                 started_acquisition = True
             if (current_time - previous_time) >= 0.015:
@@ -261,7 +261,7 @@ class LaserProcedure(Procedure):
                     trigger_voltage.append(3.0)
                 else:
                     trigger_voltage.append(0.0)
-                p = self.__mx200.pressure(2)
+                p = self.__mx200.pressure(1)
                 if type(p) == str:
                     p = p_previous
                 pressure.append(p)
@@ -278,6 +278,9 @@ class LaserProcedure(Procedure):
                 laser_output_peak_power.append(power_peak_value)
                 elapsed_time.append(total_time)
                 previous_time = current_time
+
+        while self.__camera.busy:
+            time.sleep(0.05)
 
         if emission_on:
             try:
@@ -410,7 +413,9 @@ class LaserProcedure(Procedure):
         if self.__ylr is not None:
             self.__ylr.disconnect()
         if self.__camera is not None:
-            self.__camera.reset()
+            if not self.__camera.busy:
+                self.__camera.reset()
+                self.__camera.shutdown()
 
         if self.__oscilloscope is not None:
             self.__oscilloscope.timeout = 1

@@ -37,8 +37,8 @@ class ExtrusionProcedure(Procedure):
     ramping_rate = FloatParameter('Ramping rate', units='C/min', default=25.0, minimum=5.0, maximum=100.0)
     pid_stabilizing_time = FloatParameter('Temperature stabilization time', units='s', minimum=60, maximum=600,
                                           default=60)
-    ku = FloatParameter('Ku', minimum=1., maximum=10000., default=5000.0)
-    tu = FloatParameter('Tu', minimum=1., maximum=10000., default=15.5)
+    ku = FloatParameter('Ku', minimum=1., maximum=10000., default=15.0)
+    tu = FloatParameter('Tu', minimum=1., maximum=10000., default=60.0)
     is_baseline = BooleanParameter('Is baseline?', default=False)
     load_cell_range = FloatParameter('Load cell range', units='kg', default=30, minimum=10.0, maximum=50.0)
     load_cell_prediction_error_pct = FloatParameter('Load cell error %', units='%', default=9.8, minimum=0.001,
@@ -155,7 +155,7 @@ class ExtrusionProcedure(Procedure):
 
             if ramping and current_ramping_time <= ramping_time + 0.1:
                 temperature_setpoint = initial_temperature + self.ramping_rate * current_ramping_time / 60.0
-                if temperature_setpoint > self.temperature_setpoint:
+                if temperature_setpoint >= self.temperature_setpoint:
                     temperature_setpoint = self.temperature_setpoint
                     ramping = False
                 print(
@@ -259,12 +259,15 @@ class ExtrusionProcedure(Procedure):
         self.unhinibit_sleep()
         # Remove file handlers from logger
         if len(log.handlers) > 0:
-            for handler in log.handlers:
-                if isinstance(handler, logging.FileHandler):
-                    log.removeHandler(handler)
+            for h in log.handlers:
+                if isinstance(h, logging.FileHandler):
+                    log.removeHandler(h)
+                if isinstance(h, logging.NullHandler):
+                    log.removeHandler(h)
+                    log.addHandler(logging.NullHandler())
 
-    def __del__(self):
-        self.shutdown()
+    # def __del__(self):
+    #     self.shutdown()
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
