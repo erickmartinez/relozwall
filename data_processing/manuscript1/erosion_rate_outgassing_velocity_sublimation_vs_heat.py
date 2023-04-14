@@ -5,7 +5,7 @@ import os
 import json
 import numpy as np
 from matplotlib import ticker
-from utils import lighten_color
+from data_processing.utils import lighten_color
 
 base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
 csv_outgassing = r'GC_GRAPHITE_POWER_SCAN_OUTGASSING.csv'
@@ -13,8 +13,13 @@ csv_disintegration = r'velocity_database.csv'
 csv_soot_deposition = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests' \
                       r'\surface_temperature\equilibrium_redone\slide_transmission_smausz.csv'
 
-csv_degassing = '../data/degassing_database_gc_graphite.csv'
+csv_degassing = '../../data/degassing_database_gc_graphite.csv'
 output_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\figures'
+
+nir_hl = np.array([45.])
+nir_v0 = np.array([118.])
+nir_v0_lb = nir_v0 - np.array([19.])
+nir_v0_ub = np.array([724.]) - nir_v0
 
 p0 = 4.7E3
 p0_err_pct = 12.5
@@ -26,7 +31,8 @@ sample_diameter = 0.92
 Correction factor from second peak for revision number 1 JAP - Estimation lead to pumping speed of ~20 L/s
 Peaks estimated to be 6000 vs 1500 Torr-L/m^2/s for first peak compared to second peak
 """
-outgassing_factor_20230331 = 0.25
+outgassing_factor_20230331 = 0.103
+outgassing_error_factor = 0.525
 
 
 def csv_match_size(df1, df2):
@@ -36,7 +42,7 @@ def csv_match_size(df1, df2):
 
 
 def load_plt_style():
-    with open('plot_style.json', 'r') as file:
+    with open('../plot_style.json', 'r') as file:
         json_file = json.load(file)
         plot_style = json_file['defaultPlotStyle']
     mpl.rcParams.update(plot_style)
@@ -138,6 +144,7 @@ if __name__ == '__main__':
     heat_load_graphite = heat_load.max() * np.ones_like(outgassing_rate_graphite)
     heat_load_prebaked = heat_load.max() * np.ones_like(outgassing_rate_prebaked)
 
+    outgassing_rate_graphite *= outgassing_factor_20230331
     outgassing_rate_prebaked *= outgassing_factor_20230331
 
     load_plt_style()
@@ -166,24 +173,31 @@ if __name__ == '__main__':
     ax[0, 1].errorbar(
         heat_load_agg, pebble_velocity, yerr=pebble_velocity_err, ls='none',
         color='C1', marker='s', ms=8, fillstyle='none', ecolor=lighten_color('C1', 0.25),
-        capsize=2.5, mew=1.25, elinewidth=1.25,
+        capsize=2.5, mew=1.25, elinewidth=1.25, label='Final positions'
+    )
+
+    # ax_nir = ax[0, 1].twinx()
+    ax[0, 1].errorbar(
+        nir_hl, nir_v0, yerr=(nir_v0_lb, nir_v0_ub), ls='none',
+        color='saddlebrown', marker='>', ms=8, fillstyle='full', ecolor=lighten_color('saddlebrown', 0.25),
+        capsize=2.5, mew=1.25, elinewidth=1.25, label='NIR imaging'
     )
 
     ax[1, 0].errorbar(
-        heat_load, outgassing_rate, yerr=(outgassing_rate * 0.5, outgassing_rate), ls='none',
+        heat_load, outgassing_rate, yerr=(outgassing_rate * outgassing_error_factor, outgassing_rate * outgassing_error_factor), ls='none',
         color='C2', marker='^', ms=8, fillstyle='none',
         capsize=2.5, mew=1.25, elinewidth=1.25,
     )
 
     ax[1, 0].errorbar(
-        heat_load_graphite, outgassing_rate_graphite, yerr=(outgassing_rate_graphite * 0.5, outgassing_rate_graphite),
+        heat_load_graphite, outgassing_rate_graphite, yerr=(outgassing_rate_graphite * outgassing_error_factor, outgassing_rate_graphite * outgassing_error_factor),
         ls='none',
         color='goldenrod', marker='o', ms=8, fillstyle='full', label='Graphite',
         capsize=2.5, mew=1.25, elinewidth=1.25,
     )
 
     ax[1, 0].errorbar(
-        heat_load_prebaked, outgassing_rate_prebaked, yerr=(outgassing_rate_prebaked * 0.5, outgassing_rate_prebaked),
+        heat_load_prebaked, outgassing_rate_prebaked, yerr=(outgassing_rate_prebaked * outgassing_error_factor, outgassing_rate_prebaked * outgassing_error_factor),
         ls='none',
         color='magenta', marker='h', ms=8, fillstyle='none', label='Outgassed pebbles',
         capsize=2.5, mew=1.25, elinewidth=1.25,
@@ -215,11 +229,17 @@ if __name__ == '__main__':
     ax[0, 0].yaxis.set_major_locator(ticker.LogLocator(base=10, numticks=10))
     ax[0, 0].yaxis.set_minor_locator(ticker.LogLocator(base=10, subs=np.arange(2, 10) * .1, numticks=20))
 
-    ax[0, 1].set_ylabel('cm/s')
-    ax[0, 1].set_ylim(bottom=-10.0, top=80)
+    ax[0, 1].set_ylabel('v$_{\mathregular{0}}$ (cm/s)', color='k')
+    ax[0, 1].set_ylim(bottom=-10.0, top=150)
     ax[0, 1].set_title('Pebble velocity')
-    ax[0, 1].yaxis.set_major_locator(ticker.MultipleLocator(20))
-    ax[0, 1].yaxis.set_minor_locator(ticker.MultipleLocator(10))
+    ax[0, 1].yaxis.set_major_locator(ticker.MultipleLocator(50))
+    ax[0, 1].yaxis.set_minor_locator(ticker.MultipleLocator(25))
+    ax[0, 1].tick_params(axis='y', labelcolor='k')
+    # ax_nir.set_ylabel('v$_{\mathregular{0, method~2}}$ (cm/s)', color='saddlebrown')
+    # ax_nir.tick_params(axis='y', labelcolor='saddlebrown')
+    # ax_nir.set_ylim(-10., 1000)
+    # ax_nir.yaxis.set_major_locator(ticker.MultipleLocator(250))
+    # ax_nir.yaxis.set_minor_locator(ticker.MultipleLocator(50))
 
     ax[1, 0].set_ylabel('Torr-L/s m$^{\mathregular{2}}$')
     ax[1, 0].set_ylim(bottom=1.0, top=1E4)
@@ -227,13 +247,18 @@ if __name__ == '__main__':
     ax[1, 0].yaxis.set_major_locator(ticker.LogLocator(base=10, numticks=10))
     ax[1, 0].yaxis.set_minor_locator(ticker.LogLocator(base=10, subs=np.arange(2, 10) * .1, numticks=20))
 
-    ax[1, 1].set_ylabel('$\mathregular{\mu}$m/s')
+    ax[1, 1].set_ylabel('nm/s')
     ax[1, 1].set_ylim(bottom=-25.0, top=250)
     ax[1, 1].set_title('Sublimation rate')
     ax[1, 1].yaxis.set_major_locator(ticker.MultipleLocator(50))
     ax[1, 1].yaxis.set_minor_locator(ticker.MultipleLocator(25))
 
     ax[0, 0].legend(
+        loc='upper left', frameon=True,
+        prop={'size': 8}
+    )
+
+    ax[0, 1].legend(
         loc='upper left', frameon=True,
         prop={'size': 8}
     )

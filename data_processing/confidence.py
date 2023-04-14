@@ -263,9 +263,9 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
                          'as the length of the predictions.')
     if len(yd) <= 1:
         raise ValueError('Too few datapoints')
-    from scipy.optimize import optimize
+    # from scipy.optimize import optimize
 
-    if not isinstance(res, optimize.OptimizeResult):
+    if not isinstance(res, OptimizeResult):
         raise ValueError('Argument \'res\' should be an instance of \'scipy.optimize.OptimizeResult\'')
 
     simultaneous = kwargs.get('simultaneous', True)

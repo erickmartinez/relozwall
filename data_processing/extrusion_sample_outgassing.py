@@ -11,7 +11,8 @@ from scipy.interpolate import interp1d
 
 base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\extrusion setup\outgassing'
 pumping_speed_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\extrusion setup\pumping_speed\pumpdown_venting\DEGASSING_EXTRUDER_FRONT_CHAMBER_PUMPDOWN_2022-06-08_1_pumping_speed'
-data_csv = 'EXTRUSION_SACRIFICIAL_20220705_R3N51_FONT_0800C2022-07-07_1_CORRECTED_ISBAKING'
+# data_csv = 'EXTRUSION_SACRIFICIAL_20220705_R3N51_FONT_0800C2022-07-07_1_CORRECTED_ISBAKING'
+data_csv = 'EXTRUSION_R4N36_200-400UM_CYREZ_0800C2023-01-25_1'
 surface_cm2 = 0.25 * np.pi * 1.5 ** 2.0
 print(f'Surface Area: {surface_cm2}')
 label = '800 °C'

@@ -66,7 +66,7 @@ if __name__ == '__main__':
     ax.set_ylim(60,180)
     ax.set_xlim(-5, 105)
     ax.text(
-        -0.0, -0.2, '185 $\mathregular{\mu}$m', transform=ax.transAxes, fontsize=12, fontweight='regular',
+        -0.0, -0.2, '220 $\mathregular{\mu}$m', transform=ax.transAxes, fontsize=12, fontweight='regular',
         va='bottom', ha='center'
     )
     ax.text(

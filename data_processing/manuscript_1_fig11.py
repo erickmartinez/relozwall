@@ -93,7 +93,7 @@ if __name__ == '__main__':
     ax[0].set_ylim(0.05, 0.25)
     ax[0].set_xlim(-5, 105)
     ax[0].text(
-        -0.0, -0.25, '185 $\mathregular{\mu}$m', transform=ax[0].transAxes, fontsize=11, fontweight='regular',
+        -0.0, -0.25, '220 $\mathregular{\mu}$m', transform=ax[0].transAxes, fontsize=11, fontweight='regular',
         va='bottom', ha='center'
     )
     ax[0].text(
