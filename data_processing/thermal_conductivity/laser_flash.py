@@ -3,8 +3,17 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 from scipy.optimize import root_scalar
+import pandas as pd
 import json
 
+"""
+This code plots Fig 1 from W.J. Parker, et al. J. Appl. Phys. 32, 1679 (1961)
+https://doi.org/10.1063/1.1728417
+
+It also finds the roots for V(w) for different values of V and saves it in a csv file
+"""
+
+PI2 = np.pi ** 2.
 
 def get_dv(ww):
     s = 0
@@ -19,7 +28,7 @@ def get_dv(ww):
 def get_v(ww):
     s = 0
     for i in range(1, 502):
-        sign = -1 if i % 2 == 1.0 else 1.0
+        sign = -1.0 if i % 2 == 1.0 else 1.0
         n2 = i * i
         s += sign * np.exp(-n2 * ww)
     r = 1.0 + 2.0 * s
@@ -48,13 +57,41 @@ if __name__ == '__main__':
     all_tol = np.finfo(np.float64).eps
     # sol = root_scalar(get_wh, bracket=[1.1, 3], method='brentq', xtol=all_tol, rtol=all_tol ** 0.5,
     #                   maxiter=100 * len(w))
-    sol = root_scalar(get_wh, x0=1.3, fprime=get_dv, method='newton', xtol=all_tol,
-                      rtol=all_tol ** 0.5, maxiter=1000 * len(w))
+    sol = root_scalar(get_wh, x0=1., fprime=get_dv, method='newton', xtol=all_tol,
+                      rtol=all_tol, maxiter=10000)
 
     wh = sol.root
     slope = get_dv(wh)
     wx = wh - 0.5 / slope
+    # b = 0.5 - slope * wh
+    # wx = - b / slope
     print(f'Slope = {slope:.3f}')
+
+    """
+    Make a table with the values of the intercept for different values of V
+    """
+    selected_v = 10. * np.arange(0, 10) 
+    selected_v = np.hstack([selected_v, 33.3, 66.7])
+    selected_v.sort()
+    resulting_w = np.empty_like(selected_v)
+    for i, vv in enumerate(selected_v):
+        f = lambda y: get_v(y) - vv/100.
+        soli = root_scalar(
+            f, x0=0.5, fprime=get_dv, method='newton', xtol=all_tol,
+            rtol=all_tol, maxiter=10000
+        )
+        resulting_w[i] = soli.root
+
+    resulting_k = resulting_w / PI2
+
+    k_df = pd.DataFrame(data={
+        'V (%)': selected_v,
+        'w(V)': resulting_w,
+        'k(V)': resulting_k
+    })
+
+    print(k_df)
+    k_df.to_csv('dimensionless_parameters.csv', index=False)
 
     load_plot_style()
 
@@ -73,8 +110,8 @@ if __name__ == '__main__':
     ax1.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
     plt.axline((wh, 0.5), slope=slope, color="tab:grey", ls='--', lw=1.0)
 
-    wh_txt = f'$\\omega_{{1/2}}$ = {wh:.3f}, $V$ = {get_v(wh):.3f}\n'
-    wh_txt += f'$\\omega_{{x}}$ = {wx:.3f}'
+    wh_txt = f'$\\omega_{{1/2}}$ = {wh:.4f}, $V$ = {get_v(wh):.4f}\n'
+    wh_txt += f'$\\omega_{{x}}$ = {wx:.4f}'
     ax1.text(
         0.95, 0.05, wh_txt,
         ha='right', va='bottom',

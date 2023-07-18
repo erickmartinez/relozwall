@@ -19,13 +19,13 @@ samples = [
     {'sample_id': 'R4N20', 'label': 'SiNx spheres', 'material': 'SiNx', 'thermal_conductivity': 0.25, 'h2': False,
      'CTE': 3.2E-6},
     {'sample_id': 'R4N21', 'label': 'SiC spheres', 'material': 'SiC', 'thermal_conductivity': 1.2, 'h2': False,
-     'CTE': 3.0E-6},
+     'CTE': 3.8E-6},
     {'sample_id': 'R4N22', 'label': 'GC spheres', 'material': 'glassy carbon', 'thermal_conductivity': 0.0651,
      'h2': False, 'CTE': 3.78E-6},
     {'sample_id': 'R4N22-H2', 'label': 'GC spheres (H2)', 'material': 'glassy carbon', 'thermal_conductivity': 0.0651,
      'h2': True, 'CTE': 3.78E-6},
     {'sample_id': 'R4N23', 'label': 'Graphite granules', 'material': 'Graphite', 'thermal_conductivity': 2.10465,
-     'h2': False, 'CTE': 2.64E-5},
+     'h2': False, 'CTE': 8.22E-6},
     {'sample_id': 'R4N24', 'label': 'hBN granules', 'material': 'hBN', 'thermal_conductivity': 1.741, 'h2': False,
      'CTE': 3.77E-5},
     {'sample_id': 'R4N46', 'label': 'hBN-coated GC', 'material': 'hBN-coated GC', 'thermal_conductivity': 1.2,
@@ -231,16 +231,18 @@ if __name__ == '__main__':
     for i, p in enumerate(laser_power_mapping):
         print(f'Laser power setting: {p}')
         df2 = not_h2_df.query(f'`Power percent setting (%)` == {p:.0f}')
+        print(df2[['Material', 'Erosion Rate (cm/s)']])
         # df2 = not_h2_df[df['Power percent setting (%)'] == p].reset_index(drop=True)
         df2 = df2.groupby('CTE (/K)').agg({
             'Sample Diameter (cm)': ['mean', 'std'],
             'Erosion Rate (cm/s)': ['mean', 'std'],
-            'Loss Rate Error (cm/s)': ['mean', 'max']
+            'Loss Rate Error (cm/s)': ['mean', 'max'],
+            'Material': ['first'],
         })
 
-        print(df2)
-
+        # print(df2.columns)
         df2.fillna(0, inplace=True)
+        print(df2[['Material', 'Erosion Rate (cm/s)']])
         # df2['Loss Rate Error (cm/s)']['mean'] = df2['Loss Rate Error (cm/s)']['mean'].fillna(0)
         print(df2['Loss Rate Error (cm/s)']['mean'])
 

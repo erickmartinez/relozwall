@@ -104,7 +104,9 @@ def main():
     temperatures_k = temperatures + 273.15
 
     n = len(model_df)
-    alpha_t = np.empty(n, dtype=np.dtype([('Reference', '<U6'), ('alpha_a (/K)', 'd'), ('alpha_c (/K)', 'd')]))
+    alpha_t = np.empty(n, dtype=np.dtype([
+        ('Reference', '<U6'), ('alpha_a (x10^{-6}/K)', 'd'), ('alpha_c (x10^{-6}/K)', 'd'), ('alpha_m (x10^{-6}/K)', 'd')
+    ]))
 
     load_plt_style()
     fig, ax = plt.subplots(nrows=2, ncols=1, constrained_layout=True)
@@ -117,7 +119,8 @@ def main():
         a_t = cte_graphite(
             temperature=target_temperature_k, debye_temperature=theta, coefficients=b, units='K'
         )
-        alpha_t[i] = (lbl, a_t[0], a_t[1])
+        a_t *= 1E6
+        alpha_t[i] = (lbl, a_t[0], a_t[1], (2.*a_t[0] + a_t[1]))
 
         # alpha = cte_graphite(
         #     temperature=temperatures,
@@ -128,6 +131,7 @@ def main():
 
         alpha_a = np.empty_like(temperatures)
         alpha_c = np.empty_like(temperatures)
+
         for j, temp in enumerate(temperatures):
             alpha_a[j], alpha_c[j] = cte_graphite(
                 temperature=temp, debye_temperature=theta,
@@ -176,8 +180,10 @@ def main():
     print(alpha_t)
     fig.suptitle('CTE of graphite (Tsang 2005)')
 
-    txt_a = f"$\\alpha_{{\\mathrm{{a}}}}$ (mean, 300 K) = $\\mathregular{{{latex_float(alpha_t['alpha_a (/K)'].mean())}}}$ (/K)"
-    txt_c = f"$\\alpha_{{\\mathrm{{c}}}}$ (mean, 300 K) = $\\mathregular{{{latex_float(alpha_t['alpha_c (/K)'].mean())}}}$ (/K)"
+    units_str = '(x10$^{\\mathregular{-6}}$/K)'
+
+    txt_a = f"$\\alpha_{{\\mathrm{{a}}}}$ (mean, 300 K) = {alpha_t['alpha_a (x10^{-6}/K)'].mean():.1f} {units_str}"
+    txt_c = f"$\\alpha_{{\\mathrm{{c}}}}$ (mean, 300 K) = {alpha_t['alpha_c (x10^{-6}/K)'].mean():.1f} {units_str}"
     ax[0].text(
         0.95, 0.05, txt_a, transform=ax[0].transAxes, fontsize=9, fontweight='regular',
         va='bottom', ha='right', color='b'

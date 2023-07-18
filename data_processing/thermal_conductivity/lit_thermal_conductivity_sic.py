@@ -77,6 +77,15 @@ def main():
     ax.set_ylim(0.0001, 1E4)
     ax.set_ylabel('Thermal conductivity (W/cm-K)')
 
+    ax.text(
+        0.05, 0.95, f'$\\alpha_{{\mathrm{{300~K}}}} = {f(300):.2f}$ W/cm-K',
+        horizontalalignment='left',
+        verticalalignment='top',
+        color='k',
+        transform=ax.transAxes,
+        fontsize=11
+    )
+
     leg = ax.legend(
         loc='lower left', frameon=True,
         mode='expand',

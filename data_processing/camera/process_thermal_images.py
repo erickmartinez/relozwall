@@ -14,8 +14,8 @@ import matplotlib as mpl
 import json
 
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
-info_csv = r'LCT_R4N55_100PCT_2023-03-16_1.csv'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\OTHER'
+info_csv = r'LCT_R4N78_ROW333_070PCT_2023-07-14_1.csv'
 frame_rate = 200.0
 pixel_size = 20.4215  # pixels/mm
 p = re.compile(r'.*?-(\d+)\.jpg')
@@ -31,6 +31,14 @@ crop_extents = {
     'top': center[1] - crop_r,
     'right': 1440 - (center[0] + crop_r),
     'bottom': 1080 - (center[1] + crop_r)
+}
+
+remove_reflection = False
+reflection_extents = {
+    'p1': (755, 0),
+    'p2': (910, 0),
+    'p3': (755, 90),
+    'p4': (910, 90)
 }
 
 def get_files(base_dir: str, tag: str):
@@ -51,6 +59,16 @@ def subtract_images(img2: np.ndarray, img1:np.ndarray):
             im[i, j] = d
     return im
 
+def clear_pixels(img: np.ndarray, extents: dict):
+    p1, p2, p3, p4 = extents['p1'], extents['p2'], extents['p3'], extents['p4']
+    x1, x2 = p1[0], p2[0] + 1
+    y1, y2 = p1[1], p3[1] + 1
+    # print(f"x1: {x1}, x2: {x2}, y1: {y1}, y2: {y2}")
+    # for i in range(0, 80):
+    #     for j in range(763, 900):
+    #         img[i, j] = 255
+    img[y1:y2, x1:x2] = 0
+    return img
 
 
 def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, file_tag, fig, image_save_path):
@@ -61,12 +79,14 @@ def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, fil
     if crop_image:
         img = get_cropped_image(img)
         file_tag = file_tag + '_cropped'
+    elif remove_reflection:
+        img = clear_pixels(img=img, extents=reflection_extents)
     m = p.match(file)
     dt = (float(m.group(1)) - t0) * 1E-9
-    # if dt <= pulse_width:
-    #     # tmp = img - img0
-    #     # tmp[img < 0] = 0
-    #     img = cv2.subtract(img, img0)
+    if dt <= pulse_width:
+        # tmp = img - img0
+        # tmp[img < 0] = 0
+        img = cv2.subtract(img, img0)
     # img = img.astype(np.uint8)
     temp_img = convert_to_temperature(img, cal)
     dt_txt = f'{dt:05.4f} s'
@@ -148,13 +168,14 @@ def main():
     temp_im = convert_to_temperature(np.zeros_like(img), cal)
 
 
+
     with open('../plot_style.json', 'r') as file:
         json_file = json.load(file)
         plot_style = json_file['thinLinePlotStyle']
     mpl.rcParams.update(plot_style)
     mpl.rcParams['axes.labelpad'] = 5.
 
-    fig, ax = plt.subplots(ncols=1, nrows=1, constrained_layout=True, frameon=False)
+    fig, ax = plt.subplots(ncols=1, nrows=1, constrained_layout=True)#, frameon=False)
     # fig.set_size_inches(px2mm * frameSize[1] / 25.4, px2mm * frameSize[0] / 25.4)
     scale_factor = 2.5 if crop_image else 1.
     aspect_ratio = 1.5 # 1.65 if crop_image else 1.5
@@ -222,7 +243,7 @@ def main():
         fargs=(line, list_of_files, initial_timestamp, img, pulse_length, cal, images_path, file_tag, fig, image_save_path)
     )
 
-    plt.show()
+    # plt.show()
 
     ft = file_tag + '_movie.mp4'
     if crop_image:

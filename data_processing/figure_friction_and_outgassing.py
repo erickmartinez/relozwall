@@ -126,11 +126,11 @@ if __name__ == '__main__':
 
         c = cmap(norm(temperature_c.max()))
         ax[1].plot(
-            time_s / 60.0, temperature_c, label=lbl, color=c, ls=ls[i], lw=1.5
+            time_s / 60.0, temperature_c, label=lbl, color=c, lw=1.5, #ls=ls[i],
         )
 
         ax[2].plot(
-            time_s / 60.0, outgassing_rate, label=lbl, color=c, ls=ls[i], lw=1.5
+            time_s / 60.0, outgassing_rate, label=lbl, color=c, lw=1.5, #ls=ls[i],
         )
 
     ax[1].set_xlabel('Time (min)')
