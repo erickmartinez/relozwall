@@ -6,34 +6,38 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import pandas as pd
 
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests'
+database_filetag = 'merged_db'
+
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
 # The ID and range of a sample spreadsheet.
 LASER_SAMPLE_SPREADSHEET_ID = '1Ga9_mzYaTId76LA3Kp2ZczzjOPLkiJcfy_B3jgwjznM'
-LASER_SAMPLE_RANGE_NAME = 'Tests!A:S'
+LASER_SAMPLE_RANGE_NAME = 'Tests!A:AA'
 
 RECIPE_SAMPLE_SPREADSHEET_ID = '1MOLyrv2BX5GRrboMMgVXZA9SU4779zFoSvm4sHrJt4k'
-RECIPE_SAMPLE_RANGE_NAME = 'Recipe 4!A:V'
+RECIPE_SAMPLE_RANGE_NAME = 'Recipe 4!A:W'
 
 MERGED_COLUMNS = [
     'ROW', 'Sample code', 'Power percent setting (%)', 'Irradiation time (s)', 'Pressure (mTorr)', 'Density (g/cm^3)',
     'Density error (g/cm^3)', 'Sample diameter (cm)', 'Diameter error (cm)', 'Recession rate (cm/s)',
-    'Recession rate error (cm/s)', 'Spheres (wt %)', 'Filler (wt %)', 'Binder (wt %)', 'Resin (wt %)', 'Hardener (wt %)',
-    'Type of spheres', 'Type of filler', 'Type of hardener', 'Baking temperature (°C)', 'Baking time (min)',
-    'Cast tube length (cm)'
+    'Recession rate error (cm/s)', 'Quality', 'Spheres (wt %)', 'Filler (wt %)', 'Binder (wt %)', 'Resin (wt %)',
+    'Hardener (wt %)', 'Type of spheres', 'Type of filler', 'Type of hardener', 'Baking temperature (°C)',
+    'Baking time (min)', 'Ramping rate (°C/min)', 'Cast tube length (cm)', 'Cast tube ID (cm)'
 ]
 
 NUMERIC_COLS = [
     'ROW', 'Power percent setting (%)', 'Irradiation time (s)', 'Pressure (mTorr)', 'Density (g/cm^3)',
     'Density error (g/cm^3)', 'Sample diameter (cm)', 'Diameter error (cm)', 'Recession rate (cm/s)',
     'Recession rate error (cm/s)', 'Spheres (wt %)', 'Filler (wt %)', 'Binder (wt %)', 'Resin (wt %)',
-    'Hardener (wt %)', 'Baking temperature (°C)', 'Baking time (min)', 'Cast tube length (cm)'
+    'Hardener (wt %)', 'Baking temperature (°C)', 'Baking time (min)', 'Cast tube length (cm)', 'Quality',
+    'Ramping rate (°C/min)', 'Cast tube ID (cm)'
 ]
 
-DISCARD_ROWS = [
-    173, 174
-]
+# DISCARD_ROWS = [
+#     173, 174
+# ]
 
 def pull_sheet_data(spreadsheet_id, sheet_range):
     """Shows basic usage of the Sheets API.
@@ -94,8 +98,16 @@ if __name__ == '__main__':
     df_merged = df_merged[MERGED_COLUMNS]
     df_merged[NUMERIC_COLS] = df_merged[NUMERIC_COLS].apply(pd.to_numeric)
     df_merged = df_merged[df_merged['Spheres (wt %)'].notna()]
-    df_merged = df_merged[~df_merged['ROW'].isin(DISCARD_ROWS)]
-    df_merged.to_csv(r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\merged_db.csv', index=False)
+    df_merged = df_merged[df_merged['Quality'] > 0 ]
+    # df_merged.to_csv(
+    #     r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\merged_db.csv', index=False,
+    #     encoding="utf-8"
+    # )
+    df_merged.to_excel(
+        os.path.join(base_path, database_filetag + '.xlsx'),
+        sheet_name='Laser tests',
+        index=False
+    )
 
     # df = pd.DataFrame(gdata[1:], columns=gdata[1,:])
     print(df_merged)

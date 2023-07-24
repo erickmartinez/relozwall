@@ -18,7 +18,7 @@ PI2 = np.pi ** 2.
 def get_dv(ww):
     s = 0
     for i in range(1, 502):
-        sign = -1.0 if i % 2 == 1 else 1.0
+        sign = -1. if (i % 2) == 1 else 1.
         n2 = i * i
         s += sign * n2 * np.exp(-n2 * ww)
     r = -2.0 * s

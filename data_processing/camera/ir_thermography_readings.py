@@ -14,8 +14,8 @@ from data_processing.utils import get_experiment_params, latex_float
 emissivity = 0.8
 # emissivity = 1.0 - (36.9 / 100)
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration'
-csv = 'LT_GRAPHITE-photodiode_100PCT_2023-02-22_1.csv'
+base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\calibration_20230721'
+laser_firing_csv = 'LT_GRAPHITE_100PCT_2023-07-19_2.csv'
 
 camera_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\BFS-U3-16S2M_QE.csv'
 filter_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\86117_Transmission.csv'
@@ -134,8 +134,9 @@ def main():
 
     fig1.savefig(os.path.join(base_dir, 'camera_responsivity.png'), dpi=600)
 
+    # read temperature from sensor
     thermometry = irt.PDThermometer()
-    df = pd.read_csv(os.path.join(base_dir, csv), comment='#').apply(pd.to_numeric)
+    df = pd.read_csv(os.path.join(base_dir, laser_firing_csv), comment='#').apply(pd.to_numeric)
     measured_time = df['Measurement Time (s)'].values
     trigger_voltage = df['Trigger (V)'].values
     pd_voltage = df['Photodiode Voltage (V)'].values
@@ -157,7 +158,7 @@ def main():
     pd_voltage = pd_voltage[idx_on]
     reflection_signal = reflection_signal[idx_on]
 
-    experiment_params = get_experiment_params(relative_path=base_dir, filename=os.path.splitext(csv)[0])
+    experiment_params = get_experiment_params(relative_path=base_dir, filename=os.path.splitext(laser_firing_csv)[0])
     photodiode_gain = float(experiment_params['Photodiode Gain']['value'])
     laser_power_setting = experiment_params['Laser power setpoint']['value']
     emission_time = float(experiment_params['Emission time']['value'])

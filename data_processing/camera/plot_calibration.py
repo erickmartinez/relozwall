@@ -12,9 +12,9 @@ import ir_thermography.thermometry as irt
 from data_processing.utils import get_experiment_params, latex_float
 
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration'
-csv = 'adc_calibration_20230309.csv'
-thermometry_csv = 'LT_GRAPHITE-photodiode_100PCT_2023-02-22_1.csv'
+base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\calibration_20230721'
+csv = 'adc_calibration_20230721.csv'
+thermometry_csv = 'LT_GRAPHITE_100PCT_2023-07-19_2.csv'
 
 cutoff_b = 7.75E-3
 
@@ -73,7 +73,7 @@ def main():
     adc_fit = adc_value[idx_cutoff]
     brightness_fit = brightness_pd[idx_cutoff]
 
-    idx_temp_cutoff = (brightness_pd <= cutoff_b) & (temperature > 1300)
+    idx_temp_cutoff = (brightness_pd <= cutoff_b) & (temperature > 1000)
     adc_fit_temp = adc_value[idx_temp_cutoff]
     temperature_fit = temperature[idx_temp_cutoff]
 
@@ -152,7 +152,7 @@ def main():
 
     axes[0].set_yscale('log')
 
-    axes[0].set_ylabel('Brightness (W/ster/nm)')
+    axes[0].set_ylabel('Brightness (W/ster/nm/cm$^{\\mathregular{2}}$)')
     axes[0].set_ylim(1E-3, 1E-1)
     # axes[0].ticklabel_format(style='sci', axis='y', scilimits=(-2, 2), useMathText=True)
     axes[0].yaxis.set_major_locator(ticker.MultipleLocator(0.01))

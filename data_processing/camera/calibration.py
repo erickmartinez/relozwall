@@ -11,18 +11,19 @@ from skimage.io import imread, imsave
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import re
 from scipy.interpolate import interp1d
+import datetime
 import matplotlib.ticker as ticker
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration'
+base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\calibration_20230721'
 # images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\LCT_GRAPHITE_100PCT_2023-02-21_1_images'
-images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\LCT_GRAPHITE_100PCT_2023-03-10_3_images'
+images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\calibration_20230721\LCT_GRAPHITE_100PCT_2023-07-21_2_images'
 calibration_csv = 'temperature_data.csv'
 file_tag = 'GRAPHITE_IMG'
 frame_rate = 200.0
 p = re.compile(r'.*?-(\d+)\.jpg')
 # spot_center = np.array([36.49, 29.77])
 spot_center = np.array([36.34, 29.53])
-spot_center = np.array([19.69,24.39])
+spot_center = np.array([19.8, 27.93])
 pixel_size = 20.8252  # pixels/mm
 px2mm = 1. / pixel_size
 diameter = 2.68
@@ -43,13 +44,14 @@ def get_spot_indices(center):
     y = px2mm * np.arange(0, 1080)
     r2 = radius ** 2.
     idx = []
-    cx, cy = center[0], px2mm*1080 - center[1]
+    cx, cy = center[0], px2mm * 1080 - center[1]
     for i, xi in enumerate(x):
         for j, yi in enumerate(y):
             rr = (xi - cx) ** 2.0 + (yi - cy) ** 2.0
             if rr <= r2:
                 idx.append({'ix': i, 'iy': j})
     return idx
+
 
 def average_value(img: np.ndarray, idx_list: list) -> float:
     s = 0.
@@ -98,7 +100,7 @@ def main():
     func_brightness = interp1d(time_s, brightness)
     # center[0] = 1080 * mm2px - center[0]
     center = spot_center[::]
-    center[1] = 1080 * px2mm - center[1]
+    # center[1] = 1080 * px2mm - center[1]
     spot_indices = get_spot_indices(center)
 
     list_of_files = get_file_list(base_dir=images_base_path, tag=file_tag)
@@ -134,7 +136,7 @@ def main():
     mpl.rcParams.update(plot_style)
 
     fig, ax = plt.subplots(ncols=1)
-    fig.set_size_inches(px2mm*frameSize[1]/25.4, px2mm*frameSize[0]/25.4)
+    fig.set_size_inches(px2mm * frameSize[1] / 25.4, px2mm * frameSize[0] / 25.4)
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
     plt.axis('off')
     norm1 = plt.Normalize(vmin=0, vmax=255)
@@ -175,15 +177,17 @@ def main():
         fargs=(line, list_of_files, initial_timestamp, func, func_brightness, calibration_adc, spot_indices, avg0)
     )
 
-    # ln, file_list, t0, temperature_func: callable, calibration: np.ndarray
+    plt.show()
 
-    ft = file_tag + '_temperature_spot_movie_20230309.mp4'
+    # ln, file_list, t0, temperature_func: callable, calibration: np.ndarray
+    now = datetime.datetime.now()
+    now_str = now.strftime("%Y%m%d")
+    ft = file_tag + f'_temperature_spot_movie_{now_str}.mp4'
     # save_dir = os.path.dirname(base_dir)
-    ani.save(os.path.join(base_dir, ft), writer=writer, dpi=pixel_size*25.4)
+    ani.save(os.path.join(base_dir, ft), writer=writer, dpi=pixel_size * 25.4)
 
     adc_df = pd.DataFrame(data=calibration_adc)
-    adc_df.to_csv(os.path.join(base_dir, 'adc_calibration_20230309.csv'), index=False, encoding='utf-8-sig')
-    plt.show()
+    adc_df.to_csv(os.path.join(base_dir, f'adc_calibration_{now_str}.csv'), index=False, encoding='utf-8-sig')
 
 
 if __name__ == '__main__':
