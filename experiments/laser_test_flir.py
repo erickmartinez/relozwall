@@ -152,6 +152,7 @@ class LaserProcedure(Procedure):
             log.info(f'Acquisition mode set to continuous.')
             self.__camera.acquisition_time = self.camera_acquisition_time
             self.__camera.chosen_trigger = TriggerType.SOFTWARE
+            # self.__camera.chosen_trigger = TriggerType.HARDWARE
             self.__camera.configure_trigger(trigger_type=PySpin.TriggerSelector_AcquisitionStart)
         elif self.acquisition_mode == 'Multi frame':
             self.__camera.acquisition_mode = PySpin.AcquisitionMode_MultiFrame
@@ -251,7 +252,7 @@ class LaserProcedure(Procedure):
                 log.warning("Caught the stop flag in the procedure")
                 break
             current_time = time.time()
-            if current_time - start_time >= 0.3 and not started_acquisition:
+            if current_time - start_time >= 0.2 and not started_acquisition:
                 flir_trigger.start()
                 self.__camera.fast_timeout = True
                 started_acquisition = True
