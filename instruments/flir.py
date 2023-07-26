@@ -1,3 +1,5 @@
+import time
+
 import PySpin
 import os
 import logging
@@ -64,6 +66,7 @@ class Camera:
     _image_prefix: str = None
     _print_info: bool = False
     _fast_timeout: bool = False
+    _cam: PySpin.Camera = None
     __busy: bool = False
     debug: bool = False
 
@@ -82,7 +85,6 @@ class Camera:
             self._cam.ChunkEnable.SetValue(True)
             self._cam.ChunkSelector.SetValue(PySpin.ChunkSelector_Timestamp)
             self._cam.ChunkEnable.SetValue(True)
-            self.set_buffers(300)
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}')
             raise Exception(f'Error: {ex}')
@@ -289,17 +291,18 @@ class Camera:
             return False
 
         # Display Buffer Info
-        self.log('Default Buffer Handling Mode: %s' % handling_mode_entry.GetDisplayName())
-        self.log('Default Buffer Count: %d' % buffer_count.GetValue())
-        self.log('Maximum Buffer Count: %d' % buffer_count.GetMax())
+        print('Default Buffer Handling Mode: %s' % handling_mode_entry.GetDisplayName())
+        print('Default Buffer Count: %d' % buffer_count.GetValue())
+        print('Maximum Buffer Count: %d' % buffer_count.GetMax())
 
-        buffer_count.SetValue(num_buffers)
+        num_buffers_to_set = min(buffer_count.GetMax(), num_buffers)
+        buffer_count.SetValue(buffer_count.GetMax())
 
         self.log('Buffer count now set to: %d' % buffer_count.GetValue())
 
         handling_mode_entry = handling_mode.GetEntryByName('OldestFirst')
         handling_mode.SetIntValue(handling_mode_entry.GetValue())
-        print('nBuffer Handling Mode has been set to %s' % handling_mode_entry.GetDisplayName())
+        print('Buffer Handling Mode has been set to %s' % handling_mode_entry.GetDisplayName())
 
     def configure_frame_rate(self, frame_rate_value: float):
         frame_rate_value = abs(float(frame_rate_value))
@@ -525,6 +528,7 @@ class Camera:
             # self.acquisition_mode = PySpin.AcquisitionMode_Continuous
             # self.log('Acquisition mode set to multi frame...')
             # MAX 1440
+            self.set_buffers(45)
 
             # self._cam.Width.SetValue(self._cam.WidthMax.GetValue())
             #  Begin acquiring images
@@ -555,7 +559,7 @@ class Camera:
                 return False
             # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency
             # with the unit being used in GetNextImage
-            fast_timeout = (int) (1000.0 / self.frame_rate + 10 + self.exposure/1000)
+            fast_timeout = (int) (1000.0 / self.frame_rate + 50 + self.exposure/1000)
             # timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10)
             self.execute_trigger()
             previous_seconds = 0
@@ -613,7 +617,7 @@ class Camera:
                     try:
                         # self.grab_next_image_by_trigger()
                         if i == 0:
-                            timeout = 200
+                            timeout = 5000
                         else:
                             timeout = fast_timeout
                         image_result = self._cam.GetNextImage(timeout)
@@ -658,6 +662,7 @@ class Camera:
                         # self.execute_trigger()
                     # previous_seconds = current_seconds
             self._cam.EndAcquisition()
+            time.sleep(0.5)
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}', logging.ERROR)
             self.__busy = False
@@ -730,6 +735,7 @@ class Camera:
         del self._cam
         self._cam_list.Clear()
         self._system.ReleaseInstance()
+        self.log(msg='Deleted camera instance.', level=logging.INFO)
 
     def __del__(self):
         self.shutdown()
