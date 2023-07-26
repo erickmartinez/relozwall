@@ -14,17 +14,16 @@ laser_power_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data
 
 
 samples = [
-{'sample_id': 'R4N58', 'label': '10.0% filler, 10.0% binder', 'material': 'Glassy carbon', 'marker': 'o', 'size': '850 um'},
+{'sample_id': 'R4N58', 'label': '10.0% filler, 10.0% binder', 'material': 'Glassy carbon', 'marker': 's', 'size': '850 um'},
 {'sample_id': 'R4N64', 'label': '12.5% filler,  7.5% binder', 'material': 'Glassy carbon', 'marker': 'D', 'size': '850 um'},
-{'sample_id': 'R4N75', 'label': '6.25% filler,  3.75 binder,   2°C/min', 'material': 'Glassy carbon', 'marker': 'o', 'size': '850 um'},
-{'sample_id': 'R4N76', 'label': '6.25% filler,  3.75 binder,  20°C/min', 'material': 'Glassy carbon', 'marker': 's', 'size': '850 um'},
-{'sample_id': 'R4N77', 'label': '6.25% filler,  3.75 binder, 100°C/min', 'material': 'Glassy carbon', 'marker': '^', 'size': '850 um'},
+# {'sample_id': 'R4N67', 'label': ' 5.0% filler,  5.0% binder', 'material': 'Glassy carbon', 'marker': 'o', 'size': '850 um'},
+{'sample_id': 'R4N76', 'label': '6.25% filler,  3.75 binder', 'material': 'Glassy carbon', 'marker': '^', 'size': '850 um'},
 ]
 
 beam_radius = 0.5 * 0.8165  # * 1.5 # 0.707
 
 # poor_gc_ids = ['R4N04', 'R4N22']
-mixed_diameter_id = 'R4N73'
+# one2one_matrix_id = 'R4N73'
 
 
 
@@ -62,7 +61,8 @@ def load_data():
         sheet_name='Laser tests',
         usecols=[
             'Sample code', 'Power percent setting (%)', 'Irradiation time (s)', 'Filler (wt %)',
-            'Recession rate (cm/s)', 'Recession rate error (cm/s)', 'Sample diameter (cm)', 'Ramping rate (°C/min)'
+            'Recession rate (cm/s)', 'Recession rate error (cm/s)', 'Sample diameter (cm)', 'Ramping rate (°C/min)',
+            'Binder (wt %)'
         ]
     )
     # print(laser_test_df)
@@ -138,20 +138,24 @@ if __name__ == '__main__':
             'Marker': ['first'],
             'Filler (wt %)': ['mean'],
             'Sample code': ['first'],
-            'Ramping rate (°C/min)': ['first']
+            'Ramping rate (°C/min)': ['first'],
+            'Binder (wt %)': ['first']
         })
 
 
         filler_wtp = df2['Filler (wt %)']['mean'].values
         sample_code = df2['Sample code']['first'].values
-        ramping_rate = df2['Ramping rate (°C/min)']['first'].values
+        binder_wtp = df2['Binder (wt %)']['first'].values
+
 
         filler_wtp = filler_wtp[0]
         sample_code = sample_code[0]
-        ramping_rate = ramping_rate[0]
+        binder_wtp = binder_wtp[0]
 
-        print(f"Label: {m}, {filler_wtp:>5.2f} wt % filler, Ramping rate: {ramping_rate:>4.1f} °C/min")
-        lbl = f"{ramping_rate:.0f} °C/min"
+        total_matrix_wtp = filler_wtp + binder_wtp
+
+        print(f"Label: {m}, {filler_wtp:>5.2f} wt % filler, {binder_wtp:>5.2f} wt % binder, Matrix: {total_matrix_wtp:>4.1f} wt %")
+        lbl = f"Binder: {binder_wtp:.1f} wt %"
 
         # # If the sample code matches the id of a sample that was made with spheres with different diamters change
         # # the label to show that
@@ -185,7 +189,7 @@ if __name__ == '__main__':
 
     ax.set_xlabel('Heat load [MW/m$^{\mathregular{2}}$]')
     ax.set_ylabel('cm/s')
-    ax.set_title('Recession rate (high heat loads)')
+    ax.set_title('Recession rate')
     ax.set_xlim(5, 40)
     ax.set_ylim(0, 0.8)
     ax.tick_params(which='both', axis='y', labelright=False, right=True, direction='in')
@@ -197,9 +201,9 @@ if __name__ == '__main__':
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.05))
     ax.legend(loc='best', frameon=True, fontsize=9)
 
-    fig.savefig(os.path.join(base_dir, 'recession_rate_vs_laser_power_ramping_rate' + '.svg'), dpi=600)
-    fig.savefig(os.path.join(base_dir, 'recession_rate_vs_laser_power_ramping_rate' + '.png'), dpi=600)
-    fig.savefig(os.path.join(base_dir, 'recession_rate_vs_laser_power_ramping_rate' + '.pdf'), dpi=600)
+    fig.savefig(os.path.join(base_dir, 'recession_rate_vs_laser_power_binder_content' + '.svg'), dpi=600)
+    fig.savefig(os.path.join(base_dir, 'recession_rate_vs_laser_power_binder_content' + '.png'), dpi=600)
+    fig.savefig(os.path.join(base_dir, 'recession_rate_vs_laser_power_binder_content' + '.pdf'), dpi=600)
 
 
     plt.show()

@@ -14,8 +14,8 @@ import matplotlib as mpl
 import json
 
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\OTHER'
-info_csv = r'LCT_R4N78_ROW333_070PCT_2023-07-14_1.csv'
+base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+info_csv = r'LCT_R4N76_ROW330_100PCT_2023-07-11_1.csv'
 frame_rate = 200.0
 pixel_size = 20.4215  # pixels/mm
 p = re.compile(r'.*?-(\d+)\.jpg')

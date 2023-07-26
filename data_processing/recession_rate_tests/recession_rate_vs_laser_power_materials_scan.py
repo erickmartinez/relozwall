@@ -166,7 +166,7 @@ if __name__ == '__main__':
 
     ax.set_xlabel('Heat load [MW/m$^{\mathregular{2}}$]')
     ax.set_ylabel('cm/s')
-    ax.set_title('Recession rate (high heat loads)')
+    ax.set_title('Recession rate')
     ax.set_xlim(5, 50)
     ax.set_ylim(0, 0.2)
     ax.tick_params(which='both', axis='y', labelright=False, right=True, direction='in')

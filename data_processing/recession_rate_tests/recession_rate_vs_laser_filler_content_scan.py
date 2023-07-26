@@ -14,14 +14,14 @@ laser_power_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data
 
 
 samples = [
-{'sample_id': 'R4N55', 'label': '12.5% filler,  7.5% binder', 'material': 'Glassy carbon', 'marker': 's', 'size': '850 um'},
+# {'sample_id': 'R4N55', 'label': '12.5% filler,  7.5% binder', 'material': 'Glassy carbon', 'marker': 'D', 'size': '850 um'},
+{'sample_id': 'R4N67', 'label': ' 5.0% filler,  5.0% binder', 'material': 'Glassy carbon', 'marker': '<', 'size': '850 um'},
 {'sample_id': 'R4N58', 'label': '10.0% filler, 10.0% binder', 'material': 'Glassy carbon', 'marker': 'o', 'size': '850 um'},
 # {'sample_id': 'R4N59', 'label': '90% 850um, 10% 180 um - 10.0% filler, 10.0% binder', 'material': 'Glassy carbon', 'marker': '^', 'size': '850 um (90%), 180 um (10%)'},
 {'sample_id': 'R4N64', 'label': '12.5% filler,  7.5% binder', 'material': 'Glassy carbon', 'marker': 'D', 'size': '850 um'},
-{'sample_id': 'R4N67', 'label': ' 5.0% filler,  5.0% binder', 'material': 'Glassy carbon', 'marker': '<', 'size': '850 um'},
 {'sample_id': 'R4N73', 'label': '90% 850um, 10% 180 um - 12.5% filler,  7.5 binder', 'material': 'Glassy carbon', 'marker': 'v', 'size': '850 um (90%), 180 um (10%)'},
 # {'sample_id': 'R4N75', 'label': '6.25% filler, 3.75% binder', 'material': 'Glassy carbon', 'marker': 'o'},
-{'sample_id': 'R4N22', 'label': '10.0% filler, 10.0% binder', 'material': 'Glassy carbon', 'marker': 'o', 'size': '850 um'},
+# {'sample_id': 'R4N22', 'label': '10.0% filler, 10.0% binder', 'material': 'Glassy carbon', 'marker': 'o', 'size': '850 um'},
 ]
 
 beam_radius = 0.5 * 0.8165  # * 1.5 # 0.707
