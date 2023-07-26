@@ -22,6 +22,12 @@ time_constant = 1.68
 beam_diameter = 0.8164 * 1.5  # cm
 sample_diameter = 0.92
 
+"""
+Correction factor from second peak for revision number 1 JAP - Estimation lead to pumping speed of ~20 L/s
+Peaks estimated to be 6000 vs 1500 Torr-L/m^2/s for first peak compared to second peak
+"""
+outgassing_factor_20230331 = 0.25
+
 
 def csv_match_size(df1, df2):
     if len(df1) == len(df2):
@@ -95,6 +101,10 @@ if __name__ == '__main__':
     pebble_velocity = disintegration_agg_df['Particle velocity mode (cm/s)']['mean'].values
     pebble_velocity_err = disintegration_agg_df['Particle velocity std (cm/s)']['mean'].values
 
+    # correct for outgassing rate with re-estimation in 2023/03/30
+    outgassing_rate *= outgassing_factor_20230331
+
+
     film_thickness_pebble = soot_deposition_pebble_df['Thickness (nm)'].values
     film_thickness_pebble_err = film_thickness_pebble * soot_deposition_pebble_df['Error %'].values
     flattop_time_pebble = soot_deposition_pebble_df['Flat top time (s)'].values
@@ -127,6 +137,8 @@ if __name__ == '__main__':
     erosion_rate_err_prebaked = degassing_prebaked_df['Erosion Rate Error (cm/s)'].values
     heat_load_graphite = heat_load.max() * np.ones_like(outgassing_rate_graphite)
     heat_load_prebaked = heat_load.max() * np.ones_like(outgassing_rate_prebaked)
+
+    outgassing_rate_prebaked *= outgassing_factor_20230331
 
     load_plt_style()
 
@@ -210,7 +222,7 @@ if __name__ == '__main__':
     ax[0, 1].yaxis.set_minor_locator(ticker.MultipleLocator(10))
 
     ax[1, 0].set_ylabel('Torr-L/s m$^{\mathregular{2}}$')
-    ax[1, 0].set_ylim(bottom=5.0, top=2E4)
+    ax[1, 0].set_ylim(bottom=1.0, top=1E4)
     ax[1, 0].set_title('Outgassing rate')
     ax[1, 0].yaxis.set_major_locator(ticker.LogLocator(base=10, numticks=10))
     ax[1, 0].yaxis.set_minor_locator(ticker.LogLocator(base=10, subs=np.arange(2, 10) * .1, numticks=20))
@@ -227,7 +239,7 @@ if __name__ == '__main__':
     )
 
     ax[1, 0].legend(
-        loc='lower right', frameon=True,
+        loc='upper left', frameon=True,
         prop={'size': 8}
     )
 
@@ -246,8 +258,8 @@ if __name__ == '__main__':
             va='top', ha='right'
         )
 
-    fig.savefig(os.path.join(output_dir, 'figure_6.png'), dpi=600)
-    fig.savefig(os.path.join(output_dir, 'figure_6.eps'), dpi=600)
-    fig.savefig(os.path.join(output_dir, 'figure_6.svg'), dpi=600)
+    fig.savefig(os.path.join(output_dir, 'figure_6_revised.png'), dpi=600)
+    fig.savefig(os.path.join(output_dir, 'figure_6_revised.eps'), dpi=600)
+    fig.savefig(os.path.join(output_dir, 'figure_6_revised.svg'), dpi=600)
 
     plt.show()

@@ -26,8 +26,39 @@ labels = [
     '300 °C Ramp', '715 °C Ramp', '800 °C Ramp', '800 °C Preheat', '715 °C Preheat - Outgassed GC'
 ]
 
+linestyle_tuple = [
+     ('loosely dotted',        (0, (1, 10))),
+     ('dotted',                (0, (1, 1))),
+     ('densely dotted',        (0, (1, 1))),
+     ('long dash with offset', (5, (10, 3))),
+     ('loosely dashed',        (0, (5, 10))),
+     ('dashed',                (0, (5, 5))),
+     ('densely dashed',        (0, (5, 1))),
+
+     ('loosely dashdotted',    (0, (3, 10, 1, 10))),
+     ('dashdotted',            (0, (3, 5, 1, 5))),
+     ('densely dashdotted',    (0, (3, 1, 1, 1))),
+
+     ('dashdotdotted',         (0, (3, 5, 1, 5, 1, 5))),
+     ('loosely dashdotdotted', (0, (3, 10, 1, 10, 1, 10))),
+     ('densely dashdotdotted', (0, (3, 1, 1, 1, 1, 1)))]
+
 if __name__ == '__main__':
     df = pd.read_csv(csv_file)
+    numeric_columns = [
+        'Baking Temperature (C)',
+        'Speed Setpoint',
+        'Target Speed (cm/s)',
+        'Average Speed (cm/s)',
+        'Average Friction Force (N)',
+        'Friction Force Std (N)',
+        'Length Mean (cm)',
+        'Length Std (cm)',
+        'Contact Area (cm2)',
+        'Contact Area Error (cm2)',
+        'Venting hole diameter (in)'
+    ]
+    df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric)
     columns = df.columns
     df[columns[2:-1]]=df[columns[2:-1]].apply(pd.to_numeric)
     df['Date'] = df['Date'].apply(pd.to_datetime)
@@ -48,23 +79,25 @@ if __name__ == '__main__':
     cmap = plt.cm.jet
 
     markers = ['o', 's', '^']
+    ls = ['-', '--', '-.', ':', (0, (3, 5, 1, 5, 1, 5)), ]
 
     for i, temperature in enumerate(temperatures):
-        print(f'Plotting line for temperature: {temperature}')
-        temp_df = df[df['Baking Temperature (C)'] == temperature]
+        if temperature != 800:
+            print(f'Plotting line for temperature: {temperature}, {i}/{len(temperatures)}')
+            temp_df = df[df['Baking Temperature (C)'] == temperature]
 
-        force = temp_df['Average Friction Force (N)'].values
-        force_err = force*0.09#temp_df['Friction Force Std (N)'].values
-        area = temp_df['Contact Area (cm2)'].values
-        area_err = temp_df['Contact Area Error (cm2)'].values
-        force_n = force / area
-        force_n_err = np.linalg.norm([area_err / area, force_err / force])
-        mean_friction.append(force_n)
-        ax[0].errorbar(
-            temp_df['Target Speed (cm/s)'], force_n, force_n_err, color=cmap(norm(temperature)),
-            marker=markers[i], ms=9, mew=1.25, mfc='none', label=f'{temperature:.0f} °C',
-            capsize=2.75, elinewidth=1.25, lw=1.5
-        )
+            force = temp_df['Average Friction Force (N)'].values
+            force_err = force*0.09#temp_df['Friction Force Std (N)'].values
+            area = temp_df['Contact Area (cm2)'].values
+            area_err = temp_df['Contact Area Error (cm2)'].values
+            force_n = force / area
+            force_n_err = np.linalg.norm([area_err / area, force_err / force])
+            mean_friction.append(force_n)
+            ax[0].errorbar(
+                temp_df['Target Speed (cm/s)'], force_n, force_n_err, color=cmap(norm(temperature)),
+                marker=markers[i], ms=9, mew=1.25, mfc='none', label=f'{temperature:.0f} °C',
+                capsize=2.75, elinewidth=1.25, lw=1.5
+            )
 
     mean_friction = np.array(mean_friction)
     print(f'Mean friction: {mean_friction.mean()} N/cm^2')
@@ -93,11 +126,11 @@ if __name__ == '__main__':
 
         c = cmap(norm(temperature_c.max()))
         ax[1].plot(
-            time_s / 60.0, temperature_c, label=lbl, color=c,
+            time_s / 60.0, temperature_c, label=lbl, color=c, lw=1.5, #ls=ls[i],
         )
 
         ax[2].plot(
-            time_s / 60.0, outgassing_rate, label=lbl, color=c,
+            time_s / 60.0, outgassing_rate, label=lbl, color=c, lw=1.5, #ls=ls[i],
         )
 
     ax[1].set_xlabel('Time (min)')

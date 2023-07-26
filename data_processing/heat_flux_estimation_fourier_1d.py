@@ -21,7 +21,7 @@ data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firin
 data_file = r'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
 
 
-q0 = 3E3#4.7E3
+q0 = 3.2E3#4.7E3
 time_constant = 1.681 # 0.256  # 2.1148
 reflectance = 40.4
 
@@ -187,10 +187,10 @@ if __name__ == "__main__":
     res = least_squares(
         fobj, b0,
         loss='linear', f_scale=0.1,
-        jac='2-point',
+        jac='3-point',
         args=(time_tc, u_exp),
         # bounds=([200, 1E-5], [1E4, 10]),
-        bounds=([200], [1E4]),
+        bounds=([200], [1E5]),
         xtol=all_tol,
         ftol=all_tol,
         gtol=all_tol,

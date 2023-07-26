@@ -64,7 +64,7 @@ if __name__ == '__main__':
     # )
 
     ax.set_xlabel('Weight % of 850 $\mathregular{\mu}$m spheres')
-    ax.set_ylabel('Erosion rate (cm/s)')
+    ax.set_ylabel('Recession rate (cm/s)')
     # ax.set_xlim(0,100)
     ax.xaxis.set_major_locator(ticker.MultipleLocator(20))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(5))
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     ax.set_ylim(0.05, 0.25)
     ax.set_xlim(-5, 105)
     ax.text(
-        -0.0, -0.2, '185 $\mathregular{\mu}$m', transform=ax.transAxes, fontsize=12, fontweight='regular',
+        -0.0, -0.2, '220 $\mathregular{\mu}$m', transform=ax.transAxes, fontsize=12, fontweight='regular',
         va='bottom', ha='center'
     )
     ax.text(
@@ -86,4 +86,5 @@ if __name__ == '__main__':
     # ax[1].set_ylabel('Density (g/cm$^{\mathregular{3}}$)')
 
     fig.savefig(os.path.join('../../data', 'erosion_vs_sphere_diameter.png'), dpi=600)
+    fig.savefig(os.path.join('../../data', 'erosion_vs_sphere_diameter.eps'), dpi=600)
     plt.show()
