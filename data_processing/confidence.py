@@ -276,9 +276,7 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
 
     # Needs to estimate the jacobian at the predictor point!!!
     ypred = func(x, res.x)
-    res = yd - func(xd)
-    sse = np.dot(res, res)
-    rmse = np.sqrt(sse/len(yd))
+ 
     if callable(res.jac):
         delta = res.jac(x)
     else:
@@ -332,7 +330,7 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
         from scipy.stats.distributions import t
         crit = t.ppf(1.0 - alpha / 2.0, n - rankJ)
 
-    delta = np.sqrt(varpred) * crit * rmse
+    delta = np.sqrt(varpred) * crit
 
     lpb = ypred - delta
     upb = ypred + delta
