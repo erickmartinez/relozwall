@@ -12,8 +12,8 @@ import ir_thermography.thermometry as irt
 from data_processing.utils import get_experiment_params, latex_float
 
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\calibration_20230721'
-csv = 'adc_calibration_20230721.csv'
+base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB'
+csv = 'adc_calibration_20230825_5dB.csv'
 thermometry_csv = 'LT_GRAPHITE_100PCT_2023-07-19_2.csv'
 
 cutoff_b = 7.75E-3
@@ -31,11 +31,24 @@ def model_poly(x, b):
         xx = xx * x
     return r
 
+def model_exp(x, b):
+    return b[0]*(1. - np.exp(-b[1]*x))
+
 def model_root(x, b):
     return b[0] * np.power(x, b[1]) + b[2]
 
 def fobj_root(b, x, y):
     return model_poly(x, b) - y
+
+def fobj_exp(b, x, y):
+    return model_exp(x, b) - y
+
+def jac_exp(b, x, y):
+    j0 = np.exp(-b[1]*x)
+    j = np.zeros((len(x), 2))
+    j[:, 0] = 1. - j0
+    j[:, 1] = b[0] * x * j0
+    return j
 
 def jac_root(b, x, y):
     n = len(b)
@@ -69,11 +82,12 @@ def main():
         plot_style = json_file['defaultPlotStyle']
     mpl.rcParams.update(plot_style)
 
-    idx_cutoff = brightness_pd <= cutoff_b
+    idx_cutoff = brightness_pd <= 10.#cutoff_b
     adc_fit = adc_value[idx_cutoff]
     brightness_fit = brightness_pd[idx_cutoff]
 
     idx_temp_cutoff = (brightness_pd <= cutoff_b) & (temperature > 1000)
+    idx_temp_cutoff = (brightness_pd <= 10.) & (temperature > 1000)
     adc_fit_temp = adc_value[idx_temp_cutoff]
     temperature_fit = temperature[idx_temp_cutoff]
 
@@ -83,15 +97,16 @@ def main():
     res1 = least_squares(
         fobj_poly,
         b0,
-        loss='cauchy', f_scale=0.001,
+        # loss='cauchy', f_scale=0.001,
+        loss='soft_l1', f_scale=0.1,
         jac=jac_poly,
         args=(adc_fit, brightness_fit),
-        # bounds=([0., 0., 0., 0.], [brightness_fit.max(), np.inf, np.inf, np.inf]),
+        # bounds=([0., 0.], [np.inf, np.inf]),
         xtol=all_tol,  # ** 0.5,
         ftol=all_tol,  # ** 0.5,
         gtol=all_tol,  # ** 0.5,
         max_nfev=10000 * n,
-        # x_scale='jac',
+        x_scale='jac',
         verbose=2
     )
 
@@ -100,10 +115,11 @@ def main():
     popt1 = res1.x
     pcov1 = cf.get_pcov(res1)
     ci = cf.confint(n=n, pars=popt1, pcov=pcov1)
-    xpred = np.linspace(adc_value.min(), adc_value.max(), 500)
+    # xpred = np.linspace(adc_value.min(), adc_value.max(), 500)
+    xpred = np.arange(0, 256)
     ypred1, lpb1, upb1 = cf.predint(x=xpred, xd=adc_fit, yd=brightness_fit, func=model_poly, res=res1)
 
-    # b0 = np.array([temperature_fit.min(), 0.01, 0.])
+    # b0 = np.array([temperature_fit.mean(), 0.1])
     # res2 = least_squares(
     #     fobj_poly,
     #     b0,
@@ -115,7 +131,7 @@ def main():
     #     ftol=all_tol,  # ** 0.5,
     #     gtol=all_tol,  # ** 0.5,
     #     max_nfev=100000 * n,
-    #     # x_scale='jac',
+    #     x_scale='jac',
     #     verbose=2
     # )
     #
@@ -132,7 +148,7 @@ def main():
     thermometry.emissivity = emissivity
     inv_emissivity = 1. / emissivity
     ypred2 = thermometry.get_temperature_at_brightness(brightness=ypred1*inv_emissivity) - 273.15
-    lpb2 = thermometry.get_temperature_at_brightness(brightness=lpb1*inv_emissivity) - 273.15
+    lpb2 = ypred2 # thermometry.get_temperature_at_brightness(brightness=lpb1*inv_emissivity) - 273.15
     upb2 = thermometry.get_temperature_at_brightness(brightness=upb1*inv_emissivity) - 273.15
 
     adc_full_scale = np.arange(0, 256)

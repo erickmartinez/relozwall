@@ -12,18 +12,19 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import re
 from scipy.interpolate import interp1d
 import datetime
+from data_processing.utils import get_experiment_params
 import matplotlib.ticker as ticker
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\calibration_20230721'
+base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726'
 # images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\LCT_GRAPHITE_100PCT_2023-02-21_1_images'
-images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\calibration_20230721\LCT_GRAPHITE_100PCT_2023-07-21_2_images'
+images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\LCT_GRAPHITE_100PCT_2023-07-28_2_images'
 calibration_csv = 'temperature_data.csv'
 file_tag = 'GRAPHITE_IMG'
 frame_rate = 200.0
 p = re.compile(r'.*?-(\d+)\.jpg')
 # spot_center = np.array([36.49, 29.77])
 spot_center = np.array([36.34, 29.53])
-spot_center = np.array([19.8, 27.93])
+spot_center = np.array([14.18, 29.71])
 pixel_size = 20.8252  # pixels/mm
 px2mm = 1. / pixel_size
 diameter = 2.68
@@ -177,17 +178,17 @@ def main():
         fargs=(line, list_of_files, initial_timestamp, func, func_brightness, calibration_adc, spot_indices, avg0)
     )
 
-    plt.show()
+    # plt.show()
 
     # ln, file_list, t0, temperature_func: callable, calibration: np.ndarray
     now = datetime.datetime.now()
     now_str = now.strftime("%Y%m%d")
-    ft = file_tag + f'_temperature_spot_movie_{now_str}.mp4'
+    ft = file_tag + f'_temperature_spot_movie_{now_str}_5dB.mp4'
     # save_dir = os.path.dirname(base_dir)
     ani.save(os.path.join(base_dir, ft), writer=writer, dpi=pixel_size * 25.4)
 
     adc_df = pd.DataFrame(data=calibration_adc)
-    adc_df.to_csv(os.path.join(base_dir, f'adc_calibration_{now_str}.csv'), index=False, encoding='utf-8-sig')
+    adc_df.to_csv(os.path.join(base_dir, f'adc_calibration_{now_str}_5dB.csv'), index=False, encoding='utf-8-sig')
 
 
 if __name__ == '__main__':

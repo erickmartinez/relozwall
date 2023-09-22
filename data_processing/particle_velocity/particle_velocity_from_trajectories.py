@@ -278,7 +278,7 @@ def main():
         x_vector = px2cm * points_df['x [pixel]'].values - center_mm[0] * 0.1
         n_points = len(x_vector)
         if n_points > 2 and tid not in exclude_trajectories:
-            y_vector = px2cm * (1080 - points_df['y [pixel]'].values)
+            y_vector = px2cm * (1080 - points_df['y [pixel]'].values) - center_mm[1] * 0.1
             frame_id = np.array(points_df['t [sec]'].values * frame_rate, dtype=int)
             t = get_time_from_images(frame_id, t_from_timestamp=t_from_timestamp)
             res_de, res_lq = fit_trajectory(t=t, x=x_vector, y=y_vector)
@@ -327,7 +327,7 @@ def main():
     ax.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.5))
 
-    ax.set_ylim(0, 5.5)
+    # ax.set_ylim(0, 5.5)
     ax.set_aspect('equal', adjustable='box', anchor='C')
 
 
