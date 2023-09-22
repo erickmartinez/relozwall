@@ -276,6 +276,7 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
 
     # Needs to estimate the jacobian at the predictor point!!!
     ypred = func(x, res.x)
+
     if callable(res.jac):
         delta = res.jac(x)
     else:
