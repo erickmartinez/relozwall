@@ -42,7 +42,7 @@ def gaussian_beam_aperture_factor(beam_radius, sample_radius):
 
 
 def map_laser_power_settings():
-    rdir = os.path.join(base_dir, laser_power_dir)
+    rdir = laser_power_dir
     file_list = os.listdir(rdir)
     mapping = {}
     for i, f in enumerate(file_list):

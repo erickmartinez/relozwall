@@ -2,6 +2,7 @@ import numpy as np
 import re
 import os
 
+import pandas as pd
 from scipy.signal import savgol_filter
 
 
@@ -75,6 +76,7 @@ def lighten_color(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
 
+
 def correct_thermocouple_response(measured_temperature, measured_time, tau):
     n = len(measured_time)
     k = int(n / 15)
@@ -92,5 +94,21 @@ def correct_thermocouple_response(measured_temperature, measured_time, tau):
 def specific_heat_of_graphite(temperature: float, **kwargs):
     units = kwargs.get('units', 'K')
     T = temperature if units == 'K' else (temperature + 273.15)
-    cp = 0.538657 + 9.11129E-6*T - 90.2725*(T**(-1)) - 43449.3*(T**(-2.0)) + 1.59309E7*(T**(-3.0)) - 1.43688E9*(T**(-4.0))
-    return cp*4.184
+    cp = 0.538657 + 9.11129E-6 * T - 90.2725 * (T ** (-1)) - 43449.3 * (T ** (-2.0)) + 1.59309E7 * (
+                T ** (-3.0)) - 1.43688E9 * (T ** (-4.0))
+    return cp * 4.184
+
+
+LASER_POWER_MAPPING = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\LASER_POWER_MAPPING' \
+                      r'\laser_power_mapping.csv'
+
+
+def get_laser_power_mapping(csv=LASER_POWER_MAPPING):
+    df = pd.read_csv(csv).apply(pd.to_numeric)
+    mapping = {}
+    for i, r in df.iterrows():
+        mapping[int(r['Laser power setting (%)'])] = r['Laser power (W)']
+
+    keys = list(mapping.keys())
+    keys.sort()
+    return {i: mapping[i] for i in keys}
