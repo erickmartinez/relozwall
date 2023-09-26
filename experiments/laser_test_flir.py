@@ -389,7 +389,7 @@ class LaserProcedure(Procedure):
             }
             self.emit('results', d)
             self.emit('progress', (i + 1) * 100 / len(tc_data))
-            time.sleep(0.0001)
+            time.sleep(0.001)
 
         # Remove file handlers from logger
         if len(log.handlers) > 0:
