@@ -41,8 +41,9 @@ class TBS2000:
     __preamble_str: str = None
     __n_samples: int = None
     __record_length: int = 2000
+    __debug = False
 
-    def __init__(self, resource_name: str = TBS2000_RESOURCE_NAME):
+    def __init__(self, resource_name: str = TBS2000_RESOURCE_NAME, debug: bool = False):
         self.__resource_name = resource_name
         self.connect()
         for i in range(1, 3):
@@ -50,6 +51,7 @@ class TBS2000:
             self.write(f'CH{i:d}:COUPling DC')
             sleep(self.__delay)
         self.horizontal_main_scale = 2.0
+        self.__debug = debug
 
     def connect(self):
         self.__rm = pyvisa.ResourceManager()
@@ -66,7 +68,8 @@ class TBS2000:
         # print('*ESR? (Reset)')
         sesr = self.sesr
         # print(sesr)
-        print('ALLEV? (Reset)')
+        if self.__debug:
+            print('ALLEV? (Reset)')
         all_events = self.all_events
         # print(all_events)
         self.write('REM "Set the instrument to the default state."')
@@ -118,7 +121,8 @@ class TBS2000:
     def acquire_off(self):
         self.write('ACQUIRE:STATE STOP')
         opc = self.query('*OPC?')
-        print(f'OPC: {opc}')
+        if self.__debug:
+            print(f'OPC: {opc}')
 
     def get_curve(self, channel: int):
         # self.write('REM "Use the instrument built-in measurements to measure the waveform you acquired."')
@@ -212,7 +216,8 @@ class TBS2000:
     def trigger_channel(self, channel: int = 2):
         if isinstance(channel, str):
             m = re.findall(r'CH(\d)', channel)
-            print(m)
+            if self.__debug:
+                print(m)
             if len(m) == 0:
                 try:
                     channel = int(channel)

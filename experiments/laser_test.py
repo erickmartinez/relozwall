@@ -291,11 +291,11 @@ class LaserProcedure(Procedure):
         # msk_tmin = time_osc >= time_tc.min()
         # data = data[msk_tmin]
         # reference = reference[msk_tmin]
-        f1 = interpolate.interp1d(time_tc, tc1, bounds_error=None)
-        f2 = interpolate.interp1d(time_tc, tc2, bounds_error=None)
-        f3 = interpolate.interp1d(elapsed_time, pressure, bounds_error=None)
-        f4 = interpolate.interp1d(elapsed_time, laser_output_power_full, bounds_error=None)
-        f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full, bounds_error=None)
+        f1 = interpolate.interp1d(time_tc, tc1, bounds_error=None, assume_sorted=True)
+        f2 = interpolate.interp1d(time_tc, tc2, bounds_error=None, assume_sorted=True)
+        f3 = interpolate.interp1d(elapsed_time, pressure, bounds_error=None, assume_sorted=True)
+        f4 = interpolate.interp1d(elapsed_time, laser_output_power_full, bounds_error=None, assume_sorted=True)
+        f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full, bounds_error=None, assume_sorted=True)
         tmin = max(elapsed_time.min(), time_osc.min(), time_tc.min())
         tmax = min(elapsed_time.max(), time_osc.max(), time_tc.max())
         time_interp = np.linspace(tmin, tmax, len(data))

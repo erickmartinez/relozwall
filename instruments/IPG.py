@@ -19,18 +19,18 @@ class YLR3000:
 
     def __init__(self, IP: str = LASER_IP):
         self.__ip_address = IP
-        self._log = logging.getLogger(__name__)
-        self._log.addHandler(logging.NullHandler())
+        # self._log = logging.getLogger(__name__)
+        # self._log.addHandler(logging.NullHandler())
         # create console handler and set level to debug
-        has_console_handler = False
-        if len(self._log.handlers) > 0:
-            for h in self._log.handlers:
-                if isinstance(h, logging.StreamHandler):
-                    has_console_handler = True
-        if not has_console_handler:
-            ch = logging.StreamHandler()
-            ch.setLevel(logging.DEBUG)
-            self._log.addHandler(ch)
+        # has_console_handler = False
+        # if len(self._log.handlers) > 0:
+        #     for h in self._log.handlers:
+        #         if isinstance(h, logging.StreamHandler):
+        #             has_console_handler = True
+        # if not has_console_handler:
+        #     ch = logging.StreamHandler()
+        #     ch.setLevel(logging.DEBUG)
+        #     self._log.addHandler(ch)
 
         self.__connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect()
@@ -54,26 +54,26 @@ class YLR3000:
         if setting:
             r = self.query("ABN")
             if r == "ABN":
-                self._log.info("Aiming beam is on.")
+                self.log("Aiming beam is on.")
             elif r == "ERR":
                 msg = "Cannot enable guide beam because external guide control is enabled."
-                self._log.error(msg)
+                self.log(msg=msg, level=logging.ERROR)
                 raise LaserException(msg)
             else:
                 msg = f"Unknown error: {r}"
-                self._log.error(msg)
+                self.log(msg=msg, level=logging.ERROR)
                 raise LaserException(msg)
         else:
             r = self.query("ABF")
             if r == "ABF":
-                self._log.info("Aiming beam is off.")
+                self.log("Aiming beam is off.")
             elif r == "ERR":
                 msg = "Cannot disable guide beam because external guide control is enabled."
-                self._log.error(msg)
+                self.log.error(msg, logging.ERROR)
                 raise LaserException(msg)
             else:
                 msg = f"Unknown error: {r}"
-                self._log.error(msg)
+                self.log.error(msg, logging.ERROR)
                 raise LaserException(msg)
 
     @property
@@ -94,7 +94,7 @@ class YLR3000:
             r = self.query(q)
             if r[0:] == 'ERR':
                 raise ValueError(r)
-            self._log.info(f"Set the laser diode current to: {value:.2f} %")
+            self.log(f"Set the laser diode current to: {value:.2f} %")
 
     @property
     def output_power(self):
@@ -136,9 +136,9 @@ class YLR3000:
         q = f"SPRR {value:.1f}"
         r = self.query(q)
         if r[0:] == 'ERR':
-            self._log.error(r[4:].strip(" "))
+            self.log(msg=r[4:].strip(" "), level=logging.ERROR)
             raise ValueError(r)
-        self._log.info(f"Set the pulse repetition rate to: {value:.2f} %")
+        self.log(f"Set the pulse repetition rate to: {value:.2f} %")
 
     @property
     def pulse_width(self):
@@ -155,127 +155,127 @@ class YLR3000:
         q = f"SPW {value:.1f}"
         r = self.query(q)
         if r[0:] == 'ERR':
-            self._log.error(r[4:].strip(" "))
+            self.log(msg=r[4:].strip(" "), level=logging.ERROR)
             raise ValueError(r)
-        self._log.info(f"Set the pulse width to: {value:.2f} %")
+        self.log(f"Set the pulse width to: {value:.2f} %")
 
     def disable_analog_control(self):
         r = self.query("DEC")
         if r == "DEC":
-            self._log.info("Disabled external control.")
+            self.log("Disabled external control.")
         else:
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def disable_external_guide_control(self):
         r = self.query("DEABC")
         if r == "DEABC":
-            self._log.info("Disabled external aiming beam control.")
+            self.log("Disabled external aiming beam control.")
         else:
             msg = "Error disabling external aiming beam control."
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def disable_external_control(self):
         r = self.query("DLE")
         if r == "DLE":
-            self._log.info("Disabled hardware emission control.")
+            self.log("Disabled hardware emission control.")
         else:
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def enable_modulation(self):
         r = self.query("EMOD")
         if r == "EMOD":
-            self._log.info("Enabled modulation mode.")
+            self.log("Enabled modulation mode.")
         elif r == "ERR":
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
         else:
             msg = f"Unknown error: {r}"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def disable_modulation(self):
         r = self.query("DMOD")
         if r == "DMOD":
-            self._log.info("Disabled modulation mode.")
+            self.log("Disabled modulation mode.")
         elif r == "ERR":
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
         else:
             msg = f"Unknown error: {r}"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def enable_gate_mode(self):
         r = self.query("EGM")
         if r == "EGM":
-            self._log.info("Enabled gate mode.")
+            self.log("Enabled gate mode.")
         elif r == "ERR":
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
         else:
             msg = f"Unknown error: {r}"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def disable_gate_mode(self):
         r = self.query("DGM")
         if r == "DGM":
-            self._log.info("Disabled gate mode.")
+            self.log("Disabled gate mode.")
         else:
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def enable_pulse_mode(self):
         r = self.query("EPM")
         if r == "EPM":
-            self._log.info("Enabled pulse mode.")
+            self.log("Enabled pulse mode.")
         elif r == "ERR":
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
         else:
             msg = f"Unknown error: {r}"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def disable_pulse_mode(self):
         r = self.query("DPM")
         if r == "DPM":
-            self._log.info("Disabled pulse mode.")
+            self.log("Disabled pulse mode.")
         elif r == "ERR":
             msg = "Emission is on!"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
         else:
             msg = f"Unknown error: {r}"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def emission_off(self):
         r = self.query("EMOFF")
         if r == "EMOFF":
-            self._log.info("Stopped emission.")
+            self.log("Stopped emission.")
         else:
             msg = f"Unknown error: {r}"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def emission_on(self):
         r = self.query("EMON")
         if r == "EMON":
-            self._log.info("Started emission.")
+            self.log("Started emission.")
         else:
             msg = f"Unknown error: {r}"
-            self._log.error(msg)
+            self.log(msg=msg, level=logging.ERROR)
             raise LaserException(msg)
 
     def read_extended_device_status(self):
@@ -303,6 +303,13 @@ class YLR3000:
 
         line = self.__connection.recv(1024)
         return line.decode('utf-8').rstrip("\r").rstrip(" ")
+
+    def log(self, msg, level=logging.INFO):
+        if self._log is None:
+            print(msg)
+            return
+        self._log.log(level=level, msg=msg)
+        return
 
     def __del__(self):
         self.disconnect()

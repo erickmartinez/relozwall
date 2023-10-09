@@ -291,9 +291,9 @@ class Camera:
             return False
 
         # Display Buffer Info
-        print('Default Buffer Handling Mode: %s' % handling_mode_entry.GetDisplayName())
-        print('Default Buffer Count: %d' % buffer_count.GetValue())
-        print('Maximum Buffer Count: %d' % buffer_count.GetMax())
+        self.log('Default Buffer Handling Mode: %s' % handling_mode_entry.GetDisplayName(), level=logging.DEBUG)
+        self.log('Default Buffer Count: %d' % buffer_count.GetValue(), level=logging.DEBUG)
+        self.log('Maximum Buffer Count: %d' % buffer_count.GetMax(), level=logging.DEBUG)
 
         num_buffers_to_set = min(buffer_count.GetMax(), num_buffers)
         buffer_count.SetValue(buffer_count.GetMax())
@@ -302,7 +302,7 @@ class Camera:
 
         handling_mode_entry = handling_mode.GetEntryByName('OldestFirst')
         handling_mode.SetIntValue(handling_mode_entry.GetValue())
-        print('Buffer Handling Mode has been set to %s' % handling_mode_entry.GetDisplayName())
+        self.log('Buffer Handling Mode has been set to %s' % handling_mode_entry.GetDisplayName(), level=logging.DEBUG)
 
     def configure_frame_rate(self, frame_rate_value: float):
         frame_rate_value = abs(float(frame_rate_value))
@@ -333,6 +333,9 @@ class Camera:
                 return False
             self._cam.AcquisitionFrameRateEnable.SetValue(False)
         except PySpin.SpinnakerException as ex:
+            self.log(f'Error: {ex}', logging.ERROR)
+            return False
+        except AttributeError as ex:
             self.log(f'Error: {ex}', logging.ERROR)
             return False
         return True
@@ -452,6 +455,10 @@ class Camera:
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}', logging.ERROR)
             return False
+        except AttributeError as ex:
+            self.log(f'Error: {ex}', logging.ERROR)
+            self.log('...Maybe the camera has already been disconencted.')
+            return False
         self.log('Reset trigger')
         return True
 
@@ -528,7 +535,7 @@ class Camera:
             # self.acquisition_mode = PySpin.AcquisitionMode_Continuous
             # self.log('Acquisition mode set to multi frame...')
             # MAX 1440
-            self.set_buffers(45)
+            self.set_buffers(50)
 
             # self._cam.Width.SetValue(self._cam.WidthMax.GetValue())
             #  Begin acquiring images
@@ -731,10 +738,12 @@ class Camera:
 
     def shutdown(self):
         self.reset()
+        time.sleep(1.0)
         self._cam.DeInit()
         del self._cam
         self._cam_list.Clear()
         self._system.ReleaseInstance()
+        time.sleep(0.1)
         self.log(msg='Deleted camera instance.', level=logging.INFO)
 
     def __del__(self):
