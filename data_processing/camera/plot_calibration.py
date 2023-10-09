@@ -13,7 +13,8 @@ from data_processing.utils import get_experiment_params, latex_float
 
 
 base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB'
-csv = 'adc_calibration_20230825_5dB.csv'
+# csv = 'adc_calibration_20230825_5dB.csv'
+csv = 'adc_calibration_20230929_5dB.csv'
 thermometry_csv = 'LT_GRAPHITE_100PCT_2023-07-19_2.csv'
 
 cutoff_b = 7.75E-3

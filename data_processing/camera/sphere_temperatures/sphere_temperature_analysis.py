@@ -251,6 +251,9 @@ def main():
         temperature_lb = convert_to_temperature(adc=adc_lb, cal=cal)
         temperature_ub = convert_to_temperature(adc=adc_ub, cal=cal)
 
+        # for i in range(len(temperature)):
+        #     print(f'T_lb: {temperature_lb[i]:>3.0f}, T: {temperature[i]:>3.0f}, T_ub: {temperature_ub[i]:>3.0f}')
+
         x = pid_df['x'].values
         y = pid_df['y'].values
 
@@ -308,7 +311,8 @@ def main():
             cost_lq = np.linalg.norm(res_lq.fun)
             print(
                 f'PID: {p:>2d}, v0: {10. ** popt_lq[0]:>7.1f} cm/s, theta0: {popt_lq[1] * RAD2DEG:>4.1f} deg, '
-                f'phi0 = {popt_lq[2] * RAD2DEG:>5.1f} deg, points: {len(t_ejected):>2d}, cost: {cost_lq:>5.2E}')
+                f'phi0 = {popt_lq[2] * RAD2DEG:>5.1f} deg, points: {len(t_ejected):>2d}, cost: {cost_lq:>5.2E}'
+            )
 
         ejection_data[k] = (
             p, t[0], t_takeoff, t_takeoff - t[0], temperature[0], temp_takeoff, temp_takeoff - temperature[0],
@@ -329,10 +333,12 @@ def main():
         axes2[1].plot([t_takeoff - t0], [s_takeoff], marker='o', fillstyle='none', color='k', mew=1.5)
         axes2[1].plot(t - t0, s, color=cmap(norm(k)))
 
+        yerr_neg = np.array([max(yy, 0.) for yy in (temp_ejected - temp_ejected_lb)])
+        yerr_pos = temp_ejected_ub - temp_ejected
         axes3[0].errorbar(
             x=t_ejected - t_takeoff,
             y=temp_ejected,
-            yerr=(temp_ejected - temp_ejected_lb, temp_ejected_ub - temp_ejected),
+            yerr=(yerr_neg, yerr_pos),
             ls='-', color=cmap(norm(k)), marker='o', ms=7, mew=1.25, mfc='none',
             capsize=2.75, elinewidth=1.25, lw=1.5,
         )

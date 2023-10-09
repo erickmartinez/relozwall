@@ -24,8 +24,10 @@ cp = 0.714  # J / g / K
 cp_err = 0.022
 rho = 1.372  # g / cm^3
 rho_err = 0.003
-thermal_diffusivity = 0.067  # cm^2 / s
-thermal_diffusivity_err = 0.003  # cm^2 / s
+thermal_conductivity = 0.067  # W/cm-K
+thermal_conductivity_err = 0.003  # W/cm-K
+thermal_diffusivity = thermal_conductivity / (cp * rho)  # cm^2 / s
+thermal_diffusivity_err = thermal_diffusivity * np.linalg.norm([thermal_conductivity_err/thermal_conductivity, cp_err/cp, rho_err / rho]) # cm^2 / s
 pebble_exposure_time = 0.1  # s
 pebble_exposure_time_err = 0.01  # s
 heat_of_sublimation = 170.39  #
@@ -229,7 +231,7 @@ def main():
     sbc = 5.67034419E-12  # W/cm^2/K^4
     diffusion_length_err = 0.5 * diffusion_length * np.linalg.norm(
         [thermal_diffusivity_err / thermal_diffusivity, pebble_exposure_time_err / pebble_exposure_time])
-    print(f"Diffusion length: {diffusion_length:.3E}±{diffusion_length_err}")
+    print(f"Diffusion length: {diffusion_length:.3E}±{diffusion_length_err} cm")
 
     b0 = [byT3_0, -1.]
 

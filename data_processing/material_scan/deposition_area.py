@@ -47,7 +47,7 @@ def main():
     df[columns[2::]] = df[columns[2::]].apply(pd.to_numeric)
     print(df)
     slide_width_cm = slide_width_mm * 0.1
-    r = np.array([(i) * slide_width_cm for i in range(5)])
+    r = np.array([(i+0) * slide_width_cm for i in range(5)])
     d = df['Film thickness (nm)'].values
     d_lb = df['Thickness lb (nm)'].values
     d_ub = df['Thickness ub (nm)'].values

@@ -18,7 +18,8 @@ import matplotlib.ticker as ticker
 base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726'
 # images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\LCT_GRAPHITE_100PCT_2023-02-21_1_images'
 images_base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\LCT_GRAPHITE_100PCT_2023-07-28_2_images'
-calibration_csv = 'temperature_data.csv'
+# calibration_csv = 'temperature_data_20230719.csv'
+calibration_csv = 'temperature_data_20230929.csv'
 file_tag = 'GRAPHITE_IMG'
 frame_rate = 200.0
 p = re.compile(r'.*?-(\d+)\.jpg')
