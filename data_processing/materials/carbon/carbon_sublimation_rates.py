@@ -18,12 +18,12 @@ by_na = 1. / 6.02214076E23
 all_tol = np.finfo(np.float64).eps
 
 deposition_data = {
-    'temp_k': 2800,
+    'temp_k': 3500,
     'rate [C/s/nm^2]': 1.02E6
 }
 
 free_pebble_data = {
-    'temp_k': 2800,
+    'temp_k': 3500,
     'rate [C/s/nm^2]': 78854.03
 }
 
@@ -89,7 +89,7 @@ def main():
 
     popt = res.x
     ci = cf.confidence_interval(res)
-    xp = np.linspace(0.275, 0.575, 500)
+    xp = np.linspace(0.255, 0.575, 500)
     yp, lpb, upb = cf.predint(x=xp, xd=tbyT, yd=rate, func=poly, res=res)
 
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
@@ -107,13 +107,13 @@ def main():
 
     ax.plot(
         [1000. / deposition_data['temp_k']], [np.log(deposition_data['rate [C/s/nm^2]'])], marker='^', ls='none',
-        color='C1', label='Carbon deposition'
+        color='C1', label='Sample sublimation'
     )
 
-    ax.plot(
-        [1000. / free_pebble_data['temp_k']], [np.log(free_pebble_data['rate [C/s/nm^2]'])], marker='v', ls='none',
-        color='C2', label='Ejected pebble'
-    )
+    # ax.plot(
+    #     [1000. / free_pebble_data['temp_k']], [np.log(free_pebble_data['rate [C/s/nm^2]'])], marker='v', ls='none',
+    #     color='C2', label='Ejected pebble'
+    # )
 
     for i in range(len(popt)):
         print(f'popt[{i}] = {popt[i]:.3f}, 95% CI: [{ci[i,0]:.3f},{ci[i,1]:.3f}]')
@@ -151,10 +151,10 @@ def main():
         color='b'
     )
 
-    T2800 = 1000. / 2800.
-    lnrT2800 = poly(T2800, popt)
-    ax.annotate(f"${latex_float(np.exp(lnrT2800), significant_digits=2)}$"+' C/s/nm$^{\mathregular{2}}$',
-                xy=(T2800, lnrT2800), xycoords='data',
+    T3500 = 1000. / 3500.
+    lnrT3500 = poly(T3500, popt)
+    ax.annotate(f"${latex_float(np.exp(lnrT3500), significant_digits=2)}$"+' C/s/nm$^{\mathregular{2}}$',
+                xy=(T3500, lnrT3500), xycoords='data',
                 xytext=(0.05, 0.25), textcoords='axes fraction',
                 va='center', ha='left',
                 arrowprops=dict(arrowstyle="->", connectionstyle="angle,angleA=-90,angleB=180,rad=5"))

@@ -5,6 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import json
+import pickle
 import os
 import data_processing.confidence as cf
 from data_processing.utils import latex_float, lighten_color
@@ -139,7 +140,7 @@ def main():
     ax.yaxis.set_major_locator(ticker.MultipleLocator(0.2))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
-    n_str = f"$n = {popt[0]:.1f}±{dn_opt:.1f}$"
+    n_str = f"$n = {popt[0]:.0f}±{dn_opt:.0f}$"
     ax.text(
         0.95, 0.95,
         n_str,
@@ -158,6 +159,14 @@ def main():
     fig.savefig('deposition_profile_cosine_law.svg', dpi=600)
     fig.savefig('deposition_profile_cosine_law.pdf', dpi=600)
     fig.savefig('deposition_profile_cosine_law.eps', dpi=600)
+
+    # save whole figure
+    pickle.dump(fig, open("deposition_profile_cosine_law.pickle", "wb"))
+
+    # load figure from file
+    # fig = pickle.load(open("figure.pickle", "rb"))
+
+
     plt.show()
 
 
