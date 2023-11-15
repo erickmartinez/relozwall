@@ -12,14 +12,14 @@ import matplotlib.pyplot as plt
 from scipy.optimize import least_squares, OptimizeResult, newton, differential_evolution, brentq
 import matplotlib.ticker as ticker
 import data_processing.confidence as cf
-from data_processing.utils import lighten_color, latex_float
+from data_processing.utils import lighten_color, latex_float, latex_float_with_error
 import scipy.special as sc
 from scipy.integrate import simps
 from scipy.interpolate import interp1d
 
-base_dir = r"C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC\R4N85_stats"
+base_dir = r"C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\DPP 2023\figures\temperature_stats"
 pid = 4
-emissivity = 1.
+emissivity = 0.8
 cp = 0.714  # J / g / K
 cp_err = 0.022
 rho = 1.372  # g / cm^3
@@ -27,12 +27,14 @@ rho_err = 0.003
 thermal_conductivity = 0.067  # W/cm-K
 thermal_conductivity_err = 0.003  # W/cm-K
 thermal_diffusivity = thermal_conductivity / (cp * rho)  # cm^2 / s
-thermal_diffusivity_err = thermal_diffusivity * np.linalg.norm([thermal_conductivity_err/thermal_conductivity, cp_err/cp, rho_err / rho]) # cm^2 / s
+thermal_diffusivity_err = thermal_diffusivity * np.linalg.norm(
+    [thermal_conductivity_err / thermal_conductivity, cp_err / cp, rho_err / rho])  # cm^2 / s
 pebble_exposure_time = 0.1  # s
 pebble_exposure_time_err = 0.01  # s
 heat_of_sublimation = 170.39  #
 activation_energy = 8.2  # eV
 sample_diameter_cm = 1.0
+
 
 def poly(x, b):
     xx = np.ones_like(x, dtype=np.float64)
@@ -214,13 +216,13 @@ def main():
     global TSTEPS
     global trial_temp
     sample_area = 0.25E14 * np.pi * (sample_diameter_cm) ** 2.
-    temp_df = pd.read_csv(os.path.join(base_dir, 'cooling_data.csv')).apply(pd.to_numeric)
-    temp_df = temp_df[temp_df['PID'] == pid]
+    temp_df = pd.read_csv(os.path.join(base_dir, 'selected_cooling_data.csv')).apply(pd.to_numeric)
+    # temp_df = temp_df[temp_df['PID'] == pid]
     t, temp, temp_lb, temp_ub = temp_df['t [s]'].values, temp_df['T [K]'].values, temp_df['T_lb [K]'].values, temp_df[
         'T_ub [K]'].values
-    temp, temp_lb, temp_ub = temp, temp_lb , temp_ub
+    temp, temp_lb, temp_ub = temp, temp_lb, temp_ub
     byT3 = np.power(temp, -3.)
-    byT3_0 = byT3[0]
+    byT3_0 = np.power(temp.max(), -3.)
     byT3_lb, byT3_ub = np.power(temp_lb, -3), np.power(temp_ub, -3)
     yerr_byT3 = np.abs(np.array([byT3 - byT3_lb, byT3_ub - byT3]))
     yerr_T = np.abs(np.array([temp - temp_lb, temp_ub - temp]))
@@ -239,7 +241,7 @@ def main():
     res: OptimizeResult = least_squares(
         fobj,
         b0,
-        # loss='soft_l1', f_scale=0.1,
+        loss='soft_l1', f_scale=0.1,
         jac=jac,
         args=(t, byT3),
         # bounds=([0., 0.], [np.inf, np.inf]),
@@ -265,76 +267,6 @@ def main():
 
     print(f"Temp[0]: {temp0:.0f} (K)")
 
-    res_sublimation: OptimizeResult = differential_evolution(
-        func=fobj_sublimation_de,
-        args=(t, temp),
-        x0=[1.],
-        bounds=[(1, 50)],
-        maxiter=n * 1000000,
-        tol=all_tol ** 0.5,
-        atol=all_tol ** 0.5,
-        workers=-1,
-        updating='deferred',
-        recombination=0.5,
-        strategy='best1bin',
-        mutation=(0.5, 1.5),
-        init='sobol',
-        polish=False,
-        disp=True
-    )
-
-    res_sublimation: OptimizeResult = least_squares(
-        fobj_sublimation,
-        res_sublimation.x,
-        # loss='soft_l1', f_scale=0.1,
-        # jac=jac_exp,
-        args=(t, temp),
-        # bounds=([0., 0.], [np.inf, np.inf]),
-        xtol=all_tol,
-        ftol=all_tol,
-        gtol=all_tol,
-        diff_step=all_tol,
-        max_nfev=100000 * n,
-        method='trf',
-        x_scale='jac',
-        verbose=2
-    )
-
-    res_radsub_de: OptimizeResult = differential_evolution(
-        func=fobj_radsub_de,
-        args=(t, temp),
-        x0=[17.],
-        bounds=[(-15, 35)],
-        maxiter=n * 1000000,
-        tol=all_tol ** 0.5,
-        atol=all_tol ** 0.5,
-        workers=-1,
-        updating='deferred',
-        recombination=0.5,
-        strategy='best1bin',
-        mutation=(0.5, 1.5),
-        init='sobol',
-        polish=False,
-        disp=True
-    )
-
-    res_radsub: OptimizeResult = least_squares(
-        fobj_radsub,
-        res_radsub_de.x,
-        # loss='soft_l1', f_scale=0.1,
-        # jac=jac_exp,
-        args=(t, temp),
-        bounds=([-15], [35]),
-        xtol=all_tol,
-        ftol=all_tol,
-        gtol=all_tol,
-        diff_step=all_tol,
-        max_nfev=100000 * n,
-        method='trf',
-        x_scale='jac',
-        verbose=2
-    )
-
     ci = cf.confidence_interval(res=res)
     # ci_sublimation = cf.confidence_interval(res=res_sublimation)
 
@@ -353,37 +285,16 @@ def main():
     d_mm = 10. * d_cm
     d_mm_err = 10. * d_cm_err
 
-    popt_sublimation = res_sublimation.x
-    print("popt_sublimation:", popt_sublimation)
-    # d_sublimation = [max(np.abs(ci_sublimation[i, :] - popt_sublimation[i])) for i in range(len(popt_sublimation))]
-    # d_sublimation = np.power(10, np.mean(d_sublimation))
-
-    popt_rs = res_radsub.x
-    print("popt_rs:", popt_rs)
-    r0_rs = (10. ** popt_rs[0]) / sample_area
-    ci = (10. ** cf.confidence_interval(res_radsub) ) / sample_area
-    r0_rs_err = np.max(np.abs(r0_rs-ci[0, :]))
-
     xp = np.linspace(t.min(), t.max(), 500)
     yp, lpb, upb = cf.predint(x=xp, xd=t, yd=byT3, func=poly, res=res)
 
-    # yp_sub, lpb_sub, upb_sub = cf.predint(x=xp, xd=t, yd=temp, func=model_sublimation_rate, res=res_sublimation)
-    yp_sub = model_sublimation_rate(xp, res_sublimation.x)
-
     f_interp = interp1d(t, temp)
     trial_temp = f_interp(xp)
-    # yp_rs = model_radiation_sublimation(xp, res_radsub.x, f_interp(xp))
-    yp_rs, lpb_rs, upb_rs = cf.predint(x=xp, xd=t, yd=temp, func=model_radiation_sublimation, res=res_radsub)
 
     load_plot_style()
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
     fig.set_size_inches(4.0, 3.0)
 
-    fig_exp, ax_exp = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
-    fig_exp.set_size_inches(4.0, 3.0)
-
-    fig_rs, ax_rs = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
-    fig_rs.set_size_inches(4.0, 3.0)
 
     ax.errorbar(
         t, temp, yerr=yerr_T, marker='o', ms=7, fillstyle='none', ls='none', mew=1.5, color='C0', mfc='none',
@@ -391,17 +302,6 @@ def main():
         lw=1.5, label='Experiment', zorder=2
     )
 
-    ax_exp.errorbar(
-        t, temp, yerr=yerr_T, marker='o', ms=7, fillstyle='none', ls='none', mew=1.5, color='C0', mfc='none',
-        capsize=2.75, elinewidth=1.25,
-        lw=1.5, label='Experiment', zorder=2
-    )
-
-    ax_rs.errorbar(
-        t, temp, yerr=yerr_T, marker='o', ms=7, fillstyle='none', ls='none', mew=1.5, color='C0', mfc='none',
-        capsize=2.75, elinewidth=1.25,
-        lw=1.5, label='Experiment', zorder=2
-    )
 
     rt3 = -1. / 3.
     ax.fill_between(xp, np.power(lpb, rt3), np.power(upb, rt3), color=lighten_color('C0', 0.3), zorder=1)
@@ -412,104 +312,37 @@ def main():
     ax.plot(xp, np.power(yp, rt3), color='C0', ls='-', lw=1.5, label=model_lbl,
             zorder=3)
 
-    ax_exp.plot(xp, yp_sub, color='C0', ls='-', lw=1.5, label=r'Sublimation model',
-                zorder=3)
-
-    ax_rs.plot(xp, yp_rs, color='C0', ls='-', lw=1.5, label=r'Sublimation + radiation',
-               zorder=3)
-
-    ax_rs.fill_between(xp, lpb_rs, upb_rs, color=lighten_color('C0', 0.3), zorder=1)
 
     ax.set_xlabel('t [s]')
     ax.set_ylabel(r'T [K]')
     ax.set_title('Free pebble temperature')
 
-    ax_exp.set_xlabel('t [s]')
-    ax_exp.set_ylabel(r'T [K]')
-    ax_exp.set_title('Free pebble temperature')
-
-    ax_rs.set_xlabel('t [s]')
-    ax_rs.set_ylabel(r'T [K]')
-    ax_rs.set_title('Free pebble temperature')
-
     ax.set_xlim(0., 0.05)
     ax.xaxis.set_major_locator(ticker.MultipleLocator(0.01))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.005))
 
-    ax_exp.set_xlim(0., 0.05)
-    ax_exp.xaxis.set_major_locator(ticker.MultipleLocator(0.01))
-    ax_exp.xaxis.set_minor_locator(ticker.MultipleLocator(0.005))
-
-    ax_rs.set_xlim(0., 0.05)
-    ax_rs.xaxis.set_major_locator(ticker.MultipleLocator(0.01))
-    ax_rs.xaxis.set_minor_locator(ticker.MultipleLocator(0.005))
-
     ax.ticklabel_format(axis='y', useMathText=True)
 
     ax.legend(loc='upper right', frameon=True, fontsize=11)
-
-    ax_exp.legend(loc='lower left', frameon=True, fontsize=11)
-
-    ax_rs.legend(loc='upper right', frameon=True, fontsize=11)
 
     # ax.set_ylim(1250, 2750)
     # ax.yaxis.set_major_locator(ticker.MultipleLocator(500))
     # ax.yaxis.set_minor_locator(ticker.MultipleLocator(250))
     temp_0 = np.power(intercept, -1. / 3.)
     results_txt = f"$T_0$: {temp_0:.0f} K\n"
-    results_txt += f"Slope: $\\mathregular{{{latex_float(slope, 2)}}}\pm{latex_float(d_slope)}$ " + "1/$(\\mathregular{K^3 s})$\n"
+    results_txt += f"Slope: $\\mathregular{{{latex_float_with_error(slope, d_slope, 2)}}}$ " + "1/$(\\mathregular{K^3 s})$\n"
     results_txt += f"Pebble diameter: {d_mm:.3f}±{d_mm_err:.3f} mm"
     ax.text(
-        0.05, 0.05,
+        0.95, 0.4,
         results_txt,
-        horizontalalignment='left',
+        horizontalalignment='right',
         verticalalignment='bottom',
         color='b',
         transform=ax.transAxes,
         fontsize=9
     )
 
-    results_txt_sub = f"$r_0$: ${latex_float(10. ** popt_sublimation[0])}$ atoms/s"
-    # results_txt_sub += f"$b_0: \\mathregular{{{latex_float(popt_sublimation[0], 2)}}}\pm{latex_float(d_sublimation[0])}$ K\n"
-    # results_txt_sub += f"$b_1: \\mathregular{{{latex_float(popt_sublimation[1], 2)}}}\pm{latex_float(d_sublimation[1])}$ 1/s\n"
-    ax_exp.text(
-        0.95, 0.95,
-        results_txt_sub,
-        horizontalalignment='right',
-        verticalalignment='top',
-        color='b',
-        transform=ax_exp.transAxes,
-        fontsize=9
-    )
-
-    # output the fitted r0
-    r0_rs_exp_str = f'{r0_rs:.3E}'
-    r0_rs_err_exp_str = f'{r0_rs_err:.3E}'
-    r0_str_arr = r0_rs_exp_str.split('E')
-    r0_err_str_arr = r0_rs_err_exp_str.split('E')
-    a1, a2 = float(r0_str_arr[0]), float(r0_err_str_arr[0])
-    b1, b2 = float(r0_str_arr[1]), float(r0_err_str_arr[1])
-    pef = 10. ** (b1 - b2)
-    r0_ls = rf'({a1*pef:.2f} \pm {a2:.2f}) \times 10^{{{b2:.0f}}}'
-
-
-    print(f'r0_rs: {r0_rs:.3E}±{r0_rs_err:.3E}')
-    results_txt_rs = f"$r_0$: ${r0_ls}$ atoms/s/nm$^{{\\mathregular{{2}}}}$"
-    # results_txt_sub += f"$b_0: \\mathregular{{{latex_float(popt_sublimation[0], 2)}}}\pm{latex_float(d_sublimation[0])}$ K\n"
-    # results_txt_sub += f"$b_1: \\mathregular{{{latex_float(popt_sublimation[1], 2)}}}\pm{latex_float(d_sublimation[1])}$ 1/s\n"
-    ax_rs.text(
-        0.05, 0.05,
-        results_txt_rs,
-        horizontalalignment='left',
-        verticalalignment='bottom',
-        color='b',
-        transform=ax_rs.transAxes,
-        fontsize=9
-    )
-
     fig.savefig(os.path.join(base_dir, f"radiative_cooling_R4N85_PID-{pid}.png"), dpi=600)
-    fig_exp.savefig(os.path.join(base_dir, f"sublimation_cooling_R4N85_PID-{pid}.png"), dpi=600)
-    fig_rs.savefig(os.path.join(base_dir, f"sublimation+radiation_cooling_R4N85_PID-{pid}.png"), dpi=600)
     plt.show()
 
 
