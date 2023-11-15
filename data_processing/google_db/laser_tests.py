@@ -6,7 +6,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import pandas as pd
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests'
+# base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests'
+base_path = '/Users/erickmartinez/Documents/UCSD/research/data/firing tests'
 database_filetag = 'merged_db'
 
 # If modifying these scopes, delete the file token.json.
