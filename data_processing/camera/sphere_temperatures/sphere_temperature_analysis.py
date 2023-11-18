@@ -19,7 +19,7 @@ save_dir = 'R4N85_stats'
 tracking_csv = r'LCT_R4N85_manual_tracking.xlsx'
 sheet_name = 'R4N85'
 info_csv = r'LCT_R4N85_ROW375_100PCT_2023-08-18_1.csv'
-calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
+calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010\calibration_20231010_4us.csv'
 
 pixel_size = 20.4215  # pixels/mm
 px2mm = 1. / pixel_size
@@ -55,7 +55,7 @@ def load_plot_style():
 
 def load_calibration(calibration_csv=calibration_csv):
     df = pd.read_csv(calibration_csv).apply(pd.to_numeric)
-    return df['Temperature (°C)'].values
+    return df['Temperature [K]'].values
 
 
 def convert_to_temperature(adc, cal):
@@ -219,13 +219,13 @@ def main():
     norm_v = mpl.colors.Normalize(vmin=0, vmax=1000)
     cmap_v = plt.get_cmap('jet')
     ejection_data = np.empty(n, dtype=np.dtype([
-        ('PID', 'i'), ('t_0 (s)', 'd'), ('t_ejection (s)', 'd'), ('dt (s)', 'd'),
-        ('T_0 (°C)', 'd'), ('T_ejection (°C)', 'd'), ('dT (°C)', 'd'),
-        ('v_ejection (cm/s)', 'd')
+        ('PID', 'i'), ('t_0 [s]', 'd'), ('t_ejection [s]', 'd'), ('dt [s]', 'd'),
+        ('T_0 [K]', 'd'), ('T_ejection [K]', 'd'), ('dT [K]', 'd'),
+        ('v_ejection [cm/s]', 'd')
     ]))
 
     cooling_data = pd.DataFrame(columns=[
-        'PID', 't (s)', 'x (cm)', 'y (cm)', 'T (°C)', 'T_lb (°C)', 'T_ub (°C)', 'x_fit (cm)', 'y_fit (cm)'
+        'PID', 't [s]', 'x [cm]', 'y [cm]', 'T [K]', 'T_lb [K]', 'T_ub [K]', 'x_fit [cm]', 'y_fit [cm]'
     ])
 
     fig, axes = plt.subplots(nrows=3, ncols=1, constrained_layout=True)
@@ -288,19 +288,20 @@ def main():
                            x0=x_vector[0], y0=y_vector[0])
             v_ejection = 10. ** popt_lq[0]
             # for j in range(len(t_ejected)):
-            cooling_data = cooling_data.append(
+            cooling_data = pd.concat([
+                cooling_data,
                 pd.DataFrame(data={
                     'PID': [p for ii in range(len(t_ejected))],
-                    't (s)': t_ejected - t_takeoff,
-                    'x (cm)': x_vector,
-                    'y (cm)': y_vector,
-                    'T (°C)': temp_ejected,
-                    'T_lb (°C)': temp_ejected_lb,
-                    'T_ub (°C)': temp_ejected_ub,
-                    'x_fit (cm)': xy_fit.x,
-                    'y_fit (cm)': xy_fit.y,
-                }),
-            )
+                    't [s]': t_ejected - t_takeoff,
+                    'x [cm]': x_vector,
+                    'y [cm]': y_vector,
+                    'T [K]': temp_ejected,
+                    'T_lb [K]': temp_ejected_lb,
+                    'T_ub [K]': temp_ejected_ub,
+                    'x_fit [cm]': xy_fit.x,
+                    'y_fit [cm]': xy_fit.y,
+                })
+            ])
             x_cm = px2cm * x - center_mm[0] * 0.1
             y_cm = px2cm * (1080 - y) - center_mm[1] * 0.1
 
@@ -345,13 +346,13 @@ def main():
 
     # Plot the ejection temperature histogram
     num_bins = 5
-    T_e, T_std = ejection_data['T_ejection (°C)'].mean(), np.std(ejection_data['T_ejection (°C)'])
+    T_e, T_std = ejection_data['T_ejection [K]'].mean(), np.std(ejection_data['T_ejection [K]'])
     print(f'T_e: {T_e:.1f}, T_std: {T_std:.1f}')
-    n, bins, patches = ax_th.hist(ejection_data['T_ejection (°C)'], num_bins, density=True)
+    n, bins, patches = ax_th.hist(ejection_data['T_ejection [K]'], num_bins, density=True)
     # add a 'best fit' line
     v_fit = ((1 / (np.sqrt(2 * np.pi) * T_std)) * np.exp(-0.5 * (1 / T_std * (bins - T_e)) ** 2))
     ax_th.plot(bins, v_fit, '--')
-    ax_th.set_xlabel('T [°C]')
+    ax_th.set_xlabel('T [K]')
     ax_th.set_ylabel('Counts')
     ax_th.set_title('Ejection temperature')
     
@@ -366,26 +367,26 @@ def main():
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.05))
 
     axes[0].set_ylabel('ADC')
-    axes[1].set_ylabel('°C')
+    axes[1].set_ylabel('K')
     axes[2].set_ylabel(r'$\Delta$px')
 
     axes[0].set_ylim(0, 160)
     axes[0].yaxis.set_major_locator(ticker.MultipleLocator(32))
     axes[0].yaxis.set_minor_locator(ticker.MultipleLocator(16))
 
-    axes[1].set_ylim(1250, 2750)
-    axes[1].yaxis.set_major_locator(ticker.MultipleLocator(500))
-    axes[1].yaxis.set_minor_locator(ticker.MultipleLocator(250))
+    axes[1].set_ylim(2000, 3600)
+    axes[1].yaxis.set_major_locator(ticker.MultipleLocator(400))
+    axes[1].yaxis.set_minor_locator(ticker.MultipleLocator(200))
 
-    axes2[0].set_ylim(1250, 2750)
-    axes2[0].yaxis.set_major_locator(ticker.MultipleLocator(500))
-    axes2[0].yaxis.set_minor_locator(ticker.MultipleLocator(250))
+    axes2[0].set_ylim(2000, 3600)
+    axes2[0].yaxis.set_major_locator(ticker.MultipleLocator(400))
+    axes2[0].yaxis.set_minor_locator(ticker.MultipleLocator(200))
 
     axes[0].set_title('Gray value')
     axes[1].set_title('Pebble temperature')
     axes[2].set_title('Pebble instantaneous displacement')
 
-    axes2[0].set_ylabel('°C')
+    axes2[0].set_ylabel('K')
     axes2[1].set_ylabel(r'$\Delta$px')
 
     axes2[0].set_title('Pebble temperature')
@@ -397,20 +398,20 @@ def main():
     ax_t.set_ylabel('y [cm]')
     ax_t.set_title('Fitted trajectories')
     axes3[0].set_xlabel(r'$\Delta$t [s]')
-    axes3[0].set_ylabel('T [°C]')
+    axes3[0].set_ylabel('T [K]')
     axes3[0].set_title('Pebble cooling rate')
-    axes3[1].set_xlabel('T$_{\mathregular{ejected}}$ [°C]')
+    axes3[1].set_xlabel('T$_{\mathregular{ejected}}$ [K]')
     axes3[1].set_ylabel('v [cm/s]')
     axes3[1].set_title('Ejection velocity')
-    ed = np.sort(ejection_data, order='dt (s)')
-    axes3[1].plot(ed['T_ejection (°C)'], ed['v_ejection (cm/s)'], marker='o', fillstyle='none', ls='none')
+    ed = np.sort(ejection_data, order='dt [s]')
+    axes3[1].plot(ed['T_ejection [K]'], ed['v_ejection [cm/s]'], marker='o', fillstyle='none', ls='none')
 
     ax_t.set_aspect('equal', adjustable='datalim', anchor='C')
     ax1_divider = make_axes_locatable(ax_t)
     cax1 = ax1_divider.append_axes("right", size="7%", pad="1%")
     sm = mpl.cm.ScalarMappable(norm=norm_v, cmap=cmap_v)
     cbar = fig_t.colorbar(sm, cax=cax1)
-    cbar.set_label('\n$v_0$ (cm/s)', size=9)
+    cbar.set_label('\n$v_0$ [cm/s]', size=9)
     cbar.ax.set_ylim(0, 1000.)
 
     legend_elements0 = [Line2D([0], [0], color='olive', lw=1.5, label='Raw'),

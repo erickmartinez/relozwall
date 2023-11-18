@@ -14,7 +14,7 @@ import matplotlib as mpl
 import json
 
 base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
-info_csv = r'LCT_R4N86_ROW381_100PCT_2023-08-19_1.csv'
+info_csv = r'LCT_R4N85_ROW375_100PCT_2023-08-18_1.csv'
 
 """
 Remove the attenuation from carbon deposit on the windows
@@ -35,11 +35,12 @@ frame_rate = 200.0
 pixel_size = 20.4215  # pixels/mm
 p = re.compile(r'.*?-(\d+)\.jpg')
 nmax = 200
-calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
+# calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
+calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010\calibration_20231010_4us.csv'
 px2mm = 1. / pixel_size
 px2cm = 0.1 * px2mm
-crop_image = False
-center = np.array([318, 496])
+crop_image = True
+center = np.array([262, 444])
 crop_r = 200  # 9x
 crop_extents = {
     'left': (center[0] - crop_r),
@@ -103,16 +104,16 @@ def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, fil
     m = p.match(file)
     dt = (float(m.group(1)) - t0) * 1E-9
 
-    if dt <= pulse_width:
-        # tmp = img - img0
-        # tmp[img < 0] = 0
-        img = cv2.subtract(img, img0)
+    # if dt <= pulse_width:
+    #     # tmp = img - img0
+    #     # tmp[img < 0] = 0
+    #     img = cv2.subtract(img, img0)
     # img = img.astype(np.uint8)
     temp_img = convert_to_temperature(img, cal, dt, emission_time)
     dt_txt = f'{dt:05.4f} s'
     ln[0].set_array(temp_img)
     ln[1].set_text(dt_txt)
-    print('Updating time step {0}/{1}, T_max: {2:.0f} °C, img_max: {3:d}'.format(
+    print('Updating time step {0}/{1}, T_max: {2:.0f} K, img_max: {3:d}'.format(
         n, n_max, temp_img.flatten().max(), img.flatten().max()
     ))
     fig.savefig(os.path.join(image_save_path, f'{file_tag}_{n:03d}.png'), dpi=600, bbox_inches='tight')
@@ -128,7 +129,7 @@ def correct_for_window_deposit_intensity(img: np.ndarray, t):
 
 def load_calibration():
     df = pd.read_csv(calibration_csv).apply(pd.to_numeric)
-    return df['Temperature (°C)'].values
+    return df['Temperature [K]'].values
 
 
 def convert_to_temperature(signal, cali: np.ndarray, dt, emission_time) -> np.ndarray:
@@ -162,7 +163,7 @@ def main():
     cal = load_calibration()
     # print(f'length of cal: {len(cal)}')
     # for i, c in enumerate(cal):
-    #     print(f'ADC: {i}, temp: {c} °C')
+    #     print(f'ADC: {i}, temp: {c} K')
     image_tag = sample_name + '_IMG'
     list_of_files = get_files(base_dir=images_path, tag=image_tag)
     files_dict = {}
@@ -207,10 +208,10 @@ def main():
     fig, ax = plt.subplots(ncols=1, nrows=1, constrained_layout=True)  # , frameon=False)
     # fig.set_size_inches(px2mm * frameSize[1] / 25.4, px2mm * frameSize[0] / 25.4)
     scale_factor = 2.5 if crop_image else 1.
-    aspect_ratio = 1.5  # 1.65 if crop_image else 1.5
+    aspect_ratio = 1.75 if crop_image else 1.5
     w, h = frameSize[1] * scale_factor * aspect_ratio * px2mm / 25.4, frameSize[0] * scale_factor * px2mm / 25.4
     fig.set_size_inches(w, h)
-    norm1 = plt.Normalize(vmin=1300, vmax=3000)
+    norm1 = plt.Normalize(vmin=1600, vmax=3600)
     # ax.margins(x=0, y=0)
     # plt.autoscale(tight=True)
 
@@ -223,9 +224,9 @@ def main():
 
     cs = ax.imshow(temp_im, interpolation='none', norm=norm1)  # ,
     # extent=(0, frameSize[1] * px2mm, 0, frameSize[0] * px2mm))
-    cbar = fig.colorbar(cs, cax=cax)
-    cbar.set_label('Temperature (°C)\n', size=9, labelpad=9)
-    cbar.ax.set_ylim(1400, 3000)
+    cbar = fig.colorbar(cs, cax=cax)#, extend='both')
+    cbar.set_label('Temperature (K)\n', size=9, labelpad=9)
+    cbar.ax.set_ylim(1600, 3600)
     cbar.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
     cbar.ax.tick_params(labelsize=9)
     # Add a scalebar
