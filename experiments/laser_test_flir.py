@@ -51,7 +51,7 @@ def trigger_camera(cam: Camera):
         cam.acquire_images()
     except PySpin.SpinnakerException as ex:
         log.error(ex)
-        cam.shutdown()
+        # cam.shutdown()
         raise ex
     return
 
@@ -89,8 +89,8 @@ class LaserProcedure(Procedure):
     __old_ylr_frequency: float = 1.0
     __directory: str = None
 
-    DATA_COLUMNS = ["Measurement Time (s)", "Pressure (Torr)", "TC1 (C)", "TC2 (C)", "Trigger (V)",
-                    "Laser output power (W)", "Laser output peak power (W)"]
+    DATA_COLUMNS = ['Measurement Time (s)', 'Pressure (Torr)', 'TC1 (C)', 'TC2 (C)', 'Trigger (V)',
+                    'Laser output power (W)', 'Laser output peak power (W)']
 
     def startup(self):
         log.info('***  Startup ****')
@@ -295,7 +295,6 @@ class LaserProcedure(Procedure):
         # self.__camera.shutdown()
         # self.__camera = None
 
-
         if emission_on:
             try:
                 self.__ylr.emission_off()
@@ -331,6 +330,8 @@ class LaserProcedure(Procedure):
                 'Laser peak power (W)': laser_output_peak_power
             }
         )
+
+        flir_trigger.join()
 
         self.save_pressure()
         t2 = time.time()
@@ -421,21 +422,22 @@ class LaserProcedure(Procedure):
 
         pct_f = 100. / n_data_points
 
-        flir_trigger.join()
+        time.sleep(5.0)
 
         for ii in range(n_data_points):
             dd = {
-                "Measurement Time (s)": time_interp[ii],
-                "Pressure (Torr)": np.round(pressure_interp[ii],3),
-                "TC1 (C)": np.round(tc1_interp[ii],2),
-                "TC2 (C)": np.round(tc2_interp[ii],2),
-                "Trigger (V)": np.round(trigger_interp[ii],3),
-                "Laser output power (W)": np.round(power_interp[ii],1),
-                "Laser output peak power (W)": np.round(peak_power_interp[ii],1)
+                'Measurement Time (s)': np.round(time_interp[ii],4),
+                'Pressure (Torr)': np.round(pressure_interp[ii], 3),
+                'TC1 (C)': np.round(tc1_interp[ii], 2),
+                'TC2 (C)': np.round(tc2_interp[ii], 2),
+                'Trigger (V)': np.round(trigger_interp[ii], 3),
+                'Laser output power (W)': np.round(power_interp[ii], 1),
+                'Laser output peak power (W)': np.round(peak_power_interp[ii], 1)
             }
             self.emit('results', dd)
             # log.debug("Emitting results: %s" % dd)
-            self.emit('progress', (ii + 1.) * pct_f)
+            if (ii % 10 == 0) or (ii + 1 == n_data_points):
+                self.emit('progress', (ii+1) * pct_f)
             time.sleep(0.001)
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
@@ -479,14 +481,14 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=LaserProcedure,
-            inputs=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time",
-                    "camera_exposure_time",
-                    "camera_frame_rate", "camera_gain", "acquisition_mode", "sample_name"],
-            displays=['emission_time', "measurement_time", "laser_power_setpoint", "camera_acquisition_time",
-                      "camera_exposure_time",
-                      "camera_frame_rate", "camera_gain", "acquisition_mode", "sample_name"],
-            x_axis="Measurement Time (s)",
-            y_axis="Pressure (Torr)",
+            inputs=['emission_time', 'measurement_time', 'laser_power_setpoint', 'camera_acquisition_time',
+                    'camera_exposure_time',
+                    'camera_frame_rate', 'camera_gain', 'acquisition_mode', 'sample_name'],
+            displays=['emission_time', 'measurement_time', 'laser_power_setpoint', 'camera_acquisition_time',
+                      'camera_exposure_time',
+                      'camera_frame_rate', 'camera_gain', 'acquisition_mode', 'sample_name'],
+            x_axis='Measurement Time (s)',
+            y_axis='Pressure (Torr)',
             directory_input=True,
         )
         self.setWindowTitle('Laser test (camera)')
@@ -520,7 +522,7 @@ class MainWindow(ManagedWindow):
         log.info(f'Starting experiment')
 
         results = Results(procedure, filename)
-        results.CHUNK_SIZE = 1000 # increased it from 1000 to check if it resolves emit result issues scrambling rows
+        # results.CHUNK_SIZE = 1000  # increased it from 1000 to check if it resolves emit result issues scrambling rows
         experiment = self.new_experiment(results)
         procedure.unique_filename = filename
         procedure.directory = directory
