@@ -12,11 +12,14 @@ import data_processing.confidence as cf
 from data_processing.utils import lighten_color, latex_float_with_error
 import cv2
 from scipy.stats.distributions import t
+import platform
 
-camera_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\BFS-U3-16S2M_QE.csv'
-filter_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\86117_Transmission.csv'
+
+drive_path = r'C:\Users\erick\OneDrive' if platform.system() == 'Windows' else r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
+camera_csv = r'Documents\ucsd\Postdoc\research\thermal camera\BFS-U3-16S2M_QE.csv'
+filter_csv = r'Documents\ucsd\Postdoc\research\thermal camera\86117_Transmission.csv'
 labsphere_csv = r'../../ir_thermography/PISCES labsphere.csv'
-save_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010'
+save_path = r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010'
 
 TEMP_CAL = 3310. # K
 TEMP_CAL_ERR = 10. #K
@@ -72,6 +75,17 @@ def fobj(b, x, y):
 
 
 def main():
+    global camera_csv, labsphere_csv, save_path, filter_csv
+    if platform.system() != 'Windows':
+        camera_csv = camera_csv.replace('\\', '/')
+        labsphere_csv = labsphere_csv.replace('\\', '/')
+        save_path = save_path.replace('\\','/')
+        filter_csv = filter_csv.replace('\\','/')
+    camera_csv = os.path.join(drive_path, camera_csv)
+    #labsphere_csv = os.path.join(drive_path, labsphere_csv)
+    save_path = os.path.join(drive_path, save_path)
+    filter_csv = os.path.join(drive_path, filter_csv)
+
     load_plot_style()
     qe_df = pd.read_csv(camera_csv, comment='#').apply(pd.to_numeric)
     filter_df = pd.read_csv(filter_csv, comment='#').apply(pd.to_numeric)
@@ -126,7 +140,10 @@ def main():
     """
     Measure the stats for the capture images
     """
-    img_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010'
+    img_dir = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010')
+    if platform.system() != 'Windows':
+        img_dir = img_dir.replace('\\', '/')
+        img_dir = os.path.join(drive_path, img_dir)
     img_files_df = pd.DataFrame(data={
         'File': [
             'PISCES_LABSPHERE_501_us_5dB_6.147A_8902_ft-L.tiff',
@@ -180,12 +197,12 @@ def main():
     print(f'ADC(4 us): {g_at_4us:.3f}±{g_at_4us_err:.4f}')
 
     """
-    Use the calibration to create a table for temperatures in the range between 1000 and 4000 K
+    Use the calibration to create a table for temperatures in the range between 800 and 4000 K
     """
     # Get the calibrated radiated power per unit area as perceived by the NIR camer with the short pass filter
     phi_s_cal = get_phi_s(optical_factor_df=system_factor_df, temperature=TEMP_CAL, i0=I0)
     print(f'Phi_s({TEMP_CAL:.0f} K) = {phi_s_cal:.3E}')
-    temperature_calibration = 1000. + np.arange(0, 3010, 10.)
+    temperature_calibration = 800. + np.arange(0, 3010, 10.)
     exposure_times = np.array([4., 5., 20., 50, 100., 500])
     n_temps = len(temperature_calibration)
     table_rows = n_temps * len(exposure_times)
@@ -197,7 +214,7 @@ def main():
     k = 0
     for i in range(table_rows):
         e = exposure_times[k]
-        temp = temperature_calibration[i%n_temps]
+        temp = float(temperature_calibration[i%n_temps])
         g = get_calibrated_g_at_temperature(
             temperature=temp,
             g_temp_cal=g1,
@@ -268,6 +285,7 @@ def main():
     g_4us_f = calibration_4us['Gray value'].values
     temp_4us_f = calibration_4us['Temperature [K]'].values
 
+
     ff = interp1d(g_4us_f, temp_4us_f, fill_value='extrapolate')
 
     calibration_4us_int = np.empty(256, dtype=np.dtype([
@@ -283,6 +301,22 @@ def main():
     calibration_4us_df = pd.DataFrame(data=calibration_4us_int)
     print(calibration_4us_df)
     calibration_4us_df.to_csv(os.path.join(save_path, 'calibration_20231010_4us.csv'), index=False)
+
+    for i, cal_exposure in enumerate(exposure_times):
+        cal_at_e_df = calibration_table_df[calibration_table_df['Exposure time [us]'] == cal_exposure]
+        g_at_e = cal_at_e_df['Gray value'].values
+        temp_at_e = cal_at_e_df['Temperature [K]'].values
+        ff = interp1d(g_at_e, temp_at_e, fill_value='extrapolate')
+        calibration_at_exp = np.empty(256, dtype=np.dtype([
+            ('Gray value', 'i8'), ('Temperature [K]', 'd'), ('Temperature error [K]', 'd')
+        ]))
+        for j in range(256):
+            temp_j = ff(float(j))
+            calibration_at_exp[j] = (j, temp_j, temp_j * error_pct)
+        out_fn = f'calibration_20231010_{cal_exposure:.0f}_us.csv'
+        cal_at_exp_df = pd.DataFrame(data=calibration_at_exp)
+        cal_at_exp_df.to_csv(os.path.join(save_path, out_fn), index=False)
+
 
 
     x_plot = calibration_4us_int['Gray value']
