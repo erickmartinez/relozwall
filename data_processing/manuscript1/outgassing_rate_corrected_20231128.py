@@ -25,9 +25,9 @@ elif platform_system == 'Darwin':
 
 
 base_path = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC')
-data_csv = 'LCT_R4N55_100PCT_2023-03-16_1.csv'
+data_csv = 'LCT_R4N127_ROW436_100PCT_2023-11-15_1.csv'
 pumpdown_data_csv = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\data\laser_chamber_pumping_speed\turbo\DEGASSING_TRURBO_PUMPDOWN_2023-03-09_1.csv')
-out_dir = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\manuscripts\paper1\submission_JAP\rev1\figures')
+out_dir = os.path.join(drive_path, r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep')
 sample_diameter = 0.9
 beam_diameter = 0.8164
 
@@ -67,6 +67,16 @@ def main():
     laser_power = data_df['Laser output peak power (W)'].values
     time_sample = data_df['Measurement Time (s)'].values
     pressure_sample = 1000. * data_df['Pressure (Torr)'].values
+
+    msk_pgz = pressure_sample > 0
+    time_sample = time_sample[msk_pgz]
+    laser_power = laser_power[msk_pgz]
+    pressure_sample = pressure_sample[msk_pgz]
+
+    # Get the peak pressure to scale rest of the plots
+    peak_pressure = pressure_sample.max()
+    peak_idx = (np.abs(peak_pressure - peak_pressure)).argmin()
+    peak_time = time_sample[peak_idx]
     # Just take data after laser has been turned on
     msk_on = laser_power > 0.
     t_on = time_sample[msk_on]
@@ -106,8 +116,8 @@ def main():
     measurement_time_pumpdown = measurement_time_pumpdown[idx_p0::] - t0
     pressure_pumpdown = pressure_pumpdown[idx_p0::]
     # Interpolate the pressure-time curve
-    f_p = interp1d(pressure_pumpdown, measurement_time_pumpdown)
-    f_t = interp1d(measurement_time_pumpdown, pressure_pumpdown)
+    f_p = interp1d(pressure_pumpdown, measurement_time_pumpdown, fill_value='extrapolate')
+    f_t = interp1d(measurement_time_pumpdown, pressure_pumpdown, fill_value='extrapolate')
 
     """
     Model to find the best t_pumpdown that matches the equilibrium portion of the pressure plot
@@ -119,16 +129,20 @@ def main():
         return np.log(model(t, b)) - np.log(p)
 
     # Get the the pressure from the laser experiments at times t = 1.5 and 4 s
-    t_test1, t_test2 = 1.5, 4.2  # seconds
+    t_test1, t_test2 = 2.18, 6.  # seconds
     idx1, idx2 = (np.abs(time_sample - t_test1)).argmin(), (np.abs(time_sample - t_test2)).argmin()
     # Get the pressure at t_test1 and t_test2
     p_t1, p_t2 = pressure_sample[idx1], pressure_sample[idx2]
     # find the corresponding time it takes for the chamber to pumpdown to that pressure:
     t_pd1, t_pd2 = f_p(p_t1), f_p(p_t2)
     # Find the time at which the laser shuts off
-    msk_off = ~(laser_power > 0)
+    msk_on = laser_power > 0
+    msk_off = ~msk_on
     t_off = time_sample[msk_off]
+    t_on = time_sample[msk_on]
     t1 = t_off.min()
+    # t1 = t_on.min()
+
     t_pd_1i = t_pd1 - (t_test1 - t1)  # The initial time for pumpdown curve 1
     t_pd_2i = t_pd2 - (t_test2 - t1)  # The initial time for pumpdown curve 2
     t_pd_1f = t_pd1 + time_sample.max() - t_test1  # The final time for pumpdown curve 1
@@ -139,24 +153,11 @@ def main():
     p_pd_pred1 = f_t(t_pd_pred1)
     p_pd_pred2 = f_t(t_pd_pred2)
 
-    # Estimate outgassing rates for both cases:
-    xy0 = np.array([0, t1])
-    xy1 = np.array([pressure_sample[0], p_pd_pred1[0]])
-    xy2 = np.array([pressure_sample[0], p_pd_pred2[0]])
-    # dpdt1 = np.diff(xy1)[0] / t1
-    # dpdt2 = np.diff(xy2)[0] / t1
-    # # multiply dp/dt by volume divide by area an convert mTorr to Torr:
-    # area = 0.25 * np.pi * sample_diameter ** 2.
-    # q_out1 = chamber_volume * dpdt1 * area * 10.
-    # q_out2 = chamber_volume * dpdt2 * area * 10.
-    #
-    # print(f'Outgassing using point at {t_test1:.1f}s: {q_out1:.0f} Torr-L/m^2-s')
-    # print(f'Outgassing using point at {t_test2:.1f}s: {q_out2:.0f} Torr-L/m^2-s')
 
     """
     Fit the model to a range around t_test2
     """
-    t_test3, t_test4 = 4.1, time_sample.max()
+    t_test3, t_test4 = t_test2, time_sample.max()
     idx3, idx4 = (np.abs(time_sample - t_test3)).argmin(), (np.abs(time_sample - t_test4)).argmin()
     # Get the pressure at t_test1 and t_test2
     p_t3, p_t4 = pressure_sample[idx3], pressure_sample[idx4]
@@ -169,11 +170,11 @@ def main():
 
     all_tol = np.finfo(np.float64).eps
     res: OptimizeResult = least_squares(
-        fun=fobj, x0=[t_pd3], args=(tfit, pfit), jac='3-point', xtol=all_tol, gtol=all_tol, ftol=all_tol,
+        fun=fobj, x0=[1], args=(tfit, pfit), jac='3-point', xtol=all_tol, gtol=all_tol, ftol=all_tol,
         verbose=2, max_nfev=10000*n, x_scale='jac',
         # bounds=(0.001 * t_pd3, 100. * t_pd4),
         # loss='soft_l1', f_scale=0.1,
-        diff_step=all_tol,
+        diff_step=all_tol
     )
 
     popt = res.x
@@ -187,8 +188,12 @@ def main():
     q = t.ppf(1.0 - alpha / 2.0, n - 2)
     ypred = model(tfit, popt)
 
-    t_pred_fit = np.linspace(t_off.min(), time_sample.max(), 500)
-    p_pred_fit = model(t_pred_fit, popt)
+    t_pred_fit = np.linspace(t1, time_sample.max(), 500)
+    try:
+        p_pred_fit = model(t_pred_fit, popt)
+    except RuntimeWarning as e:
+        print(f'Divide by zero in p_pred_fit')
+        print(e)
     # t_pred_bar = t_pred_fit.mean()
     # t_pred_s = t_pred_fit.std()
     # dy = q * s * np.sqrt(1. + 1./n + ((t_pred_fit - t_pred_bar) ** 2.) / ((n - 1.) * t_pred_s) + var**2.)
@@ -262,25 +267,32 @@ def main():
 
     q_out1_txt = rf'${{\mathregular{{Q_{{\mathrm{{out}} }} }} }}$ = {q_out1:.0f} Torr-L/m$^{{\mathregular{{2}}}}$-s'
     q_out2_txt = rf'${{\mathregular{{Q_{{\mathrm{{out}} }} }} }}$ = {q_out2:.0f} Torr-L/m$^{{\mathregular{{2}}}}$-s'
+    q_out3_txt = r'$p_{\mathrm{peak}}$ = ' + rf'{peak_pressure:.1f} mTorr'
     correction_factor = q_out2 / q_out1
     print(f'Correction factor: {correction_factor:.3f}x')
 
+
     txt2 = ax.text(
-        t1, p_pd_pred2[0] * 1.1, q_out2_txt,
+        t1, p_pd_pred2[0] * 1.5, q_out2_txt,
         va='bottom', ha='left', fontsize=11, color='tab:purple',
         # transform=ax.transAxes,
     )
 
+    txt3 = ax.text(
+        peak_time+1, peak_pressure*1.02, q_out3_txt,
+        va='bottom', ha='left', fontsize=11, color='black',
+    )
+
     ax.set_xlim(0, time_sample.max())
-    ax.set_ylim(0, 25)
+    ax.set_ylim(0, 140)
 
     # Put heat load plot behind pressure plot
     ax.set_zorder(ax.get_zorder() + 1)
     ax_laser.set_zorder(ax_laser.get_zorder() - 1)
     ax.patch.set_visible(False)
 
-    ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(1.))
-    ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(0.5))
+    ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(2))
+    ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(1.))
 
     fig.savefig(os.path.join(out_dir, 'laser_heat_outgassing.png'), dpi=600)
     fig.savefig(os.path.join(out_dir, 'laser_heat_outgassing.pdf'), dpi=600)
@@ -292,7 +304,7 @@ def main():
     scp11 = ax.plot([t_test1], [p_t1], ls='none', marker='o', mfc='k', c='k', ms=6)
 
     txt1 = ax.text(
-        t1, p_pd_pred1[0] * 0.8, q_out1_txt,
+        t1+2., p_pd_pred1[0] * 1.3, q_out1_txt,
         va='top', ha='left', fontsize=11, color='tab:brown',
         # transform=ax.transAxes,
     )
@@ -300,6 +312,7 @@ def main():
     # Save figure with justification on the factor for the editor
     fig.savefig(os.path.join(out_dir, 'laser_heat_outgassing_editor.png'), dpi=600)
     fig.savefig(os.path.join(out_dir, 'laser_heat_outgassing_editor.svg'), dpi=600)
+    fig.savefig(os.path.join(out_dir, 'laser_heat_outgassing_editor.pdf'), dpi=600)
 
     plt.show()
 

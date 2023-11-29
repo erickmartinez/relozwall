@@ -8,14 +8,22 @@ import matplotlib.ticker as ticker
 from scipy.optimize import least_squares, OptimizeResult
 from data_processing.utils import latex_float, lighten_color
 import data_processing.confidence as cf
+import platform
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper2\free_pebble_power_balance'
+drive_path = ''
+platform_system = platform.system()
+if platform_system == 'Windows':
+    drive_path = r'C:\Users\erick\OneDrive'
+elif platform_system == 'Darwin':
+    drive_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
+
+base_dir = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\manuscripts\paper2\free_pebble_power_balance')
 rates_csv = 'sublimation_rate_arrhenius.csv'
 
 kcalpermol2eV = 0.043364104241800934
 kb_ev = 8.617333262E-5
 by_na = 1. / 6.02214076E23
-all_tol = np.finfo(np.float64).eps
+all_tol = float(np.finfo(np.float64).eps)
 
 deposition_data = {
     'temp_k': 3500,
@@ -63,8 +71,16 @@ def jac(b, x, y):
         xx *= x
     return jc
 
+def normalize_path(the_path):
+    global platform_system
+    if platform_system != 'Windows':
+        the_path = the_path.replace('\\', '/')
+    return the_path
 
 def main():
+    global base_dir
+    if platform_system != 'Windows':
+        base_dir = normalize_path(base_dir)
     df = pd.read_csv(os.path.join(base_dir, rates_csv), comment='#').apply(pd.to_numeric)
     tbyT = df['1000/T (1/K)'].values
     rate = df['ln(C/s/nm^2)'].values

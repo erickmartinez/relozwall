@@ -13,8 +13,16 @@ import os
 import json
 from scipy.optimize import least_squares, OptimizeResult, differential_evolution
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import platform
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+drive_path = ''
+platform_system = platform.system()
+if platform_system == 'Windows':
+    drive_path = r'C:\Users\erick\OneDrive'
+elif platform_system == 'Darwin':
+    drive_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
+
+base_path = os.path.join(drive_path, r'\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC')
 save_dir = 'R4N85_stats'
 tracking_csv = r'LCT_R4N85_manual_tracking.xlsx'
 sheet_name = 'R4N85'
