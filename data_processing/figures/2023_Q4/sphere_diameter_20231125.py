@@ -263,7 +263,7 @@ def main():
         )
 
     axes[0].set_ylabel('Torr-L/s/m$^{\mathregular{2}}$')
-    axes[0].set_ylim(1, 1E6)
+    axes[0].set_ylim(10, 1E6)
     axes[0].set_title('Outgassing rate')
 
     axes[1].set_xlabel('Weight % of 850 $\mathregular{\mu}$m spheres')

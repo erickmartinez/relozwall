@@ -255,7 +255,7 @@ def main():
     )
 
     axes[0].set_ylabel('Torr-L/s/m$^{\mathregular{2}}$')
-    axes[0].set_ylim(1E-1, 1E6)
+    axes[0].set_ylim(1E2, 1E6)
     axes[0].set_title('Outgassing')
 
 
@@ -273,7 +273,7 @@ def main():
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(5))
 
 
-    axes[0].legend(loc='lower right', frameon=True, fontsize=10)
+    axes[0].legend(loc='center right', frameon=True, fontsize=10)
     # axes[0].legend(bbox_to_anchor=(1.05, 1),
     #                loc='upper left', borderaxespad=0., fontsize=9)
 

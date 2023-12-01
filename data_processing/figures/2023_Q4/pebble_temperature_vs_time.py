@@ -9,7 +9,7 @@ from skimage.util import crop
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats.distributions import t
-from data_processing.utils import get_experiment_params
+from data_processing.utils import get_experiment_params, latex_float
 import json
 import cv2
 
@@ -29,6 +29,9 @@ calibration_path = r'Documents\ucsd\Postdoc\research\thermal camera\calibration\
 
 beam_radius = 0.5 * 0.8165  # * 1.5 # 0.707
 sample_diameter = 1.025
+
+row_id_s = 426
+row_id_b = 435
 
 """
 Parameters for the deposition cone
@@ -157,16 +160,20 @@ def get_sublimation_rate(temperature_k, r0=r_0, ea=e_a):
     return r0 * np.exp(-ea / (8.617333262e-05 * temperature_k))
 
 
-def sublimation_rate_thermal_img(t_img, msk, area):
+def sublimation_rate_thermal_img(t_img, threshold=0):
     n, m = t_img.shape
     g_rate = 0.
     cnt = 0
+    hot_area = 0
     for i in range(n):
         for j in range(m):
-            if msk[i, j]:
-                g_rate += get_sublimation_rate(t_img[i, j])
+            temp_i = t_img[i, j]
+            if temp_i > threshold:
                 cnt += 1
-    return g_rate / cnt
+                sr = get_sublimation_rate(t_img[i, j])
+                hot_area += px2cm ** 2.
+                g_rate += sr
+    return g_rate / cnt,  hot_area
 
 
 def get_cropped_image(img) -> np.ndarray:
@@ -179,13 +186,19 @@ def get_cropped_image(img) -> np.ndarray:
     return img2
 
 
-def get_img_msk(signal) -> np.ndarray:
-    # n, m = signal.shape
-    # temp_img = np.zeros((n, m), dtype=float)
-    # for i in range(n):
-    #     for j in range(m):
-    #         temp_img[i, j] = cali[int(s)]
-    return signal > 0  # .astype(np.uint8)
+def threshold_image(signal, threshold=0):
+    msk = get_img_msk(signal, threshold)
+    n, m = signal.shape
+    temp_img = np.zeros((n, m), dtype=float)
+    for i in range(n):
+        for j in range(m):
+            if msk[i, j]:
+                temp_img[i, j] = signal[i, j]
+    return temp_img
+
+
+def get_img_msk(signal, threshold=0) -> np.ndarray:
+    return signal > threshold  # .astype(np.uint8)
 
 
 def main():
@@ -249,6 +262,20 @@ def main():
 
     sample_area_cm2 = 0.25 * np.pi * sample_diameter ** 2.
 
+    fig_bs, ax_bs = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
+    # fig_bs.subplots_adjust(hspace=0)
+    fig_bs.set_size_inches(4., 3.)
+    ax_bs.set_title(r'35 MW/m$^{\mathregular{2}}$')
+    ax_bs.set_xlabel('t [s]')
+    ax_bs.set_ylabel('T [K]')
+    ax_bs.set_ylim(1000, 3000)
+    ax_bs.yaxis.set_major_locator(ticker.MultipleLocator(500))
+    ax_bs.yaxis.set_minor_locator(ticker.MultipleLocator(100))
+    ax_bs.set_xlim(0, 0.15)
+
+    ax_bs.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
+    ax_bs.xaxis.set_minor_locator(ticker.MultipleLocator(0.01))
+
     for i, row in transmission_df.iterrows():
         row_id = row['ROW']
         sample_id = row['Sample ID']
@@ -285,12 +312,17 @@ def main():
 
             ax.set_title('Pebble temperature')
 
-            max_lines = 7
+            max_lines = 8
             colors = plt.cm.cool(np.linspace(0, 1, max_lines))
             current_line = 0
             max_t = -1
             frame_max = -1
             n_points = -1
+
+            max_bs_plots = 4
+            cnt_s_plots = 0
+            cnt_b_plots = 0
+
             for j, row_pebble in tracking_at_row_df.iterrows():
                 if current_line >= max_lines:
                     break
@@ -303,8 +335,28 @@ def main():
                     frame_max = j
                 ax.plot(pebble_temperature_df['Time (s)'], pebble_temperature_df['Temperature (K)'],
                         color=colors[current_line])
+
+                if row_id == row_id_s and pebble_temperature_df['Time (s)'].max() < 0.15 and cnt_s_plots < max_bs_plots:
+                    ax_bs.plot(pebble_temperature_df['Time (s)'], pebble_temperature_df['Temperature (K)'],
+                        color='tab:blue', alpha=0.75)
+                    ax_bs.text(
+                        0.95, 0.15, r'0.3 mm spheres', va='bottom', ha='right',
+                        fontsize=11, color='tab:blue',
+                        transform=ax_bs.transAxes,
+                    )
+                    cnt_s_plots += 1
+                if row_id == row_id_b and cnt_b_plots < max_bs_plots: # and pebble_temperature_df['Time (s)'].max() < 0.15:
+                    ax_bs.plot(pebble_temperature_df['Time (s)'], pebble_temperature_df['Temperature (K)'],
+                        color='tab:purple', alpha=0.75)
+                    ax_bs.text(
+                        0.95, 0.05, r'0.9 mm spheres', va='bottom', ha='right',
+                        fontsize=11, color='tab:purple',
+                        transform=ax_bs.transAxes,
+                    )
+                    cnt_b_plots += 1
+
                 current_line += 1
-            ax.set_xlim(0, 0.05 * np.ceil(max_t / 0.05))
+            ax.set_xlim(0, 0.05 * np.ceil(max_t*1.5 / 0.05))
             ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
             ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.01))
             ax.text(
@@ -316,15 +368,27 @@ def main():
             fig.savefig(os.path.join(base_path, output_file_tag + '.eps'), dpi=600)
             plt.close(fig)
 
+            # Get the image with the highest average gray value
+            img_list = [fn for fn in os.listdir(path_to_images) if fn.endswith('.jpg')]
+            mean_gray = -1
+            image_file = img_list[0]
+            for fn in img_list:
+                img = cv2.imread(os.path.join(path_to_images, fn), 0)
+                mg = img.mean()
+                if mg > mean_gray:
+                    mean_gray = mg
+                    image_file = fn
+
+
             # get the temperature over the whole image
             sid = sample_id
             if sample_id == 'R4N127-1':
                 sid = 'R4N127'
             img_file_prefix = f'{sid}_ROW{row_id}_IMG-{frame_max}'
             try:
-                image_file = find_file_that_starts_with(
-                    relative_path=path_to_images, starts_with=img_file_prefix
-                )
+                # image_file = find_file_that_starts_with(
+                #     relative_path=path_to_images, starts_with=img_file_prefix
+                # )
 
                 img = cv2.imread(os.path.join(path_to_images, image_file), 0)
                 if crop_image:
@@ -358,7 +422,11 @@ def main():
                 ax.set_yticks([])
                 cbar.update_ticks()
 
-                info_img_txt = info_txt + f'\n{max_t:.3f} s'
+                gs_rate, area_hot = sublimation_rate_thermal_img(t_img=temp_im, threshold=temp_im.max() * 0.95)
+                print(f'Sublimation rate: {gs_rate:.3E} Torr-L/s/m2')
+                transmission_df.loc[i, 'Graphite sublimation (Torr-L/s/m^2)'] = gs_rate
+
+                info_img_txt = info_txt + f'\n{gs_rate:.0f} Torr-L/s/m$^{{\mathregular{{2}}}}$'
 
                 time_txt = ax.text(
                     0.95, 0.95, info_img_txt,
@@ -369,19 +437,54 @@ def main():
                     fontsize=8
                 )
 
-                gs_rate = sublimation_rate_thermal_img(t_img=temp_im, msk=get_img_msk(img), area=sample_area_cm2)
-                print(f'Sublimation rate: {gs_rate:.3E} Torr-L/s/m2')
-                transmission_df.loc[i, 'Graphite sublimation (Torr-L/s/m^2)'] = gs_rate
+                fig2, ax2 = plt.subplots(ncols=1, nrows=1, constrained_layout=True)  # , frameon=False)
+                w, h = frameSize[1] * scale_factor * aspect_ratio * px2mm / 25.4, frameSize[
+                    0] * scale_factor * px2mm / 25.4
+                fig2.set_size_inches(w, h)
+                cs2 = ax2.imshow(threshold_image(temp_im, threshold=temp_im.max() * 0.95), interpolation='none',
+                                 norm=norm1)
+                divider2 = make_axes_locatable(ax2)
+                cax2 = divider2.append_axes("right", size="7%", pad=0.025)
+
+                # extent=(0, frameSize[1] * px2mm, 0, frameSize[0] * px2mm))
+                cbar2 = fig2.colorbar(cs2, cax=cax2, extend='both')
+                cbar2.set_label('Temperature (K)\n', size=9, labelpad=9)
+                cbar2.ax.set_ylim(1500, 3200)
+                cbar2.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
+                cbar2.ax.tick_params(labelsize=9)
+                ax2.set_xticks([])
+                ax2.set_yticks([])
+                cbar2.update_ticks()
+
+                hot_spot_txt = ax2.text(
+                    0.05, 0.05, f'Area hot spots:\n{area_hot:.2f} cm$^{{\mathregular{{2}}}}$',
+                    horizontalalignment='left',
+                    verticalalignment='bottom',
+                    color='w',
+                    transform=ax2.transAxes,
+                    fontsize=11
+                )
+
+
                 fig.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + '_temp.png'), dpi=600)
                 fig.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + '_temp.svg'), dpi=600)
                 fig.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + '_temp.pdf'), dpi=600)
                 fig.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + '_temp.eps'), dpi=600)
+
+                fig2.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + 'hot_spots_.png'), dpi=600)
+
+
                 plt.close(fig)
             except IndexError as e:
                 print(img_file_prefix)
                 raise e
 
             # plt.show()
+
+    fig_bs.savefig(os.path.join(base_path, 'temperature_vs_time_sphere_sizes.png'), dpi=600)
+    fig_bs.savefig(os.path.join(base_path, 'temperature_vs_time_sphere_sizes.pdf'), dpi=600)
+    fig_bs.savefig(os.path.join(base_path, 'temperature_vs_time_sphere_sizes.eps'), dpi=600)
+    plt.close(fig_bs)
 
     ouput_deposition_rates_csv = os.path.splitext(deposition_rates_csv)[0] + '_graphite_sublimation.csv'
     transmission_df.to_csv(ouput_deposition_rates_csv, index=False)

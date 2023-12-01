@@ -71,18 +71,20 @@ def get_sublimation_rate(temperature_k, r0=r_0, ea=e_a):
     return r0 * np.exp(-ea / (8.617333262e-05 * temperature_k))
 
 
-def sublimation_rate_thermal_img(t_img, msk):
+def sublimation_rate_thermal_img(t_img, sample_area, threshold=0):
     n, m = t_img.shape
     g_rate = 0.
     cnt = 0
+    hot_area = 0
     for i in range(n):
         for j in range(m):
-            if msk[i, j]:
+            temp_i = t_img[i, j]
+            if temp_i > threshold:
                 cnt += 1
                 sr = get_sublimation_rate(t_img[i, j])
-                print(f'T: {t_img[i, j]:.3f}, {sr}')
+                hot_area += px2cm ** 2.
                 g_rate += sr
-    return g_rate / cnt  # .astype(np.uint8)
+    return g_rate / cnt,  hot_area
 
 
 def get_cropped_image(img) -> np.ndarray:
@@ -95,14 +97,23 @@ def get_cropped_image(img) -> np.ndarray:
     return img2
 
 
-def get_img_msk(signal) -> np.ndarray:
+def get_img_msk(signal, threshold=0) -> np.ndarray:
     # n, m = signal.shape
     # temp_img = np.zeros((n, m), dtype=float)
     # for i in range(n):
     #     for j in range(m):
     #         temp_img[i, j] = cali[int(s)]
-    return signal > 0  # .astype(np.uint8)
+    return signal > threshold  # .astype(np.uint8)
 
+def threshold_image(signal, threshold=0):
+    msk = get_img_msk(signal, threshold)
+    n, m = signal.shape
+    temp_img = np.zeros((n, m), dtype=float)
+    for i in range(n):
+        for j in range(m):
+            if msk[i, j]:
+                temp_img[i, j] = signal[i, j]
+    return temp_img
 
 def normalize_path(the_path):
     global platform_system, drive_path
@@ -168,15 +179,33 @@ def main():
     ax.set_yticks([])
     cbar.update_ticks()
 
+    fig2, ax2 = plt.subplots(ncols=1, nrows=1, constrained_layout=True)  # , frameon=False)
+    w, h = frameSize[1] * scale_factor * aspect_ratio * px2mm / 25.4, frameSize[
+        0] * scale_factor * px2mm / 25.4
+    fig2.set_size_inches(w, h)
+    cs2 = ax2.imshow(threshold_image(temp_im, threshold=temp_im.max()*0.95), interpolation='none', norm=norm1)
+    divider2 = make_axes_locatable(ax2)
+    cax2 = divider2.append_axes("right", size="7%", pad=0.025)
+
+    # extent=(0, frameSize[1] * px2mm, 0, frameSize[0] * px2mm))
+    cbar2 = fig2.colorbar(cs2, cax=cax2, extend='both')
+    cbar2.set_label('Temperature (K)\n', size=9, labelpad=9)
+    cbar2.ax.set_ylim(1500, 3200)
+    cbar2.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
+    cbar2.ax.tick_params(labelsize=9)
+    ax2.set_xticks([])
+    ax2.set_yticks([])
+    cbar2.update_ticks()
 
 
     rod_area = 0.25 * np.pi * (rod_diameter ** 2.)
     # print(temp_im, get_img_msk(img), rod_area)
 
-    gs_rate = sublimation_rate_thermal_img(t_img=temp_im, msk=get_img_msk(img))
+    gs_rate, area_hot = sublimation_rate_thermal_img(t_img=temp_im, threshold=temp_im.max()*0.95, sample_area=rod_area)
     print(f'Sublimation rate: {gs_rate:.3E} Torr-L/s/m2')
 
     info_img_txt = info_txt + f'\nT$_{{\\mathregular{{max}}}}$ = {temp_im.max():.0f} K'
+    info_img_txt += f'\n A: {rod_area:.2f} cm$^{{\mathregular{{2}}}}$'
     time_txt = ax.text(
         0.95, 0.95, info_img_txt,
         horizontalalignment='right',
@@ -187,6 +216,7 @@ def main():
     )
 
     g_s_txt = f'\nGraphite sublimation:\n{gs_rate:.1f} Torr-L/s/m$^{{\mathregular{{2}}}}$'
+    g_s_txt += f'\nArea hot: {area_hot:.2f} cm$^{{\mathregular{{2}}}}$'
     time_txt = ax.text(
         0.05, 0.05, g_s_txt,
         horizontalalignment='left',
@@ -195,8 +225,18 @@ def main():
         transform=ax.transAxes,
         fontsize=11
     )
+
+    hot_spot_txt = ax2.text(
+        0.05, 0.05, 'Hot spots',
+        horizontalalignment='left',
+        verticalalignment='bottom',
+        color='w',
+        transform=ax2.transAxes,
+        fontsize=11
+    )
     # transmission_df.loc[i, 'Graphite sublimation (Torr-L/s/m^2)'] = gs_rate
     fig.savefig(output_file_tag + '.png', dpi=600)
+    fig2.savefig(output_file_tag + 'hot_spots_.png', dpi=600)
     # fig.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + '_temp.svg'), dpi=600)
     # fig.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + '_temp.pdf'), dpi=600)
     # fig.savefig(os.path.join(base_path, os.path.splitext(image_file)[0] + '_temp.eps'), dpi=600)
