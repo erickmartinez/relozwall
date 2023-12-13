@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.linalg import svd
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, OptimizeWarning
 from typing import Callable
 import scipy.linalg as LA
 from scipy.stats.distributions import t
@@ -232,7 +232,7 @@ def mean_squared_error(yd: np.ndarray, ym: np.ndarray):
 
 
 def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.ndarray, np.ndarray], np.ndarray],
-            res: OptimizeResult, **kwargs):
+            res: OptimizeResult, weights:np.ndarray=None, **kwargs):
     """
     This function estimates the prediction bands for the fit
     (see https://www.mathworks.com/help/curvefit/confidence-and-prediction-bounds.html)
@@ -277,22 +277,25 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
     # Needs to estimate the jacobian at the predictor point!!!
     ypred = func(x, res.x)
 
+    beta = res.x
+
     if callable(res.jac):
         delta = res.jac(x)
     else:
         delta = np.zeros((len(ypred), p))
-        fdiffstep = np.spacing(np.abs(res.x)) ** (1 / 3)
+        # fdiffstep = np.spacing(np.abs(res.x)) ** (1 / 3)
+        fdiffstep = np.finfo(beta.dtype).eps ** (1. / 3.)
         #    print('diff_step = {0}'.format(fdiffstep))
         #    print('popt = {0}'.format(res.x))
         for i in range(p):
             change = np.zeros(p)
             if res.x[i] == 0:
-                nb = np.sqrt(LA.norm(res.x))
+                nb = np.sqrt(LA.norm(beta))
                 change[i] = fdiffstep[i] * (nb + (nb == 0))
             else:
                 change[i] = fdiffstep[i] * res.x[i]
 
-            predplus = func(x, res.x + change)
+            predplus = func(x, beta + change)
             delta[:, i] = (predplus - ypred) / change[i]
     #    print('delta = {0}'.format(delta))
 
@@ -316,15 +319,18 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
     #    print('varpred = {0}, len: '.format(varpred,len(varpred)))
     alpha = 1.0 - confidence
     if mode == 'observation':
-        # Assume a constant variance model if errorModelInfo and weights are 
-        # not supplied.
-        errorVar = mse * np.ones(delta.shape[0])
-        #        print('errorVar = {0}, len: '.format(errorVar,len(errorVar)))
-        varpred += errorVar
+        if not weights is None:
+            error_var = mse / weights
+        else:
+            error_var = mse * np.ones(delta.shape[0])
+        varpred += error_var
     # The significance
     if simultaneous:
         from scipy.stats.distributions import f
-        sch = [rankJ + 1]
+        if mode == 'observation':
+            sch = [rankJ + 1]
+        else:
+            sch = rankJ
         crit = f.ppf(1.0 - alpha, sch, n - rankJ)
     else:
         from scipy.stats.distributions import t
@@ -338,147 +344,107 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
     return ypred, lpb, upb
 
 
-def predint_multi(x: np.ndarray, xd: np.ndarray, yd: np.ndarray,
-                  func: Callable[[np.ndarray, np.ndarray], np.ndarray],
-                  res: OptimizeResult, **kwargs):
+def prediction_intervals(model: Callable, x_pred, ls_res: OptimizeResult, level=0.95,
+                         jac:Callable=None, weights:np.ndarray=None, **kwargs):
     """
-    This function estimates the prediction bands for the fit
+    Estimates the prediction interval for a least squares fit result obtained by
+    scipy.optimize.least_squares.
 
-    (See https://www.mathworks.com/help/curvefit/confidence-and-prediction-bounds.html)
-
-    Parameters 
-    ----------
-    x: np.ndarray
-        The requested x points for the bands
-    xd: np.ndarray
-        The x datapoints
-    yd: np.ndarray
-        The y datapoints
-    func: Callable[[np.ndarray, np.ndarray]
-        The fitted function
-    res: OptimizeResult
-        The optimzied result from least_squares minimization
-    kwargs: dict
-        confidence: float
-            The confidence level (default 0.95)
-        simultaneous: bool
-            True if the bound type is simultaneous, false otherwise
-        mode: [functional, observation]
-            Default observation
-
-    Returns
-    -------
-    np.ndarray:
-        The predicted values.
-    np.ndarray:
-        The lower bound for the predicted values.
-    np.ndarray:
-        The upper bound for the predicted values.
+    :param model: The model used to fit the data
+    :type model: Callable
+    :param x_pred: The values of X at which the model will be evaluated.
+    :type x_pred: np.ndarray
+    :param ls_res: The result object returned by scipy.optimize.least_squares.
+    :type ls_res: OptimizeResult
+    :param level: The confidence level used to determine the prediction intervals.
+    :type level: float
+    :param jac: The Jacobian of the model at the parameters. If not provided,
+        it will be estimated from the model. Default None.
+    :type jac: Callable
+    :param weights: The weights of the datapoints used for the fitting.
+    :type weights: np.ndarray
+    :param kwargs:
+    :return: The predicted values at the given x and the deltas for each prediction
+        [y_predicction, delta]
+    :rtype: List[np.ndarray, np.ndarray]
     """
 
-    if len(yd) != len(xd):
-        raise ValueError('The length of the observations should be the same ' +
-                         'as the length of the predictions.')
-    if len(yd) <= 1:
-        raise ValueError('Too few datapoints')
-    from scipy.optimize import optimize
+    simultaneous = kwargs.get('simultaneous', False)
+    new_observation = kwargs.get('new_observation', False)
 
-    if not isinstance(res, optimize.OptimizeResult):
-        raise ValueError('Argument \'res\' should be an instance of \'scipy.optimize.OptimizeResult\'')
+    # The vector of residuals at the solution
+    residuals = ls_res.fun
+    beta = ls_res.x
+    # The number of data points
+    n = len(residuals)
+    # The number of parameters
+    p = len(beta)
+    if n <= p:
+        raise ValueError('Not enough data to compute the prediction intervals.')
+    # The degrees of freedom
+    dof = n - p
+    # Quantile of Student's t distribution for p=(1 - alpha/2)
+    # tval = t.ppf((1.0 + confidence)/2.0, dof)
+    alpha = 1.0 - level
 
-    simultaneous = kwargs.get('simultaneous', True)
-    mode = kwargs.get('mode', 'observation')
-    confidence = kwargs.get('confidence', 0.95)
-
-    p = len(res.x)
-
-    # Needs to estimate the jacobian at the predictor point!
-    ypred = func(x, res.x)
-    cols = ypred.shape[1]
-    rows = len(x)
-    if callable(res.jac):
-        delta = res.jac(x)
-    else:
-        delta = np.zeros((cols * rows, p))
-        fdiffstep = np.spacing(np.abs(res.x)) ** (1 / 3)
-        #    print('diff_step = {0}'.format(fdiffstep))
-        #    print('popt = {0}'.format(res.x))
+    # Compute the predicted values at the new x_pred
+    y_pred = model(x_pred, ls_res.x)
+    delta = np.empty((len(y_pred), p), dtype=np.float64)
+    fdiffstep = np.finfo(beta.dtype).eps ** (1. / 3.)
+    if jac is None:
         for i in range(p):
             change = np.zeros(p)
-            if res.x[i] == 0:
-                nb = np.sqrt(LA.norm(res.x))
-                change[i] = fdiffstep[i] * (nb + (nb == 0))
+            if beta[i] == 0:
+                nb = np.linalg.norm(beta)
+                change[i] = fdiffstep * (nb + float(nb == 0))
             else:
-                change[i] = fdiffstep[i] * res.x[i]
+                change[i] = fdiffstep * beta[i]
+            predplus = model(x_pred, beta+change)
+            delta[:, i] = (predplus - y_pred) / change[i]
+    else:
+        delta = jac(beta, x_pred, y_pred)
 
-            predplus = func(x, res.x + change)
-            for j in range(cols):
-                for k in range(rows):
-                    n = int(j * rows + k)
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings('error')
-                        try:
-                            delta[n, i] = (predplus[k, j] - ypred[k, j]) / change[i]
-                        except Warning as e:
-                            print(e)
-                            print('change:')
-                            print(change)
-                            print('res.x:')
-                            print(res.x)
-    #    print('delta = {0}'.format(delta))
+    J = ls_res.jac
 
     # Find R to get the variance
-    _, R = LA.qr(res.jac)
+    _, R = np.linalg.qr(J)
     # Get the rank of jac_pnp
-    rankJ = res.jac.shape[1]
-    Rinv = LA.pinv(R)
+    rankJ = J.shape[1]
+    Rinv = np.linalg.pinv(R)
     pinvJTJ = np.dot(Rinv, Rinv.T)
 
-    # The residual
-    resid = res.fun
-    n = len(resid)
     # Get MSE. The degrees of freedom when J is full rank is v = n-p and n-rank(J) otherwise
-    mse = (LA.norm(resid)) ** 2 / (n - rankJ)
-    # Calculate Sigma if usingJ 
-    Sigma = mse * pinvJTJ
+    mse = (np.linalg.norm(residuals)) ** 2. / (n - rankJ)
+
+    # Calculate Sigma if usingJ
+    sigma = mse * pinvJTJ
 
     # Compute varpred
-    varpred = np.sum(np.dot(delta, Sigma) * delta, axis=1)
-    #    print('varpred = {0}, len: '.format(varpred,len(varpred)))
-    alpha = 1.0 - confidence
-    if mode == 'observation':
-        # Assume a constant variance model if errorModelInfo and weights are 
-        # not supplied.
-        errorVar = mse * np.ones(delta.shape[0])
-        #        print('errorVar = {0}, len: '.format(errorVar,len(errorVar)))
-        varpred += errorVar
-    # The significance
+    varpred = np.sum(np.dot(delta, sigma) * delta, axis=1)
+
+    if new_observation:
+        if not weights is None:
+            error_var = mse / weights
+        else:
+            error_var = mse * np.ones(delta.shape[0])
+        varpred += error_var
+
     if simultaneous:
-        from scipy.stats.distributions import f
-        sch = [rankJ + 1]
-        crit = f.ppf(1.0 - alpha, sch, n - rankJ)
+        if new_observation:
+            sch = [rankJ + 1]
+        else:
+            sch = rankJ
+        crit = np.sqrt(sch * (f.ppf(1.0 - alpha, sch, n - rankJ) ) )
     else:
         from scipy.stats.distributions import t
         crit = t.ppf(1.0 - alpha / 2.0, n - rankJ)
 
     delta = np.sqrt(varpred) * crit
 
-    lpb = np.empty((rows, cols), dtype=np.float)
-    upb = np.empty((rows, cols), dtype=np.float)
-
-    for j in range(cols):
-        for k in range(rows):
-            n = int(j * rows + k)
-            lpb[k, j] = ypred[k, j] - delta[n]
-            upb[k, j] = ypred[k, j] + delta[n]
-
-    #    lpb = ypred - delta
-    #    upb = ypred + delta
-
-    return ypred, lpb, upb
+    return y_pred, delta
 
 
-def get_pcov(res: OptimizeResult) -> np.ndarray:
+def get_pcov(res: OptimizeResult, absolute_sigma:bool = False) -> np.ndarray:
     popt = res.x
     ysize = len(res.fun)
     cost = 2 * res.cost  # res.cost is half sum of squares!
@@ -492,12 +458,19 @@ def get_pcov(res: OptimizeResult) -> np.ndarray:
     pcov = np.dot(VT.T / s ** 2, VT)
     pcov = pcov * s_sq
 
-    if pcov is None:
+    if pcov is None or np.isnan(pcov).any():
         # indeterminate covariance
-        print('Failed estimating pcov')
         pcov = np.zeros((len(popt), len(popt)), dtype=float)
         pcov.fill(np.inf)
+        warnings.warn('Covariance of the parameters could not be estimated.',
+                      category=OptimizeWarning)
+    elif not absolute_sigma:
+        if ysize > len(popt):
+            s_sq = cost / (ysize - len(popt))
+            pcov = pcov * s_sq
     return pcov
+
+
 
 # References:
 # - Statistics in Geography by David Ebdon (ISBN: 978-0631136880)
