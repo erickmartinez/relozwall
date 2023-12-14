@@ -120,11 +120,11 @@ def main():
 
     print('***** Model *****')
     for i, p in enumerate(popt):
-        print(f'b[{i}]: {popt[i]:>5.3E} ± {popt_delta[i]}:>5.3E')
+        print(f'b[{i}]: {popt[i]:>5.3E} ± {popt_delta[i]:>5.3E}')
 
     print('***** Error fit *****')
     for i, p in enumerate(popt_e):
-        print(f'b[{i}]: {popt_e[i]:>5.3E} ± {popt_d[i]}:>5.3E')
+        print(f'b[{i}]: {popt_e[i]:>5.3E} ± {popt_d[i]:>5.3E}')
 
     ax.text(
         0.05, 0.95, error_txt, transform=ax.transAxes, fontsize=11, color='k',
