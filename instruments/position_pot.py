@@ -13,12 +13,12 @@ class ArduinoSerial:
     """
 
     __address = None
-    __baud_rate = 57600 #19200  # 38400
+    __baud_rate = 115200 # 57600 # 19200  # 38400
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.01
+    __timeout = 0.02
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
-    __xonxoff = 1
+    __xonxoff = 0
     __delay = 0.01
     __serial: serial.Serial = None
     _log: logging.Logger = None
@@ -57,7 +57,20 @@ class ArduinoSerial:
             stopbits=self.__stopbits,
             xonxoff=self.__xonxoff
         )
-        time.sleep(0.1)
+        time.sleep(0.5)
+
+    def reset_serial(self):
+        self.__serial.close()
+        self.__serial = serial.Serial(
+            port=self.__address,
+            baudrate=self.__baud_rate,
+            bytesize=self.__byte_size,
+            timeout=self.__timeout,
+            parity=self.__parity,
+            stopbits=self.__stopbits,
+            xonxoff=self.__xonxoff
+        )
+
 
     @property
     def timeout(self):
@@ -82,7 +95,6 @@ class ArduinoSerial:
     def close(self):
         try:
             self._log.info(f'Closing serial connection to Arduino at {self.__address}.')
-            self.__serial.flush()
             self.__serial.close()
         except AttributeError as e:
             if self._log is not None:
@@ -90,12 +102,23 @@ class ArduinoSerial:
 
     def write(self, q: str):
         self.__serial.write(f'{q}\r'.encode('utf-8'))
-        time.sleep(self.__delay)
+        # time.sleep(self.__delay)
+
+    def reset_input_buffer(self):
+        self.__serial.reset_input_buffer()
+
+    def reset_output_buffer(self):
+        self.__serial.reset_output_buffer()
+
+
+    def flush(self):
+        self.__serial.flush()
 
     def query(self, q: str) -> str:
         self.write(f"{q}")
+        # time.sleep(self.__delay)
         line = self.__serial.readline()
-        time.sleep(self.__delay)
+        # time.sleep(self.__delay)
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
 
     def query_binary(self, q, packets: bool = False, size: int = 2):
@@ -111,8 +134,12 @@ class ArduinoSerial:
                 data.extend(packet)
         else:
             data = self.__serial.read(size)
-        self.__serial.reset_input_buffer()
-        self.__serial.flush()
+            # self.__serial.flush()
+            # If there is unread data in the input buffer, discard it
+            # in_waiting = self.__serial.in_waiting
+            # if in_waiting > 0:
+            #     self.reset_input_buffer()
+
         return data
 
     def __del__(self):
@@ -125,21 +152,28 @@ class ArduinoSerial:
 class DeflectionReader(ArduinoSerial):
     def __init__(self, address: str):
         super().__init__(address=address)
+        time.sleep(1.0)
         if not self.check_id():
-            raise SerialException(f"Could not find deflection pot in {address}.")
+            msg = f"Could not find deflection pot in {address}."
+            self.close()
+            raise SerialException(msg)
+        time.sleep(0.5)
+        self._log.info(f'Start reading: {self.reading}')
 
     def check_id(self, attempt: int = 0) -> bool:
-        # time.sleep(0.25)
-        old_delay = self.delay
-        old_timeout = self.timeout
-        self.delay = 0.05
-        self.timeout = 0.05
+        # old_delay = self.delay
+        # old_timeout = self.timeout
+        # self.delay = 0.1
+        # self.timeout = 0.3
+        # time.sleep(0.3)
         check_id = self.query('i')
-        self.delay = old_delay
-        self.timeout = old_timeout
-        if check_id != 'DEFLECTION_POT':
-            if attempt <= 3:
+        # self.delay = old_delay
+        # self.timeout = old_timeout
+        if not 'DEFLECTION_POT' in check_id:
+            self._log.error(f'Error checking id. Response: \'{check_id}\'')
+            if attempt < 3:
                 attempt += 1
+                # self.reset_input_buffer()
                 return self.check_id(attempt=attempt)
             else:
                 return False
@@ -148,19 +182,19 @@ class DeflectionReader(ArduinoSerial):
 
     def get_reading(self, attempts=0) -> int:
         res = self.query_binary('r', size=2)
-        if res is None or len(res) < 2:
-            attempts += 1
-            if attempts < 3:
-                self._log.warning(f'Failed reading position (attempt {attempts+1} of 3). Trying again...')
-                return self.get_reading(attempts=attempts)
-            else:
-                self._log.warning(f'Failed reading position (attempt {attempts + 1} of 3). Returning previous value...')
-                return self._previous_val
-        adc = struct.unpack('<H', res)[0]
+        if len(res) == 0:
+            self.reset_serial()
+            self._log.warning(f'Failed reading position. Returning previous value...')
+            return self._previous_val
+        if len(res) < 2:
+            self._log.warning(
+                f'Received: \"{res}\".')
+            adc = int.from_bytes(res, byteorder="little", signed=False)
+        else:
+            adc = struct.unpack('<H', res)[0]
         self._previous_val = adc
         return adc
 
     @property
     def reading(self):
         return self.get_reading()
-

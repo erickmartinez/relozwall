@@ -24,7 +24,8 @@ class DST44A:
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.005
+    __delay = 0.010
+
     __previous: float = 0.0
     __previous_json: dict = {}
 
@@ -90,11 +91,11 @@ class DST44A:
         if self.__serial is None:
             data_str = self.query("D")
         else:
-            self.__serial.flush()
+            # self.__serial.flush()
             self.__serial.write("D\r".encode('utf-8'))
-            time.sleep(self.__delay)
+            # time.sleep(self.__delay)
             data_str = self.__serial.read(10).decode('utf-8').rstrip("\r").rstrip(" ")
-            self.__serial.flush()
+            # self.__serial.flush()
         match = self.__D_PATTERN.match(data_str)
         if match is None:
             logging.warning(f'Received gauge reponse: {data_str}')
@@ -173,10 +174,10 @@ class DST44A:
             ) as ser:
                 sleep(self.__delay)
                 ser.write("{0}\r".format(q).encode('utf-8'))
-                sleep(self.__delay)
+                # sleep(self.__delay)
         else:
             self.__serial.write(f'{q}\r'.encode('utf-8'))
-            sleep(self.__delay)
+            # sleep(self.__delay)
 
     def query(self, q: str) -> str:
         if self.__serial is None:
@@ -189,12 +190,13 @@ class DST44A:
                     stopbits=self.__stopbits,
                     xonxoff=self.__xonxoff
             ) as ser:
+                time.sleep(self.__delay)
                 ser.write("{0}\r".format(q).encode('utf-8'))
-                sleep(self.__delay)
+                # sleep(self.__delay)
                 line = ser.readline()
                 return line.decode('utf-8').rstrip("\r").rstrip(" ")
         else:
             self.write(q)
             line = self.__serial.readline()
-            sleep(self.__delay)
+            # sleep(self.__delay)
             return line.decode('utf-8').rstrip("\r").rstrip(" ")
