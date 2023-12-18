@@ -92,9 +92,9 @@ class SimulatedDistanceReader():
 
 class FlexuralStressProcedure(Procedure):
     experiment_time = FloatParameter('Experiment time', units='s', default=30)
-    # interval = FloatParameter('Sampling Interval', units='s', default=0.2)
+    calibrated_thickness = FloatParameter('Calibrated thickness', units='mm', default=12.69)
     support_span = FloatParameter('Support span', units='mm', default=30)
-    beam_diameter = FloatParameter('Beam diameter', units='mm', default=10)
+    sample_diameter = FloatParameter('Sample diameter', units='mm', default=10)
     sample_name = Parameter('Sample name', default="TEST")
     force_gauge_port: ListParameter = ListParameter('Force gauge port', choices=string_ports)
     deflection_pot_port: ListParameter = ListParameter('Deflection pot port', choices=string_ports)
@@ -109,6 +109,7 @@ class FlexuralStressProcedure(Procedure):
     __calibration: dict = {
         'a0': 212, 'a1': 9E-3, 'b0': 2.91, 'b1': -60E-4, 'b2': 3.97E-6
     }
+    __alpha_c = 400
     __simulation = True
     interval: float = 0.025
 
@@ -142,20 +143,46 @@ class FlexuralStressProcedure(Procedure):
 
 
     def execute(self):
+        """
+        Add user interaction to calibrate z0
+        """
+        input('Place reference sample with known thickness on the 3-point bend stand.')
+        input('Move the lever down until the probe tip touches the reference sample.\n'
+              'Do not apply more than 10 N of force. Keep the setup in that position for 30 seconds\n'
+              'TO PROCEED PRESS ANY KEY')
+
+        start_time = time.time()
+        previous_time = 0.0
+        total_time = 0.0
+
+        reading_force = [self.__force_gauge.read()]
+        reading_distance = [0, 0]
+        adc_max = -1
+
+        while total_time <= 30.:
+            current_time = time.time()
+            if (current_time - previous_time) >= self.interval:
+                p_d = threading.Thread(target=acquire_distance,
+                                       args=(self.__potReadout, self.adc_to_adc, reading_distance))
+                p_d.start()
+                time.sleep(0.005)
+                p_d.join()
+                adc_c, _ = reading_distance[0]
+                adc_max = max(adc_c, adc_max)
+                total_time = current_time - start_time
+
+        self.__alpha_c = adc_max
+
         previous_time = 0.0
         total_time = 0.0
         start_time = time.time()
         self.__time_start = start_time
-        force_list = []
-        displacement_list = []
-        time_list = []
-        reading_force = [self.__force_gauge.read()]
-        reading_distance = [0, 0]
 
         round_factor = 0.001
         inv_round_factor = 1. / round_factor
         round_factor_d = 0.1
         inv_round_factor_d = 10.
+        inv_experiment_time = 1. / self.experiment_time
 
         while total_time <= self.experiment_time:
             current_time = time.time()
@@ -173,7 +200,7 @@ class FlexuralStressProcedure(Procedure):
                 p_f.join()
                 p_d.join()
                 force, displacement_mm, displacement_err_mm = reading_force[0], reading_distance[0], reading_distance[1]
-                sigma_f = 8.0 * force * self.support_span / np.pi / (self.beam_diameter ** 3.0) * 1E6
+                sigma_f = 8.0 * force * self.support_span / np.pi / (self.sample_diameter ** 3.0) * 1E6
                 total_time = current_time - start_time
 
                 data = {
@@ -185,26 +212,17 @@ class FlexuralStressProcedure(Procedure):
                 }
                 # log.info(f"Time: {dt:.3f}, z: {displacement_mm:.2f} mm, Force: {force:.3E}, Flexural Stress: {sigma_f:.3E}.")
                 self.emit('results', data)
-                self.emit('progress', total_time * 100.0 / self.experiment_time)
+                self.emit('progress', total_time * 100.0 * inv_experiment_time)
                 previous_time = current_time
-
-        # force = np.array(force_list)
-        # displacement_mm = np.array(displacement_list)
-        # sigma_f = 8.0 * force * self.support_span / np.pi / (self.beam_diameter ** 3.0) * 1E6
-        # for i in range(len(force)):
-        #     data = {
-        #         "Time (s)": float(time_list[i]),
-        #         "Force (N)": force[i],
-        #         "Flexural Stress (Pa)": sigma_f[i],
-        #         "Displacement (mm)": displacement_mm[i]
-        #     }
-        #     # log.info(f"Time: {dt:.3f}, z: {displacement_mm:.2f} mm, Force: {force:.3E}, Flexural Stress: {sigma_f:.3E}.")
-        #     self.emit('results', data)
-        #     self.emit('progress', time_list[i] * 100.0 / self.experiment_time)
 
     def adc_to_mm(self, val):
         c = self.__calibration
-        return (c['a0'] + c['a1'] * val, c['b0'] + c['b1'] * val + c['b2'] * val * val)
+        return (c['a1'] * (val - self.__alpha_c) - self.calibrated_thickness + self.sample_diameter,
+                c['b0'] + c['b1'] * val + c['b2'] * val * val)
+
+
+    def adc_to_adc(self, val):
+        return val, val
 
     def shutdown(self):
         if self.__potReadout is not None:
@@ -216,36 +234,6 @@ class FlexuralStressProcedure(Procedure):
             for handler in log.handlers:
                 if isinstance(handler, logging.FileHandler):
                     log.removeHandler(handler)
-
-    def acquire_data(self, current_time):
-        if self.should_stop():
-            log.warning("Caught the stop flag in the procedure")
-            log.info('User hit the \'abort button\'. Shutting down...  '
-                     '')
-        # force_data = self.__force_gauge.read()
-        force = self.__force_gauge.read()
-        time.sleep(0.005)
-        adc_pot = self.__potReadout.reading
-        # force = force_data['reading']
-        # units = force_data['units']
-        # mode = force_data['mode']
-        # judgment = force_data['judgement']
-        # if force_data['judgement_code'] != 'O':
-        #     logging.warning(f"Reading is {judgment.lower()}.")
-        # https://en.wikipedia.org/wiki/Three-point_flexural_test
-        sigma_f = 8.0 * force * self.support_span / np.pi / (self.beam_diameter ** 3.0) * 1E6
-        displacement_mm = self.adc_to_mm(adc_pot)
-
-        dt = current_time - self.__time_start
-        data = {
-            "Time (s)": float(dt),
-            "Force (N)": force,
-            "Flexural Stress (Pa)": sigma_f,
-            "Displacement (mm)": displacement_mm
-        }
-        # log.info(f"Time: {dt:.3f}, z: {displacement_mm:.2f} mm, Force: {force:.3E}, Flexural Stress: {sigma_f:.3E}.")
-        self.emit('results', data)
-        self.emit('progress', dt * 100.0 / self.experiment_time)
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
@@ -267,10 +255,14 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=FlexuralStressProcedure,
-            inputs=['sample_name', 'experiment_time', 'support_span', 'beam_diameter', "force_gauge_port",
-                    'deflection_pot_port'],
-            displays=['sample_name', 'experiment_time', 'support_span', 'beam_diameter', "force_gauge_port",
-                      'deflection_pot_port'],
+            inputs=[
+                'sample_name', 'experiment_time', 'support_span', 'sample_diameter',
+                "force_gauge_port", 'calibrated_thickness', 'deflection_pot_port'
+            ],
+            displays=[
+                'sample_name', 'experiment_time', 'support_span', 'sample_diameter',
+                "force_gauge_port", 'calibrated_thickness', 'deflection_pot_port'
+            ],
             x_axis="Time (s)",
             y_axis="Flexural stress (Pa)",
             directory_input=True,
