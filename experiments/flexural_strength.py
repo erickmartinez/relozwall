@@ -12,7 +12,7 @@ import time
 from pymeasure.display.Qt import QtWidgets
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
-from pymeasure.experiment import FloatParameter, Parameter, ListParameter
+from pymeasure.experiment import FloatParameter, Parameter, ListParameter, BooleanParameter
 from pymeasure.experiment import unique_filename
 from instruments.imada import DST44A
 import datetime
@@ -22,6 +22,7 @@ from serial.tools import list_ports
 import threading
 from typing import Callable
 from numpy.random import default_rng
+from tqdm import tqdm
 
 
 """
@@ -32,6 +33,18 @@ Open Terminal and type:
 > python -m serial.tools.list_ports
 
 before connecting probe and after connecting it, to see which port is it attached to.
+
+ACCURACY OF THE FORCE GAUGE IS 0.2% OF F.S. ± 1 LSD 
+
+F.S. = 200 N
+
+200 N x 0.2 = 0.4 N
+0.4 N <-- LSD 0.1
+
+Then ACCURACY = 0.5 N
+
+https://imada.com/products/dst-44a-digital-force-gauge/
+https://imada.com/sp_faq/what-does-fs-lsd-mean/
 """
 
 ports = list_ports.comports(include_links=True)
@@ -92,12 +105,14 @@ class SimulatedDistanceReader():
 
 class FlexuralStressProcedure(Procedure):
     experiment_time = FloatParameter('Experiment time', units='s', default=30)
-    calibrated_thickness = FloatParameter('Calibrated thickness', units='mm', default=12.69)
     support_span = FloatParameter('Support span', units='mm', default=30)
     sample_diameter = FloatParameter('Sample diameter', units='mm', default=10)
     sample_name = Parameter('Sample name', default="TEST")
     force_gauge_port: ListParameter = ListParameter('Force gauge port', choices=string_ports)
     deflection_pot_port: ListParameter = ListParameter('Deflection pot port', choices=string_ports)
+
+    run_calibration = BooleanParameter("Run calibration", default=False)
+    calibrated_thickness = FloatParameter('Calibrated thickness', units='mm', default=9.5, group_by="run_calibration")
 
     __force_gauge: DST44A = None
     __potReadout: DeflectionReader = None
@@ -109,8 +124,8 @@ class FlexuralStressProcedure(Procedure):
     __calibration: dict = {
         'a0': 212, 'a1': 9E-3, 'b0': 2.91, 'b1': -60E-4, 'b2': 3.97E-6
     }
-    __alpha_c = 400
-    __simulation = True
+    __alpha_c = 471
+    __simulation = False
     interval: float = 0.025
 
     DATA_COLUMNS = [
@@ -138,40 +153,38 @@ class FlexuralStressProcedure(Procedure):
 
             log.info(f"Current position: {self.adc_to_mm(self.__potReadout.reading)} mm")
             time.sleep(0.2)
-            log.info(f"Current force: {self.__force_gauge.read():.0f} N")
+            log.info(f"Current force: {self.__force_gauge.read(json=False):.0f} N")
             time.sleep(0.2)
 
 
     def execute(self):
-        """
-        Add user interaction to calibrate z0
-        """
-        input('Place reference sample with known thickness on the 3-point bend stand.')
-        input('Move the lever down until the probe tip touches the reference sample.\n'
-              'Do not apply more than 10 N of force. Keep the setup in that position for 30 seconds\n'
-              'TO PROCEED PRESS ANY KEY')
-
-        start_time = time.time()
-        previous_time = 0.0
-        total_time = 0.0
 
         reading_force = [self.__force_gauge.read()]
         reading_distance = [0, 0]
-        adc_max = -1
 
-        while total_time <= 30.:
-            current_time = time.time()
-            if (current_time - previous_time) >= self.interval:
-                p_d = threading.Thread(target=acquire_distance,
-                                       args=(self.__potReadout, self.adc_to_adc, reading_distance))
-                p_d.start()
-                time.sleep(0.005)
-                p_d.join()
-                adc_c, _ = reading_distance[0]
-                adc_max = max(adc_c, adc_max)
-                total_time = current_time - start_time
+        if self.run_calibration:
+            """
+            Add user interaction to calibrate z0
+            """
+            input('Place reference sample with known thickness on the 3-point bend stand.')
+            input('Move the lever down until the probe tip touches the reference sample.\n'
+                  'Do not apply more than 30 N of force. Keep the setup in that position for 10 seconds\n'
+                  'TO PROCEED PRESS ANY KEY')
 
-        self.__alpha_c = adc_max
+            start_time = time.time()
+            adc_max = 0.
+
+            with tqdm(total=200) as pbar:
+                for i in range(200):
+                    current_time = time.time()
+                    adc_c = self.__potReadout.reading
+                    time.sleep(0.025)
+                    adc_max = max(adc_c, adc_max)
+                    total_time = current_time - start_time
+                    pbar.set_description(f'Time: {total_time:.3f} s, ADC: {adc_c:>4d}, ADC_MAX:{adc_max:>4d} | {i*0.005} %')
+
+            self.__alpha_c = adc_max
+            input('Remove the sample with known thickness and place your sample.\n PRESS ANY KEY TO BEGIN.')
 
         previous_time = 0.0
         total_time = 0.0
@@ -190,16 +203,18 @@ class FlexuralStressProcedure(Procedure):
                 log.warning("Caught the stop flag in the procedure")
                 break
             if (current_time - previous_time) >= self.interval:
-                # self.acquire_data(current_time)
-                p_f = threading.Thread(target=acquire_force, args=(self.__force_gauge, reading_force))
-                p_d = threading.Thread(target=acquire_distance,
-                                       args=(self.__potReadout, self.adc_to_mm, reading_distance))
-                p_f.start()
-                p_d.start()
+                # p_f = threading.Thread(target=acquire_force, args=(self.__force_gauge, reading_force))
+                # p_d = threading.Thread(target=acquire_distance,
+                #                        args=(self.__potReadout, self.adc_to_mm, reading_distance))
+                # p_f.start()
+                # p_d.start()
+                # time.sleep(0.005)
+                # p_f.join()
+                # p_d.join()
+                # force, displacement_mm, displacement_err_mm = reading_force[0], reading_distance[0], reading_distance[1]
+                displacement_mm, displacement_err_mm = self.adc_to_mm(self.__potReadout.reading)
                 time.sleep(0.005)
-                p_f.join()
-                p_d.join()
-                force, displacement_mm, displacement_err_mm = reading_force[0], reading_distance[0], reading_distance[1]
+                force = self.__force_gauge.read(json=False)
                 sigma_f = 8.0 * force * self.support_span / np.pi / (self.sample_diameter ** 3.0) * 1E6
                 total_time = current_time - start_time
 
@@ -257,11 +272,11 @@ class MainWindow(ManagedWindow):
             procedure_class=FlexuralStressProcedure,
             inputs=[
                 'sample_name', 'experiment_time', 'support_span', 'sample_diameter',
-                "force_gauge_port", 'calibrated_thickness', 'deflection_pot_port'
+                "force_gauge_port", 'deflection_pot_port', 'run_calibration', 'calibrated_thickness',
             ],
             displays=[
                 'sample_name', 'experiment_time', 'support_span', 'sample_diameter',
-                "force_gauge_port", 'calibrated_thickness', 'deflection_pot_port'
+                "force_gauge_port", 'deflection_pot_port', 'run_calibration', 'calibrated_thickness',
             ],
             x_axis="Time (s)",
             y_axis="Flexural stress (Pa)",
