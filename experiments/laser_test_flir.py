@@ -461,19 +461,19 @@ class LaserProcedure(Procedure):
                     log.error(ex)
 
         # Remove file handlers from logger
-        # self.clear_log_handlers()
+        self.clear_log_handlers()
 
     @staticmethod
-    def clear_log_handlers(self):
-        if log is None:
+    def clear_log_handlers():
+        if "log" not in locals():
             return
         if len(log.handlers) > 0:
             for h in log.handlers:
                 if isinstance(h, logging.FileHandler):
                     log.removeHandler(h)
-                if isinstance(h, logging.NullHandler):
-                    log.removeHandler(h)
-                    log.addHandler(logging.NullHandler())
+                # if isinstance(h, logging.NullHandler):
+                #     log.removeHandler(h)
+                #     log.addHandler(logging.NullHandler())
 
 
 class MainWindow(ManagedWindow):

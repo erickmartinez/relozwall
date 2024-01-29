@@ -279,7 +279,7 @@ class MainWindow(ManagedWindow):
                 "force_gauge_port", 'deflection_pot_port', 'run_calibration', 'calibrated_thickness',
             ],
             x_axis="Time (s)",
-            y_axis="Flexural stress (Pa)",
+            y_axis="Force (N)",
             directory_input=True,
         )
         self.setWindowTitle('3-Point Bend Test')

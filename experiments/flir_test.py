@@ -4,7 +4,7 @@ import time
 
 path_to_images = r'C:\Users\ARPA-E\Documents\FLIR TEST\SAFE_GRAB'
 # path_to_images = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\LASER_TRIGGER'
-acquisition_time = 1.0
+acquisition_time = 0.2
 
 
 def main():
@@ -31,7 +31,7 @@ def main():
     # cam.configure_trigger(trigger_type=PySpin.TriggerSelector_FrameStart)
     cam.configure_trigger(trigger_type=PySpin.TriggerSelector_AcquisitionStart)
     cam.acquire_images()
-    time.sleep(5.0)
+    time.sleep(1.0)
     cam.reset_frame_rate()
     cam.reset_trigger()
     cam.reset_exposure()

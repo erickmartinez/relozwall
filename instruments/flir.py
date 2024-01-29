@@ -650,7 +650,7 @@ class Camera:
 
                             # Create a unique filename
                             # filename = '%s-%d.jpg' % (image_prefix, i+1)
-                            filename = '%s-%d-%s.jpg' % (image_prefix, i+1, timestamp)
+                            filename = '%s-%d-%s.tiff' % (image_prefix, i+1, timestamp)
                             full_filename = os.path.join(self._path_to_images, filename)
 
                             # Save image
