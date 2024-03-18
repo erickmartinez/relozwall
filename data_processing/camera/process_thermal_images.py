@@ -12,9 +12,13 @@ from matplotlib_scalebar.scalebar import ScaleBar
 import re
 import matplotlib as mpl
 import json
+import platform
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
-info_csv = r'LCT_R4N85_ROW375_100PCT_2023-08-18_1.csv'
+platform_system = platform.system()
+
+base_path = r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+info_csv = r'LCT_R4N145_ROW533_100PCT_2024-02-09_1.csv'
+img_extension = 'tiff'
 
 """
 Remove the attenuation from carbon deposit on the windows
@@ -29,14 +33,23 @@ Use
 
 I = I0 * exp(-a*d) => I0 = I * exp(a*d)
 """
+
+if platform_system != 'Windows':
+    drive_path = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
+else:
+    drive_path = r'C:\Users\erick\OneDrive'
+
 deposition_rate = 50.  # nm/s
 absorption_coefficient = 4 * np.pi * 0.3 / 656.3  # 1/nm
 frame_rate = 200.0
 pixel_size = 20.4215  # pixels/mm
-p = re.compile(r'.*?-(\d+)\.jpg')
+p = re.compile(r'.*?-(\d+)\.'+img_extension)
 nmax = 200
 # calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
-calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010\calibration_20231010_4us.csv'
+calibration_path = os.path.join(drive_path,
+                                r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010')  # \calibration_20231010_4us.csv'
+
+# calibration_csv = r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010\calibration_20231010_4us.csv'
 px2mm = 1. / pixel_size
 px2cm = 0.1 * px2mm
 crop_image = True
@@ -58,10 +71,10 @@ reflection_extents = {
 }
 
 
-def get_files(base_dir: str, tag: str):
+def get_files(base_dir: str, tag: str, ext: str = img_extension):
     files = []
     for f in os.listdir(base_dir):
-        if f.startswith(tag) and f.endswith('.jpg'):
+        if f.startswith(tag) and f.endswith('.'+ext):
             files.append(f)
     return files
 
@@ -90,7 +103,8 @@ def clear_pixels(img: np.ndarray, extents: dict):
     return img
 
 
-def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, file_tag, fig, image_save_path, emission_time):
+def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, file_tag, fig, image_save_path,
+                emission_time):
     file = file_list[n]
     n_max = len(file_list)
     img = cv2.imread(os.path.join(relative_path, file), 0)
@@ -123,11 +137,13 @@ def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, fil
 
 
 LN10 = np.log(10.)
+
+
 def correct_for_window_deposit_intensity(img: np.ndarray, t):
-    return np.exp(LN10*absorption_coefficient * t * deposition_rate) * img
+    return np.exp(LN10 * absorption_coefficient * t * deposition_rate) * img
 
 
-def load_calibration():
+def load_calibration(calibration_csv):
     df = pd.read_csv(calibration_csv).apply(pd.to_numeric)
     return df['Temperature [K]'].values
 
@@ -154,20 +170,33 @@ def get_cropped_image(img) -> np.ndarray:
     return img2
 
 
+def normalize_path(the_path):
+    global platform_system, drive_path
+    if platform_system != 'Windows':
+        the_path = the_path.replace('\\', '/')
+    return os.path.join(drive_path, the_path)
+
+
 def main():
+    global base_path, calibration_path, img_extension
+    base_path = normalize_path(base_path)
+    # calibration_csv = normalize_path(calibration_csv)
+    calibration_path = normalize_path(calibration_path)
     file_tag = os.path.splitext(info_csv)[0]
     images_path = os.path.join(base_path, file_tag + '_images')
     params = get_experiment_params(relative_path=base_path, filename=file_tag)
     pulse_length = float(params['Emission Time']['value'])
     sample_name = params['Sample Name']['value']
-    cal = load_calibration()
+    exposure_time = float(params['Camera exposure time']['value'])
+    calibration_csv = f'calibration_20231010_{exposure_time:.0f}_us.csv'
+    temperature_calibration = load_calibration(os.path.join(calibration_path, calibration_csv))
     # print(f'length of cal: {len(cal)}')
     # for i, c in enumerate(cal):
     #     print(f'ADC: {i}, temp: {c} K')
     image_tag = sample_name + '_IMG'
     list_of_files = get_files(base_dir=images_path, tag=image_tag)
     files_dict = {}
-    p2 = re.compile(r'.*?-(\d+)-(\d+)\.jpg')
+    p2 = re.compile(r'.*?-(\d+)-(\d+)\.'+img_extension)
     for i, f in enumerate(list_of_files):
         m2 = p2.match(f)
         fn = int(m2.group(1))
@@ -197,7 +226,7 @@ def main():
         frameSize = img.shape
         print(frameSize)
 
-    temp_im = convert_to_temperature(np.zeros_like(img), cal, 0, pulse_length)
+    temp_im = convert_to_temperature(np.zeros_like(img), temperature_calibration, 0, pulse_length)
 
     with open('../plot_style.json', 'r') as file:
         json_file = json.load(file)
@@ -224,7 +253,7 @@ def main():
 
     cs = ax.imshow(temp_im, interpolation='none', norm=norm1)  # ,
     # extent=(0, frameSize[1] * px2mm, 0, frameSize[0] * px2mm))
-    cbar = fig.colorbar(cs, cax=cax)#, extend='both')
+    cbar = fig.colorbar(cs, cax=cax)  # , extend='both')
     cbar.set_label('Temperature (K)\n', size=9, labelpad=9)
     cbar.ax.set_ylim(1600, 3600)
     cbar.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
@@ -261,16 +290,17 @@ def main():
 
     line = [cs, time_txt]
 
-    metadata = dict(title=f'{file_tag}', artist='Erick',
+    metadata = dict(title=f'{file_tag}', artist='process_thermal_images.py',
                     comment=f'frame rate: {frame_rate}')
-    writer = FFMpegWriter(fps=5, metadata=metadata)
+    writer = FFMpegWriter(fps=5, metadata=metadata, codec='mpeg4')
 
     n_max = len(list_of_files)
     ani = manimation.FuncAnimation(
         fig, update_line, interval=100,
-        repeat=False, frames=np.arange(0, nmax, 1),
+        repeat=False, frames=nmax,  # np.arange(0, nmax, 1),
         fargs=(
-        line, list_of_files, initial_timestamp, img, pulse_length, cal, images_path, file_tag, fig, image_save_path, pulse_length)
+            line, list_of_files, initial_timestamp, img, pulse_length, temperature_calibration, images_path, file_tag,
+            fig, image_save_path, pulse_length)
     )
 
     # plt.show()
