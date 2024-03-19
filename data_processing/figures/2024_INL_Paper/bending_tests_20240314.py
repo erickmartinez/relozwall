@@ -14,7 +14,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/bending_tests'
+base_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/bending_tests'
 
 data_dir = 'R4N137'
 

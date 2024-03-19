@@ -15,25 +15,47 @@ def get_experiment_params(relative_path: str, filename: str, debug=False):
         for line in f:
             if line.startswith('#'):
                 if count > 1:
-                    l = line.strip()
+                    l = line[1::].strip()
+                    # l = line.strip()
                     if debug:
                         print(l)
-                    if l == '#Data:':
+                    if l == 'Data:':
                         break
-                    pattern1 = re.compile("\s+(.*?):\s(.*?)\s(.*?)$")
-                    pattern2 = re.compile("\s+(.*?):\s(.*?)$")
-                    matches1 = pattern1.findall(l)
-                    matches2 = pattern2.findall(l)
-                    if len(matches1) > 0:
-                        params[matches1[0][0]] = {
-                            'value': matches1[0][1],
-                            'units': matches1[0][2]
-                        }
-                    elif len(matches2) > 0:
-                        params[matches2[0][0]] = {
-                            'value': matches2[0][1],
-                            'units': ''
-                        }
+
+                    # find the text separated by the colons
+                    pattern_colon = re.compile(r"\s*([^:]*)")
+                    # Try to find all occurrences and remove empty strings
+                    m0 = pattern_colon.findall(l)
+                    m1 = [m for m in m0 if len(m.strip()) > 0]
+                    pattern_num_units = re.compile(r"\s*([-+]?\d+\.?\d*[eE]?\+?\-?\d*?)\s(.*?)$")
+                    m2 = pattern_num_units.match(m1[1])
+
+                    param_name = m1[0]
+                    param_value = m1[1]
+                    param_units = ''
+                    if not m2 is None:
+                        # if debug:
+                        #     print(m2.groups())
+                        param_value = m2.group(1)
+                        param_units = m2.group(2)
+                    params[param_name] = {
+                        'value': param_value, 'units': param_units
+                    }
+                    #
+                    # pattern1 = re.compile("\s+(.*?):\s(.*?)\s+(.*?)$")
+                    # pattern2 = re.compile("\s+(.*?):\s(.*)$")
+                    # matches1 = pattern1.findall(l)
+                    # matches2 = pattern2.findall(l)
+                    # if len(matches1) > 0:
+                    #     params[matches1[0][0]] = {
+                    #         'value': matches1[0][1],
+                    #         'units': matches1[0][2]
+                    #     }
+                    # elif len(matches2) > 0:
+                    #     params[matches2[0][0]] = {
+                    #         'value': matches2[0][1],
+                    #         'units': ''
+                    #     }
                 count += 1
     return params
 

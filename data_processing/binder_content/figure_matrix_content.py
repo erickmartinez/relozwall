@@ -160,6 +160,7 @@ def main():
     Load bending data
     """
     bending_df = pd.read_excel(os.path.join(base_path, bending_xlsx), sheet_name=0)
+    bending_df = bending_df[bending_df['Q'] == 1]
     bending_df.drop(columns='Sample ID', inplace=True)
     bending_df = bending_df.apply(pd.to_numeric)
     bending_agg_df = bending_df.groupby(['Matrix wt %']).agg(
