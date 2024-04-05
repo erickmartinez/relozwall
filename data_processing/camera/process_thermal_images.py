@@ -11,14 +11,19 @@ from data_processing.utils import get_experiment_params
 from matplotlib_scalebar.scalebar import ScaleBar
 import re
 import matplotlib as mpl
+import matplotlib.ticker as ticker
 import json
 import platform
 
 platform_system = platform.system()
 
 base_path = r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
-info_csv = r'LCT_R4N145_ROW533_100PCT_2024-02-09_1.csv'
+info_csv = r'LCT_R4N137_ROW513_100PCT_2024-01-24_1.csv'
 img_extension = 'tiff'
+
+color_map = 'viridis'
+# color_map = 'coolwarm'
+t_range = [1500, 4000]
 
 """
 Remove the attenuation from carbon deposit on the windows
@@ -39,10 +44,11 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-deposition_rate = 50.  # nm/s
+deposition_rate = 100.  # nm/s
 absorption_coefficient = 4 * np.pi * 0.3 / 656.3  # 1/nm
 frame_rate = 200.0
-pixel_size = 20.4215  # pixels/mm
+# pixel_size = 20.4215  # pixels/mm
+pixel_size = 23.6364
 p = re.compile(r'.*?-(\d+)\.'+img_extension)
 nmax = 200
 # calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
@@ -53,7 +59,7 @@ calibration_path = os.path.join(drive_path,
 px2mm = 1. / pixel_size
 px2cm = 0.1 * px2mm
 crop_image = True
-center = np.array([262, 444])
+center = np.array([274, 485])
 crop_r = 200  # 9x
 crop_extents = {
     'left': (center[0] - crop_r),
@@ -114,7 +120,7 @@ def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, fil
         file_tag = file_tag + '_cropped'
     elif remove_reflection:
         img = clear_pixels(img=img, extents=reflection_extents)
-
+    img = cv2.subtract(img, img0)
     m = p.match(file)
     dt = (float(m.group(1)) - t0) * 1E-9
 
@@ -153,6 +159,9 @@ def convert_to_temperature(signal, cali: np.ndarray, dt, emission_time) -> np.nd
     temp_img = np.zeros((n, m), dtype=float)
     for i in range(n):
         for j in range(m):
+            if signal[i, j] == 0:
+                temp_img[i, j] = 300.
+                continue
             s = correct_for_window_deposit_intensity(signal[i, j], dt)
             if dt <= emission_time + 0.005:
                 s = correct_for_window_deposit_intensity(signal[i, j], emission_time)
@@ -178,12 +187,14 @@ def normalize_path(the_path):
 
 
 def main():
-    global base_path, calibration_path, img_extension
+    global base_path, calibration_path, img_extension, color_map
     base_path = normalize_path(base_path)
     # calibration_csv = normalize_path(calibration_csv)
     calibration_path = normalize_path(calibration_path)
     file_tag = os.path.splitext(info_csv)[0]
     images_path = os.path.join(base_path, file_tag + '_images')
+    # print(f'Looking for .{img_extension} files in folder \'{images_path}\'')
+    # print('Image folder exists:', os.path.exists(images_path))
     params = get_experiment_params(relative_path=base_path, filename=file_tag)
     pulse_length = float(params['Emission Time']['value'])
     sample_name = params['Sample Name']['value']
@@ -236,11 +247,12 @@ def main():
 
     fig, ax = plt.subplots(ncols=1, nrows=1, constrained_layout=True)  # , frameon=False)
     # fig.set_size_inches(px2mm * frameSize[1] / 25.4, px2mm * frameSize[0] / 25.4)
+    cmap = mpl.colormaps.get_cmap(color_map)
     scale_factor = 2.5 if crop_image else 1.
     aspect_ratio = 1.75 if crop_image else 1.5
     w, h = frameSize[1] * scale_factor * aspect_ratio * px2mm / 25.4, frameSize[0] * scale_factor * px2mm / 25.4
     fig.set_size_inches(w, h)
-    norm1 = plt.Normalize(vmin=1600, vmax=3600)
+    norm1 = plt.Normalize(vmin=t_range[0], vmax=t_range[1])
     # ax.margins(x=0, y=0)
     # plt.autoscale(tight=True)
 
@@ -251,13 +263,15 @@ def main():
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="7%", pad=0.025)
 
-    cs = ax.imshow(temp_im, interpolation='none', norm=norm1)  # ,
+    cs = ax.imshow(temp_im, interpolation='none', norm=norm1, cmap=cmap)  # ,
     # extent=(0, frameSize[1] * px2mm, 0, frameSize[0] * px2mm))
-    cbar = fig.colorbar(cs, cax=cax)  # , extend='both')
+    cbar = fig.colorbar(cs, cax=cax , extend='min')
     cbar.set_label('Temperature (K)\n', size=9, labelpad=9)
-    cbar.ax.set_ylim(1600, 3600)
-    cbar.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
+    cbar.ax.set_ylim(t_range[0], t_range[1])
+    # cbar.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
     cbar.ax.tick_params(labelsize=9)
+    cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(200))
+    cbar.ax.yaxis.set_minor_locator(ticker.MultipleLocator(100))
     # Add a scalebar
     scalebar = ScaleBar(px2cm, 'cm', frameon=False, color='w', scale_loc='top', location='lower right')
     ax.add_artist(scalebar)

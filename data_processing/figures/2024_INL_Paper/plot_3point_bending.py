@@ -9,7 +9,6 @@ import tkinter as tk
 from tkinter import filedialog
 from data_processing.utils import get_experiment_params
 import platform
-import re
 
 platform_system = platform.system()
 if platform_system != 'Windows':
@@ -64,45 +63,30 @@ def main():
 
     for fn in file_list:
         file_path = os.path.join(rel_path, fn)
-        df: pd.DataFrame = pd.read_csv(file_path, comment='#').apply(pd.to_numeric)
-        df.dropna(inplace=True)
-        df = df.sort_values(by=['Time (s)'])
-        df = df[df['Displacement (mm)'] >= 0]
+
         filetag = os.path.splitext(os.path.basename(file_path))[0]
         params = get_experiment_params(relative_path=rel_path, filename=filetag, debug=False)
         diameter = float(params['Sample diameter']['value'])
         test_id = params['Sample name']['value']
         test_id = test_id.replace('-', ',')
+        support_span = float(params['Support span']['value'])
+
+        # Load the data
+        df: pd.DataFrame = pd.read_csv(file_path, comment='#').apply(pd.to_numeric)
+        df.dropna(inplace=True)
+        df = df.sort_values(by=['Time (s)'])
+        fmax = df['Force (N)'].max()
+        print(f'F_peak: {fmax:>4.2f} N')
+
         # find the sample ID and test ID
         sp = test_id.split(',')
         sp_arr = [s.strip() for s in sp]
         sid, tid = sp_arr[0], int(sp_arr[1])
 
-        support_span = float(params['Support span']['value'])
-        force = df['Force (N)'].values
-        time = df['Time (s)'].values
-
-
-        # Find the breaking load
-        fmax = force.max()
-        idx_peak = (np.abs(fmax - force)).argmin()
-        t_peak = time[idx_peak]
-        df = df[df['Time (s)'] <= t_peak]
-        df = df.sort_values(by=['Displacement (mm)'])
-        df_agg = df.groupby('Displacement (mm)').agg({
-            'Force (N)': ['mean', 'count'], 'Displacement err (mm)': ['max']
-        })
-
-        force = df_agg['Force (N)']['mean'].values
-        displacement = np.round(df_agg.index * 20) / 20.
-        displacement_err = df_agg['Displacement err (mm)']['max'].values
-        force_err = np.ones_like(force) * 0.5 / np.sqrt(df_agg['Force (N)']['count'].values)
-
-        if displacement.max() - displacement.min() < 0.1:
-            continue
-
         print(f'Looking DB for Sample ID: \'{sid}\' and Test ID: {tid}')
         params_df = gc_df[gc_df['Test ID'] == tid]
+        if len(params_df) == 0:
+            continue
         stored_params = params_df.iloc[0]
         # print(stored_params)
         # print(stored_params['Diameter (mm)'])
@@ -114,9 +98,44 @@ def main():
         if diameter_db != diameter:
             print('*** Discrepancy in sample diameter ***')
             print(f'Database: {diameter_db:>4.2f} mm, File: {diameter:>4.2f} mm')
+            df['Displacement (mm)'] += diameter
+            df['Displacement (mm)'] -= diameter_db
         if support_span_db != support_span:
             print('*** Discrepancy in sample diameter ***')
             print(f'Database: {support_span_db:>4.2f} mm, File: {support_span:>4.2f} mm')
+
+        d_df = df[df['Displacement (mm)'] >= 0.]
+
+        force = d_df['Force (N)'].values
+        time_s = d_df['Time (s)'].values
+
+
+        # Find the breaking load
+        idx_peak = (np.abs(fmax - force)).argmin()
+        t_peak = time_s[idx_peak]
+        d_df = d_df[d_df['Time (s)'] <= t_peak]
+        df = df[df['Time (s)'] <= t_peak * 1.5]
+        d_df['Displacement (um)'] = np.round(d_df['Displacement (mm)'].values*40.)*1000./40.
+        d_df = d_df.sort_values(by=['Displacement (um)'])
+
+        df_agg = d_df.groupby('Displacement (um)').agg({
+            'Force (N)': ['mean', 'count', 'max'],
+            'Displacement (mm)': ['mean'],
+            'Displacement err (mm)': ['max']
+        })
+
+        # print(df_agg[['Displacement (mm)', 'Force (N)']])
+
+        force = df_agg['Force (N)']['max'].values
+        displacement = np.round(df_agg['Displacement (mm)']['mean']*40)/40
+        # displacement = np.round(df_agg.index, decimals=2)
+        displacement_err = df_agg['Displacement err (mm)']['max'].values
+        force_err = np.ones_like(force) * 0.5 #/ np.sqrt(df_agg['Force (N)']['count'].values)
+
+        if len(displacement) < 2:
+            continue
+
+
 
         sigma_kpa = 8.0 * force * support_span / np.pi / (diameter ** 3.0) * 1E3
         sigma_kpa_err = np.zeros_like(sigma_kpa)
@@ -130,7 +149,7 @@ def main():
         new_force_err = np.zeros(new_force.size)
         for i, fi in enumerate(force):
             if fi == 0.:
-                new_force_err[i] = force_err[i] * new_force[-1]/force[-1]
+                new_force_err[i] = force_err[i] * new_force.mean()/force.mean()
             else:
                 try:
                     new_force_err[i] = new_force[i]/fi * force_err[i]
@@ -151,6 +170,9 @@ def main():
         fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, gridspec_kw=dict(hspace=0, height_ratios=[1, 1]))
         fig.set_size_inches(4.5, 5.)
 
+        fig_t, axes_t = plt.subplots(nrows=2, ncols=1, sharex=True, gridspec_kw=dict(hspace=0, height_ratios=[1, 1]))
+        fig_t.set_size_inches(4.5, 5.)
+
 
         lbl1 = f'L = {old_L*0.1:.0f} cm'
         lbl2 = f'L = {new_L*0.1:.0f} cm'
@@ -158,6 +180,7 @@ def main():
         plot_title = f'{matrix_content:.0f} % matrix, test: {tid:03d}'
 
         axes[0].set_title(plot_title)
+        axes_t[0].set_title(plot_title)
 
         axes[0].errorbar(
             displacement, force, yerr=force_err, xerr=0.05,
@@ -175,6 +198,23 @@ def main():
             label=lbl2
         )
 
+        axes_t[0].errorbar(
+            df['Time (s)'], df['Force (N)'], #yerr=0.5,
+            marker='o', mfc='none', capsize=2.5,
+            ms=9, mew=1.,
+            elinewidth=1.0, lw=1.75, c='C0',
+            label=lbl1
+        )
+
+        axes_t[1].errorbar(
+            df['Time (s)'], df['Displacement (mm)'], #yerr=0.05,
+            marker='o', mfc='none', capsize=2.5,
+            ms=9, mew=1.,
+            elinewidth=1.0, lw=1.75, c='C0',
+            label=lbl1
+        )
+
+
         for ax in axes:
             # ax.set_xlim(0., 0.5)
             # ax.xaxis.set_major_locator(ticker.MultipleLocator(0.02))
@@ -182,14 +222,25 @@ def main():
             ax.set_ylabel('Load (N)')
             ax.legend(loc='upper left', frameon=True)
 
+
+        for ax in axes_t:
+            ax.legend(loc='upper left', frameon=True)
+
+
         axes[1].set_xlabel('Deformation (mm)')
 
+        axes_t[0].set_ylabel('Force (N)')
+        axes_t[1].set_ylabel('Deformation (mm)')
+        axes_t[1].set_xlabel('Time (s)')
+
         fig.tight_layout()
+        fig_t.tight_layout()
 
         # save data
 
         out_df.to_csv(os.path.join(output_path, filetag + '_processed.csv'), index=False)
         fig.savefig(os.path.join(output_path, filetag + '_plot.png'), dpi=300)
+        fig_t.savefig(os.path.join(output_path, filetag + '_raw_plot.png'), dpi=300)
 
 
     plt.show()

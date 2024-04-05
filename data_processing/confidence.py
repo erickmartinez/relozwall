@@ -3,7 +3,7 @@ from scipy.linalg import svd
 from scipy.optimize import OptimizeResult, OptimizeWarning
 from typing import Callable
 import scipy.linalg as LA
-from scipy.stats.distributions import t
+from scipy.stats.distributions import t, f
 import warnings
 
 
@@ -78,8 +78,10 @@ def confidence_interval(res: OptimizeResult, **kwargs):
     if not isinstance(res, OptimizeResult):
         raise ValueError('Argument \'res\' should be an instance of \'scipy.optimize.OptimizeResult\'')
 
-    confidence = kwargs.get('confidence', 0.95)
+    level = kwargs.get('confidence', 0.95)
+    absolute_sigma = kwargs.get('absolute_sigma', False)
 
+    pcov = ls_covariance(res, absolute_sigma=absolute_sigma)
     # The vector of residuals at the solution
     residuals = res.fun
     # The number of data points
@@ -87,41 +89,64 @@ def confidence_interval(res: OptimizeResult, **kwargs):
     # The number of parameters
     p = len(res.x)
     # The degrees of freedom
-    dfe = n - p
-    # Get MSE. The degrees of freedom when J is full rank is v = n-p and n-rank(J) otherwise
-    mse = (LA.norm(residuals)) ** 2 / dfe
+    dof = n - p
 
-    # Needs to estimate the jacobian at the predictor point!!!
-    # ypred = func(x,res.x)
-    # delta = np.zeros((len(ypred),p));
-    # fdiffstep       = np.amax(np.spacing(res.x)**(1/3));
-    # for i in range(p):
-    #     change = np.zeros(p)
-    #     if res.x[i] == 0:
-    #         nb = np.sqrt(LA.norm(res.x))
-    #         change[i] = fdiffstep * (nb + (nb == 0))
-    #     else:
-    #         change[i] = fdiffstep * res.x[i]
-    #
-    #     predplus    = func(x,res.x+change)
-    #     delta[:,i]  = (predplus - ypred)/change[i]
+    # Quantile of Student's t distribution for p=(1 - alpha/2)
+    # tval = t.ppf((1.0 + confidence)/2.0, dof)
+    alpha = 1.0 - level
+    tval = t.ppf(1.0 - alpha / 2.0, dof)
 
-    # Find R to get the variance
-    _, R = LA.qr(res.jac)
-    # Get the rank of jac_pnp
-    Rinv = LA.pinv(R)
-
-    v = np.sum(Rinv ** 2, axis=1) * mse
-    alpha = 1.0 - confidence
-    tval = t.ppf(1.0 - alpha / 2.0, dfe)
-    delta = np.sqrt(v) * tval
     ci = np.zeros((p, 2), dtype=np.float64)
 
-    for i, p, d in zip(range(n), res.x, delta):
-        ci[i, :] = [p - d, p + d]
+    for i, p, var in zip(range(n), res.x, np.diag(pcov)):
+        sigma = var ** 0.5
+        ci[i, :] = [p - sigma * tval, p + sigma * tval]
 
     return ci
 
+
+def ls_covariance(ls_res: OptimizeResult, absolute_sigma=False):
+    """
+    Estimates the covariance matrix for a `scipy.optimize.least_squares` result
+    :param ls_res: The object returned by `scipy.optimize.least_squares`
+    :type ls_res: OptimizeResult
+    :param absolute_sigma: If True, `sigma` is used in an absolute sense and the estimated parameter
+        covariance `pcov` reflects these absolute values.
+
+        If False (default), only the relative magnitudes of the `sigma` values matter.
+        The returned parameter covariance matrix `pcov` is based on scaling
+        `sigma` by a constant factor. This constant is set by demanding that the
+        reduced `chisq` for the optimal parameters `popt` when using the
+        *scaled* `sigma` equals unity. In other words, `sigma` is scaled to
+        match the sample variance of the residuals after the fit. Default is False.
+        Mathematically,
+        ``pcov(absolute_sigma=False) = pcov(absolute_sigma=True) * chisq(popt)/(M-N)``
+    :type absolute_sigma: bool
+    :return: The covariance matrix of the fit
+    :rtype np.ndarray
+    """
+    popt = ls_res.x
+    ysize = len(ls_res.fun)
+    cost = 2. * ls_res.cost  # res.cost is half sum of squares!
+
+    # Do Moore-Penrose inverse discarding zero singular values.
+    _, s, VT = svd(ls_res.jac, full_matrices=False)
+    threshold = np.finfo(float).eps * max(ls_res.jac.shape) * s[0]
+    s = s[s > threshold]
+    VT = VT[:s.size]
+    pcov = np.dot(VT.T / s ** 2, VT)
+
+    if pcov is None or np.isnan(pcov).any():
+        # indeterminate covariance
+        pcov = np.zeros((len(popt), len(popt)), dtype=float)
+        pcov.fill(np.inf)
+        warnings.warn('Covariance of the parameters could not be estimated.',
+                      category=OptimizeWarning)
+    elif not absolute_sigma:
+        if ysize > len(popt):
+            s_sq = cost / (ysize - len(popt))
+            pcov = pcov * s_sq
+    return pcov
 
 def get_rsquared(x: np.ndarray, y: np.ndarray, popt: np.ndarray, func: Callable[[np.ndarray, np.ndarray], np.ndarray]):
     """
@@ -271,6 +296,8 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
     simultaneous = kwargs.get('simultaneous', True)
     mode = kwargs.get('mode', 'observation')
     confidence = kwargs.get('confidence', 0.95)
+    if mode == 'new_observation':
+        mode = 'observation'
 
     p = len(res.x)
 
@@ -345,9 +372,9 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
 
 
 def prediction_intervals(model: Callable, x_pred, ls_res: OptimizeResult, level=0.95,
-                         jac:Callable=None, weights:np.ndarray=None, **kwargs):
+                         jac: Callable = None, weights: np.ndarray = None, **kwargs):
     """
-    Estimates the prediction interval for a least squares fit result obtained by
+    Estimates the prediction interval for a least` squares fit result obtained by
     scipy.optimize.least_squares.
 
     :param model: The model used to fit the data
@@ -399,7 +426,7 @@ def prediction_intervals(model: Callable, x_pred, ls_res: OptimizeResult, level=
                 change[i] = fdiffstep * (nb + float(nb == 0))
             else:
                 change[i] = fdiffstep * beta[i]
-            predplus = model(x_pred, beta+change)
+            predplus = model(x_pred, beta + change)
             delta[:, i] = (predplus - y_pred) / change[i]
     else:
         delta = jac(beta, x_pred, y_pred)
@@ -434,7 +461,7 @@ def prediction_intervals(model: Callable, x_pred, ls_res: OptimizeResult, level=
             sch = [rankJ + 1]
         else:
             sch = rankJ
-        crit = np.sqrt(sch * (f.ppf(1.0 - alpha, sch, n - rankJ) ) )
+        crit = np.sqrt(sch * (f.ppf(1.0 - alpha, sch, n - rankJ)))
     else:
         from scipy.stats.distributions import t
         crit = t.ppf(1.0 - alpha / 2.0, n - rankJ)

@@ -7,7 +7,7 @@ import platform
 import os
 import json
 
-
+ft_scale = 0.512
 platform_system = platform.system()
 if platform_system != 'Windows':
     drive_path = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
@@ -17,12 +17,16 @@ else:
 base_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations'
 
 simulated_db = [
-    {'lbl': 'Simulation ($f_{\mathrm{t}}$ = 60 KPa)', 'file': 'Ben_Fig10_dt_sim_ft_60.csv', 'marker': 's', 'ft': 60},
-    {'lbl': 'Simulation ($f_{\mathrm{t}}$ = 70 KPa)', 'file': 'Ben_Fig10_dt_sim_ft_70.csv', 'marker': 's', 'ft': 70},
-    {'lbl': 'Simulation ($f_{\mathrm{t}}$ = 80 KPa)', 'file': 'Ben_Fig10_dt_sim_ft_80.csv', 'marker': 's', 'ft': 80},
-    {'lbl': 'Simulation ($f_{\mathrm{t}}$ = 70 KPa, not T limit)', 'file': 'Ben_Fig10_dt_sim_ft_70_no_T_limit.csv',
-     'marker': 'x', 'ft': 70},
+    {'lbl': 'Simulation (F = 1.3 N)', 'file': 'Ben_Fig10_dt_sim_ft_60.csv', 'marker': 's', 'ft': 60, 'ls':'-'},
+    {'lbl': 'Simulation (F = 1.5 N)', 'file': 'Ben_Fig10_dt_sim_ft_70.csv', 'marker': 's', 'ft': 70, 'ls':'-'},
+    {'lbl': 'Simulation (F = 1.7 N)', 'file': 'Ben_Fig10_dt_sim_ft_80.csv', 'marker': 's', 'ft': 80, 'ls':'-'},
+    {'lbl': 'Simulation (F = 1.5 N, x2$\kappa$)', 'file': 'nu_vs_q_ft70_2x_conductivity.csv',
+     'marker': 'x', 'ft': 70, 'ls':':'},
+    {'lbl': 'Simulation (F = 1.5 N, no T limit)', 'file': 'Ben_Fig10_dt_sim_ft_70_no_T_limit.csv',
+     'marker': 'x', 'ft': 70, 'ls': '--'},
 ]
+
+simulated_breaking_load_csv = 'sim_breaking_load.csv'
 
 experimental_csv = 'recession_vs_heat_load_30KPa.csv'
 
@@ -47,20 +51,25 @@ def load_plot_style():
 
 
 def main():
-    global base_path, simulated_db, experimental_csv
+    global base_path, simulated_db, experimental_csv, ft_scale
     base_path = normalize_path(base_path)
     load_plot_style()
+
+    sim_bl_df = pd.read_csv('sim_breaking_load.csv').apply(pd.to_numeric)
+    sim_ft = sim_bl_df['ft'].values.astype(int)
+    sim_bl = sim_bl_df['Breaking load (N)'].values
+    map_ft_bl = {sim_ft[i]: sim_bl[i] for i in range(len(sim_ft))}
 
     norm = mpl.colors.Normalize(vmin=25, vmax=50)
     cmap = mpl.colormaps.get_cmap('cool')
 
     fig, axes = plt.subplots(nrows=2, ncols=1, constrained_layout=True)
-    fig.set_size_inches(5.0, 6.5)
-    colors_sim = ['C0', 'C1', 'C2', 'C3']
+    fig.set_size_inches(4.5, 6.75)
+    colors_sim = ['C0', 'C3', 'C2', 'C3', 'C4']
 
     axes[0].set_yscale('log')
     axes[0].set_ylim(1E-5, 1)
-    axes[0].set_xlabel(r'Q (MW/m$^{\mathregular{2}}$)')
+    axes[0].set_xlabel(r'$q$ (MW/m$^{\mathregular{2}}$)')
     axes[0].set_ylabel(r'$\nu$ (cm/s)')
 
     axes[0].set_xlim(0, 55)
@@ -68,12 +77,12 @@ def main():
     axes[0].xaxis.set_minor_locator(ticker.MultipleLocator(5))
 
     axes[1].set_yscale('log')
-    axes[1].set_xlim(0, 90)
+    axes[1].set_xlim(0, 2.5)
     axes[1].set_ylim(1E-3, 10)
     axes[1].set_ylabel(r'$\nu$ (cm/s)')
-    axes[1].set_xlabel(r'$f_{\mathrm{t}}$ (KPa)')
-    axes[1].xaxis.set_major_locator(ticker.MultipleLocator(20))
-    axes[1].xaxis.set_minor_locator(ticker.MultipleLocator(10))
+    axes[1].set_xlabel(r'F (N)')
+    axes[1].xaxis.set_major_locator(ticker.MultipleLocator(0.5))
+    axes[1].xaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
     sim_30_50_df = pd.DataFrame(columns=['FT_KPa', 'Q', 'nu'])
     q_select = [30, 50]
@@ -83,6 +92,7 @@ def main():
         lbl = r['lbl']
         marker = r['marker']
         ft = r['ft']
+        ls = r['ls']
         sim_df = pd.read_csv(csv, comment='#').apply(pd.to_numeric)
         sim_df['Q'] = np.round(sim_df['Heat load (MW/m2)']/5.)*5
         heat_load = sim_df['Heat load (MW/m2)'].values
@@ -101,22 +111,23 @@ def main():
 
         axes[0].plot(
             heat_load, recession_rate, c=colors_sim[i], marker=marker, fillstyle='full',
-            ls='-', mew=1.5, label=lbl
+            ls=ls, mew=2., label=lbl, ms=6, lw=1.25
         )
 
     r3n41_42_df = pd.read_csv(os.path.join(base_path, experimental_csv)).apply(pd.to_numeric)
     axes[0].errorbar(
         r3n41_42_df['Heat load (MW/m2)'],
         r3n41_42_df['Recession rate (cm/s)'],
-        # yerr=r3n41_42_df['Recession rate error (cm/s)'],
+        yerr=(r3n41_42_df['Recession rate (cm/s)']*0.5, r3n41_42_df['Recession rate (cm/s)']*1.5),
         marker='o', color='C0',
         ms=9, mew=1.25, mfc='none', ls='none',
         capsize=2.75, elinewidth=1.25, lw=1.5,
-        label=r'Experiment ($f_{\mathrm{t}}$ = 30 KPa)'
+        label=r'Experiment (F = 1.5 N)'
     )
 
-    markers_ft = ['o', '^']
-    line_styles = ['--', '-.']
+    markers_ft = ['o', '>']
+    fill_styles = ['bottom', 'none']
+    line_styles = ['none', 'none']
     plot_lines = []
     labels = []
     for i, r in enumerate(recession_db):
@@ -124,14 +135,21 @@ def main():
         ft_df = pd.read_csv(csv).apply(pd.to_numeric)
         ft_df['Q'] = np.round(ft_df['Heat load (MW/m^2)']/5.)*5.
         qs = ft_df['Q'].unique()
-        for qi in qs:
-            ft_df_at_q = ft_df[ft_df['Q'] == qi]
-            ft_df_at_q = ft_df_at_q.sort_values(by=['FT_estimate (KPa)'])
+        for j, qi in enumerate(qs):
+            fs = fill_styles[j]
+            bl_df_at_q: pd.DataFrame = ft_df[ft_df['Q'] == qi]
+            print(bl_df_at_q.columns)
+            # print(bl_df_at_q[['Matrix mean breaking load (N)','Mean recession rate (cm/s)']])
+            bl_df_at_q = bl_df_at_q.sort_values(by=['Matrix strength mean (KPa)', 'FT_estimate (KPa)'])
             material = r['material']
             lbl = fr'{material} ({qi:.0f} ' + r'MW/m$^{\mathregular{2}}$)'
-            nu_i = ft_df_at_q['Mean recession rate (cm/s)'].values
-            ft_i = ft_df_at_q['FT_estimate (KPa)'].values
-            nu_err = ft_df_at_q['Standard recession rate error (cm/s)'].values
+            nu_i = bl_df_at_q['Mean recession rate (cm/s)'].values
+            # ft_i = ft_df_at_q['FT_estimate (KPa)'].values
+            sigma_i = bl_df_at_q['Matrix strength mean (KPa)'].values
+            diameter = bl_df_at_q['Diameter mean (mm)'].values
+            bl_i = 1E-3 * sigma_i / 40. / 8. * np.pi * diameter ** 3.
+            ble_i =  bl_df_at_q['Matrix mean breaking load error (N)'].values * (30./40.)
+            nu_err = bl_df_at_q['Standard recession rate error (cm/s)'].values
             if i >0:
                 nu_err /= 1.
             ub_err = nu_err
@@ -142,16 +160,17 @@ def main():
                 if eri >= nu_i[j] * 0.85:
                     lb_err[j] = nu_i[j] * 0.65
 
-            print(ub_err.size, lb_err.size)
             ci = cmap(norm(qi))
-            ebc = mpl.colors.to_rgba(ci, 0.15)
+            ebc = mpl.colors.to_rgba(ci, 0.25)
             line_i = axes[1].errorbar(
-                ft_i, nu_i,
+                bl_i, nu_i,
                 yerr=(lb_err, ub_err),
-                xerr=ft_df_at_q['FT_estimate error (KPa)'],
+                xerr=ble_i,#bl_df_at_q['FT_estimate error (KPa)'],
                 c=ci,
-                ms=9, mew=1.25, mfc='none', ls=line_styles[i],
-                capsize=2.75, elinewidth=1.25, lw=1.25,
+                ms=9, mew=1.25, #ls='none',# mfc='none',
+                ls=line_styles[i],
+                fillstyle=fs, mec=ci, mfc=ci,
+                capsize=2.75, elinewidth=1.25, lw=1.,
                 marker=markers_ft[i],
                 ecolor=ebc,
                 label=lbl
@@ -172,29 +191,34 @@ def main():
             plot_lines.append(line_i)
             labels.append(lbl)
 
-    sim_30_50_df = sim_30_50_df.sort_values(by=['Q', 'FT_KPa'], ascending=[True, False])
-    print(sim_30_50_df)
+    sim_30_50_df = sim_30_50_df.sort_values(by=['Q', 'FT_KPa'], ascending=[False, False])
+    # print(sim_30_50_df)
+    # load breaking load for simulations
 
     sim_lines = []
     sim_labels = []
     for qi in q_select:
         sim_df = sim_30_50_df[sim_30_50_df['Q'] == qi]
+        ft_val = sim_df['FT_KPa'].values
+        bl_sim = np.array([map_ft_bl[ft_val[i]] for i in range(len(ft_val))])
         print(sim_df)
-        lbl = fr'Simulation ({qi:.0f} ' + r'MW/m$^{\mathregular{2}}$)'
+        lbl = fr'Simulation of GC ({qi:.0f} ' + r'MW/m$^{\mathregular{2}}$)'
         ci = cmap(norm(qi))
         # line_i = axes[1].scatter(
         #     sim_df['FT_KPa'].values, sim_df['nu'].values, marker='s',
         #     ls='-', c=[ci for x in range(len(sim_df))], label=lbl
         # )
         line_i, = axes[1].plot(
-            sim_df['FT_KPa'], sim_df['nu'], marker='s',
+            bl_sim,
+            # sim_df['FT_KPa'],
+            sim_df['nu'], marker='s',
             ls='-', c=ci, mfc=ci, label=lbl
         )
         sim_lines.append(line_i)
         sim_labels.append(lbl)
 
-    for pl in plot_lines:
-        print(pl)
+    # for pl in plot_lines:
+    #     print(pl)
     # cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
     #              ax=ax, orientation='vertical', label=r'$f_{\mathrm{t}}$ (KPa)')
     # cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(20))
@@ -217,6 +241,8 @@ def main():
     )
 
     axes[1].add_artist(leg10)
+
+    sim_lines = sim_lines[::-1]
 
     leg11 = axes[1].legend(
         handles=sim_lines, #labels=sim_labels[0],

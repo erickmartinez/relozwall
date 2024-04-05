@@ -210,14 +210,22 @@ def main():
 
     mean_strength_df = pd.DataFrame(data={
         'Matrix content (wt %)': matrix_wt_pct,
+        'Matrix mean breaking load (N)': mean_force,
+        'Matrix mean breaking load error (N)': mean_force_err,
         'Matrix strength mean (KPa)': mean_strength,
-        'Matrix strength mean error (KPa)': mean_strength_err
+        'Matrix strength mean error (KPa)': mean_strength_err,
+        'Diameter mean (mm)': bending_agg_df['Diameter (mm)']['mean'],
+        'Diameter err (mm)': bending_agg_df['Diameter err (mm)']['mean_err']
     }).reset_index(drop=True)
 
     mean_strength_aquarium_df = pd.DataFrame(data={
         'Matrix content (wt %)': matrix_wt_pct_aquarium,
+        'Matrix mean breaking load (N)': mean_force_aquarium,
+        'Matrix mean breaking load error (N)': mean_force_aquarium_err,
         'Matrix strength mean (KPa)': mean_strength_aquarium,
-        'Matrix strength mean error (KPa)': mean_strength_aquarium_err
+        'Matrix strength mean error (KPa)': mean_strength_aquarium_err,
+        'Diameter mean (mm)': bending_aquarium_agg_df['Diameter (mm)']['mean'],
+        'Diameter err (mm)': bending_aquarium_agg_df['Diameter err (mm)']['mean_err']
     }).reset_index(drop=True)
 
     """
@@ -266,13 +274,13 @@ def main():
 
     ax1.set_xlabel('Matrix wt %')
     ax1.set_ylabel('Load (N)', color=cax1)
-    ax2.set_ylabel('$f_{\\mathrm{b}}$ (KPa)', color=cax2)
+    ax2.set_ylabel('$f_{\\mathrm{b}}$ (kPa)', color=cax2)
     ax1.set_title('Glassy carbon')
 
     axes_s_ac[0].set_title('Activated Carbon')
     axes_s_ac[0].set_xlabel('Matrix wt %')
     axes_s_ac[0].set_ylabel('Load (N)', color=cax1)
-    ax2_s_ac.set_ylabel('$f_{\\mathrm{b}}$ (KPa)', color=cax2)
+    ax2_s_ac.set_ylabel('$f_{\\mathrm{b}}$ (kPa)', color=cax2)
 
     ax1.tick_params(axis='y', labelcolor=cax1)
     ax2.tick_params(axis='y', labelcolor=cax2)
@@ -425,8 +433,8 @@ def main():
     axes_s_ac[1].set_xlabel('Matrix content (wt %)')
     axes_s_ac[1].set_ylabel('cm/s')
 
-    ax3.set_xlabel('$f_t$ (KPa)')
-    ax4.set_xlabel('$f_b$ (KPa)')
+    ax3.set_xlabel('$f_t$ (kPa)')
+    ax4.set_xlabel('$f_b$ (kPa)')
     ax3.set_ylabel('Recession rate (cm/s)')
     ax3.set_title('Glassy carbon')
     axes_s_ac[1].set_title('Recession rate')
@@ -448,8 +456,8 @@ def main():
     """
     Activated carbon
     """
-    ax5.set_xlabel('$f_t$ (KPa)')
-    ax6.set_xlabel('$f_b$ (KPa)')
+    ax5.set_xlabel('$f_t$ (kPa)')
+    ax6.set_xlabel('$f_b$ (kPa)')
 
     ax5.set_xlim(0, 80)
     ax5.xaxis.set_major_locator(ticker.MultipleLocator(10))
@@ -509,6 +517,9 @@ def main():
     fig2.savefig(os.path.join(base_path, 'fig_recession_vs_bending_strength.pdf'), dpi=600)
 
     fig_s_ac.savefig(os.path.join(base_path, 'fig_activated_carbon_matrix_content.png'), dpi=600)
+
+    mean_strength_df.to_csv(os.path.join(base_path, 'gc_mean_load_vs_matrix_content.csv'), index=False)
+    mean_strength_aquarium_df.to_csv(os.path.join(base_path, 'ac_mean_load_vs_matrix_content.csv'), index=False)
 
     plt.show()
 
