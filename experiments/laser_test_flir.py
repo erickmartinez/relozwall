@@ -16,7 +16,8 @@ from pymeasure.display.Qt import QtWidgets
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
 from pymeasure.experiment import FloatParameter, ListParameter, Parameter, BooleanParameter
-from pymeasure.experiment import unique_filename
+# from pymeasure.experiment import unique_filename
+from pymeasure.experiment.results import replace_placeholders, unique_filename
 from serial.serialutil import SerialException
 from instruments.esp32 import ESP32Trigger
 from instruments.esp32 import DualTCLoggerTCP
@@ -76,7 +77,7 @@ class LaserProcedure(Procedure):
     # trigger_delay = FloatParameter("Trigger delay", units="us", minimum=9, maximum=10E6)
     sample_name = Parameter("Sample Name", default="UNKNOWN")
     __camera: Camera = None
-    __oscilloscope: TBS2000 = None
+    # __oscilloscope: TBS2000 = None
     __keep_alive: bool = False
     __on_sleep: WindowsInhibitor = None
     __tc_logger: DualTCLoggerTCP = None
@@ -105,7 +106,7 @@ class LaserProcedure(Procedure):
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
         # self.__ylr.set_logger(log)
-        log.info("Setting up Oscilloscope")
+        # log.info("Setting up Oscilloscope")
         # self.__oscilloscope.write('ACQUIRE:STATE 0')
         # self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
         # self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
@@ -426,7 +427,7 @@ class LaserProcedure(Procedure):
 
         for ii in range(n_data_points):
             dd = {
-                'Measurement Time (s)': np.round(time_interp[ii],4),
+                'Measurement Time (s)': np.round(time_interp[ii], 4),
                 'Pressure (Torr)': np.round(pressure_interp[ii], 3),
                 'TC1 (C)': np.round(tc1_interp[ii], 2),
                 'TC2 (C)': np.round(tc2_interp[ii], 2),
@@ -437,8 +438,8 @@ class LaserProcedure(Procedure):
             self.emit('results', dd)
             # log.debug("Emitting results: %s" % dd)
             if (ii % 10 == 0) or (ii + 1 == n_data_points):
-                self.emit('progress', (ii+1) * pct_f)
-            time.sleep(0.001)
+                self.emit('progress', (ii + 1) * pct_f)
+            time.sleep(0.005)
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
                 break
@@ -449,9 +450,9 @@ class LaserProcedure(Procedure):
         if self.__ylr is not None:
             self.__ylr.disconnect()
 
-        if self.__oscilloscope is not None:
-            self.__oscilloscope.timeout = 1
-            self.__oscilloscope.close()
+        # if self.__oscilloscope is not None:
+        #     self.__oscilloscope.timeout = 1
+        #     self.__oscilloscope.close()
 
         if self.__camera is not None:
             if not self.__camera.busy:
@@ -489,9 +490,11 @@ class MainWindow(ManagedWindow):
                       'camera_frame_rate', 'camera_gain', 'acquisition_mode', 'sample_name'],
             x_axis='Measurement Time (s)',
             y_axis='Pressure (Torr)',
-            directory_input=True,
+            # directory_input=True,
         )
         self.setWindowTitle('Laser test (camera)')
+        self.filename = r'LCT_{Sample Name}_{Laser Power Setpoint:03.0f}PCT_'
+        self.file_input.extensions = ["csv"]
 
     def clear_log(self):
         if len(log.handlers) > 0:
@@ -504,14 +507,17 @@ class MainWindow(ManagedWindow):
         directory = self.directory
 
         procedure: LaserProcedure = self.make_procedure()
-        sample_name = procedure.sample_name
-        laser_setpoint = procedure.laser_power_setpoint
+        file_path = unique_filename(
+            directory=self.directory,
+            prefix=replace_placeholders(procedure=procedure, string=self.filename)
+        )
 
-        # self.clear_log()
+        self.clear_log()
 
-        prefix = f'LCT_{sample_name}_{laser_setpoint:03.0f}PCT_'
-        filename = unique_filename(directory, prefix=prefix)
-        log_file = os.path.splitext(filename)[0] + '.log'
+        # prefix = f'LCT_{sample_name}_{laser_setpoint:03.0f}PCT_'
+        # filename = unique_filename(directory, prefix=prefix)
+        filename = os.path.basename(file_path)
+        log_file = os.path.splitext(file_path)[0] + '.log'
         # formatter = logging.Formatter('%(actime)s - %(levelname)s - %(message)s')
         # fh = logging.FileHandler(log_file)
         # fh.setFormatter(formatter)
@@ -521,11 +527,13 @@ class MainWindow(ManagedWindow):
         file_log(logger=log, log_filename=log_file, level=logging.DEBUG)
         log.info(f'Starting experiment')
 
-        results = Results(procedure, filename)
+        procedure.unique_filename = file_path
+        procedure.directory = directory
+
+        results = Results(procedure, file_path)
         # results.CHUNK_SIZE = 1000  # increased it from 1000 to check if it resolves emit result issues scrambling rows
         experiment = self.new_experiment(results)
-        procedure.unique_filename = filename
-        procedure.directory = directory
+
         self.manager.queue(experiment)
 
 
