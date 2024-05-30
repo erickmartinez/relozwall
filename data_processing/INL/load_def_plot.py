@@ -4,8 +4,15 @@ import matplotlib.ticker as ticker
 import pandas as pd
 import os
 import json
+import platform
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\bending_test'
+platform_system = platform.system()
+if platform_system != 'Windows':
+    drive_path = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
+else:
+    drive_path = r'C:\Users\erick\OneDrive'
+
+base_path = r'Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\bending_test'
 data_dir = 'gold'
 
 def load_plt_style():
@@ -14,7 +21,16 @@ def load_plt_style():
         plot_style = json_file['defaultPlotStyle']
     mpl.rcParams.update(plot_style)
 
+def normalize_path(the_path):
+    global platform_system, drive_path
+    if platform_system != 'Windows':
+        the_path = the_path.replace('\\', '/')
+    else:
+        the_path = the_path.replace('/', '\\')
+    return os.path.join(drive_path, the_path)
+
 if __name__ == '__main__':
+    base_path = normalize_path(base_path)
     load_plt_style()
     s1 = pd.read_csv(os.path.join(base_path, data_dir, 'R3N61_6_processed.csv'))
     s2 = pd.read_csv(os.path.join(base_path, data_dir, 'R3N62_2_processed.csv'))

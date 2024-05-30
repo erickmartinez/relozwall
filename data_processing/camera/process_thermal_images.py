@@ -11,10 +11,19 @@ from data_processing.utils import get_experiment_params
 from matplotlib_scalebar.scalebar import ScaleBar
 import re
 import matplotlib as mpl
+import matplotlib.ticker as ticker
 import json
+import platform
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
-info_csv = r'LCT_R4N85_ROW375_100PCT_2023-08-18_1.csv'
+platform_system = platform.system()
+
+base_path = r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+info_csv = r'LCT_R4N137_ROW513_100PCT_2024-01-24_1.csv'
+img_extension = 'tiff'
+
+color_map = 'viridis'
+# color_map = 'coolwarm'
+t_range = [1500, 4000]
 
 """
 Remove the attenuation from carbon deposit on the windows
@@ -29,18 +38,28 @@ Use
 
 I = I0 * exp(-a*d) => I0 = I * exp(a*d)
 """
-deposition_rate = 50.  # nm/s
+
+if platform_system != 'Windows':
+    drive_path = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
+else:
+    drive_path = r'C:\Users\erick\OneDrive'
+
+deposition_rate = 100.  # nm/s
 absorption_coefficient = 4 * np.pi * 0.3 / 656.3  # 1/nm
 frame_rate = 200.0
-pixel_size = 20.4215  # pixels/mm
-p = re.compile(r'.*?-(\d+)\.jpg')
+# pixel_size = 20.4215  # pixels/mm
+pixel_size = 23.6364
+p = re.compile(r'.*?-(\d+)\.'+img_extension)
 nmax = 200
 # calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
-calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010\calibration_20231010_4us.csv'
+calibration_path = os.path.join(drive_path,
+                                r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010')  # \calibration_20231010_4us.csv'
+
+# calibration_csv = r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010\calibration_20231010_4us.csv'
 px2mm = 1. / pixel_size
 px2cm = 0.1 * px2mm
 crop_image = True
-center = np.array([262, 444])
+center = np.array([274, 485])
 crop_r = 200  # 9x
 crop_extents = {
     'left': (center[0] - crop_r),
@@ -58,10 +77,10 @@ reflection_extents = {
 }
 
 
-def get_files(base_dir: str, tag: str):
+def get_files(base_dir: str, tag: str, ext: str = img_extension):
     files = []
     for f in os.listdir(base_dir):
-        if f.startswith(tag) and f.endswith('.jpg'):
+        if f.startswith(tag) and f.endswith('.'+ext):
             files.append(f)
     return files
 
@@ -90,7 +109,8 @@ def clear_pixels(img: np.ndarray, extents: dict):
     return img
 
 
-def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, file_tag, fig, image_save_path, emission_time):
+def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, file_tag, fig, image_save_path,
+                emission_time):
     file = file_list[n]
     n_max = len(file_list)
     img = cv2.imread(os.path.join(relative_path, file), 0)
@@ -100,7 +120,7 @@ def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, fil
         file_tag = file_tag + '_cropped'
     elif remove_reflection:
         img = clear_pixels(img=img, extents=reflection_extents)
-
+    img = cv2.subtract(img, img0)
     m = p.match(file)
     dt = (float(m.group(1)) - t0) * 1E-9
 
@@ -123,11 +143,13 @@ def update_line(n, ln, file_list, t0, img0, pulse_width, cal, relative_path, fil
 
 
 LN10 = np.log(10.)
+
+
 def correct_for_window_deposit_intensity(img: np.ndarray, t):
-    return np.exp(LN10*absorption_coefficient * t * deposition_rate) * img
+    return np.exp(LN10 * absorption_coefficient * t * deposition_rate) * img
 
 
-def load_calibration():
+def load_calibration(calibration_csv):
     df = pd.read_csv(calibration_csv).apply(pd.to_numeric)
     return df['Temperature [K]'].values
 
@@ -137,6 +159,9 @@ def convert_to_temperature(signal, cali: np.ndarray, dt, emission_time) -> np.nd
     temp_img = np.zeros((n, m), dtype=float)
     for i in range(n):
         for j in range(m):
+            if signal[i, j] == 0:
+                temp_img[i, j] = 300.
+                continue
             s = correct_for_window_deposit_intensity(signal[i, j], dt)
             if dt <= emission_time + 0.005:
                 s = correct_for_window_deposit_intensity(signal[i, j], emission_time)
@@ -154,20 +179,35 @@ def get_cropped_image(img) -> np.ndarray:
     return img2
 
 
+def normalize_path(the_path):
+    global platform_system, drive_path
+    if platform_system != 'Windows':
+        the_path = the_path.replace('\\', '/')
+    return os.path.join(drive_path, the_path)
+
+
 def main():
+    global base_path, calibration_path, img_extension, color_map
+    base_path = normalize_path(base_path)
+    # calibration_csv = normalize_path(calibration_csv)
+    calibration_path = normalize_path(calibration_path)
     file_tag = os.path.splitext(info_csv)[0]
     images_path = os.path.join(base_path, file_tag + '_images')
+    # print(f'Looking for .{img_extension} files in folder \'{images_path}\'')
+    # print('Image folder exists:', os.path.exists(images_path))
     params = get_experiment_params(relative_path=base_path, filename=file_tag)
     pulse_length = float(params['Emission Time']['value'])
     sample_name = params['Sample Name']['value']
-    cal = load_calibration()
+    exposure_time = float(params['Camera exposure time']['value'])
+    calibration_csv = f'calibration_20231010_{exposure_time:.0f}_us.csv'
+    temperature_calibration = load_calibration(os.path.join(calibration_path, calibration_csv))
     # print(f'length of cal: {len(cal)}')
     # for i, c in enumerate(cal):
     #     print(f'ADC: {i}, temp: {c} K')
     image_tag = sample_name + '_IMG'
     list_of_files = get_files(base_dir=images_path, tag=image_tag)
     files_dict = {}
-    p2 = re.compile(r'.*?-(\d+)-(\d+)\.jpg')
+    p2 = re.compile(r'.*?-(\d+)-(\d+)\.'+img_extension)
     for i, f in enumerate(list_of_files):
         m2 = p2.match(f)
         fn = int(m2.group(1))
@@ -197,7 +237,7 @@ def main():
         frameSize = img.shape
         print(frameSize)
 
-    temp_im = convert_to_temperature(np.zeros_like(img), cal, 0, pulse_length)
+    temp_im = convert_to_temperature(np.zeros_like(img), temperature_calibration, 0, pulse_length)
 
     with open('../plot_style.json', 'r') as file:
         json_file = json.load(file)
@@ -207,11 +247,12 @@ def main():
 
     fig, ax = plt.subplots(ncols=1, nrows=1, constrained_layout=True)  # , frameon=False)
     # fig.set_size_inches(px2mm * frameSize[1] / 25.4, px2mm * frameSize[0] / 25.4)
+    cmap = mpl.colormaps.get_cmap(color_map)
     scale_factor = 2.5 if crop_image else 1.
     aspect_ratio = 1.75 if crop_image else 1.5
     w, h = frameSize[1] * scale_factor * aspect_ratio * px2mm / 25.4, frameSize[0] * scale_factor * px2mm / 25.4
     fig.set_size_inches(w, h)
-    norm1 = plt.Normalize(vmin=1600, vmax=3600)
+    norm1 = plt.Normalize(vmin=t_range[0], vmax=t_range[1])
     # ax.margins(x=0, y=0)
     # plt.autoscale(tight=True)
 
@@ -222,13 +263,15 @@ def main():
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="7%", pad=0.025)
 
-    cs = ax.imshow(temp_im, interpolation='none', norm=norm1)  # ,
+    cs = ax.imshow(temp_im, interpolation='none', norm=norm1, cmap=cmap)  # ,
     # extent=(0, frameSize[1] * px2mm, 0, frameSize[0] * px2mm))
-    cbar = fig.colorbar(cs, cax=cax)#, extend='both')
+    cbar = fig.colorbar(cs, cax=cax , extend='min')
     cbar.set_label('Temperature (K)\n', size=9, labelpad=9)
-    cbar.ax.set_ylim(1600, 3600)
-    cbar.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
+    cbar.ax.set_ylim(t_range[0], t_range[1])
+    # cbar.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
     cbar.ax.tick_params(labelsize=9)
+    cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(200))
+    cbar.ax.yaxis.set_minor_locator(ticker.MultipleLocator(100))
     # Add a scalebar
     scalebar = ScaleBar(px2cm, 'cm', frameon=False, color='w', scale_loc='top', location='lower right')
     ax.add_artist(scalebar)
@@ -261,16 +304,17 @@ def main():
 
     line = [cs, time_txt]
 
-    metadata = dict(title=f'{file_tag}', artist='Erick',
+    metadata = dict(title=f'{file_tag}', artist='process_thermal_images.py',
                     comment=f'frame rate: {frame_rate}')
-    writer = FFMpegWriter(fps=5, metadata=metadata)
+    writer = FFMpegWriter(fps=5, metadata=metadata, codec='mpeg4')
 
     n_max = len(list_of_files)
     ani = manimation.FuncAnimation(
         fig, update_line, interval=100,
-        repeat=False, frames=np.arange(0, nmax, 1),
+        repeat=False, frames=nmax,  # np.arange(0, nmax, 1),
         fargs=(
-        line, list_of_files, initial_timestamp, img, pulse_length, cal, images_path, file_tag, fig, image_save_path, pulse_length)
+            line, list_of_files, initial_timestamp, img, pulse_length, temperature_calibration, images_path, file_tag,
+            fig, image_save_path, pulse_length)
     )
 
     # plt.show()

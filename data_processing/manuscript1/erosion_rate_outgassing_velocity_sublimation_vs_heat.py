@@ -6,15 +6,29 @@ import json
 import numpy as np
 from matplotlib import ticker
 from data_processing.utils import lighten_color
+import platform
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
+platform_system = platform.system()
+if platform_system != 'Windows':
+    drive_path = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
+else:
+    drive_path = r'C:\Users\erick\OneDrive'
+
+def normalize_path(the_path):
+    global platform_system, drive_path
+    if platform_system != 'Windows':
+        the_path = the_path.replace('\\', '/')
+    return os.path.join(drive_path, the_path)
+
+
+base_dir = os.path.join(drive_path, 'Documents/ucsd/Postdoc/research/data/firing_tests/surface_temperature/equilibrium_redone/pebble_sample')
 csv_outgassing = r'GC_GRAPHITE_POWER_SCAN_OUTGASSING.csv'
 csv_disintegration = r'velocity_database.csv'
-csv_soot_deposition = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests' \
-                      r'\surface_temperature\equilibrium_redone\slide_transmission_smausz.csv'
+csv_soot_deposition = os.path.join(drive_path, 'Documents/ucsd/Postdoc/research/data/firing_tests' \
+                      '/surface_temperature/equilibrium_redone/slide_transmission_smausz.csv')
 
 csv_degassing = '../../data/degassing_database_gc_graphite.csv'
-output_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\figures'
+output_dir = os.path.join(drive_path, 'Documents/ucsd/Postdoc/research/manuscripts/paper1/figures')
 
 nir_hl = np.array([45.])
 nir_v0 = np.array([118.])
@@ -35,6 +49,13 @@ outgassing_factor_20230331 = 0.103
 outgassing_error_factor = 0.525
 
 
+def normalize_path(the_path):
+    global platform_system, drive_path
+    if platform_system != 'Windows':
+        the_path = the_path.replace('\\', '/')
+    # return os.path.join(drive_path, the_path)
+    return the_path
+
 def csv_match_size(df1, df2):
     if len(df1) == len(df2):
         return True
@@ -49,6 +70,9 @@ def load_plt_style():
 
 
 if __name__ == '__main__':
+    base_dir = normalize_path(base_dir)
+    output_dir = normalize_path(output_dir)
+    csv_soot_deposition = normalize_path(csv_soot_deposition)
     outgassing_df = pd.read_csv(os.path.join(base_dir, csv_outgassing))
     outgassing_columns = outgassing_df.columns
     outgassing_df[outgassing_columns[1:]] = outgassing_df[outgassing_columns[1:]].apply(pd.to_numeric)
@@ -158,6 +182,15 @@ if __name__ == '__main__':
         capsize=2.5, mew=1.25, elinewidth=1.25,
     )
 
+    # save the pebble data
+    out_df = pd.DataFrame(data={
+        'Heat load (MW/m2)': heat_load_agg,
+        'Recession rate (cm/s)': erosion_rate,
+        'Recession rate error (cm/s)': erosion_rate_err
+    })
+
+    out_df.to_csv(os.path.join(output_dir, 'recession_vs_heat_load.csv'), index=False)
+
     ax[0, 0].errorbar(
         heat_load_graphite, erosion_rate_graphite, yerr=erosion_rate_err_graphite, ls='none',
         color='goldenrod', marker='o', ms=8, fillstyle='full', label='Graphite',
@@ -224,7 +257,7 @@ if __name__ == '__main__':
 
     ax[0, 0].set_ylabel('cm/s')
     ax[0, 0].set_ylim(bottom=1E-4, top=1.0)
-    ax[0, 0].set_title('Erosion rate')
+    ax[0, 0].set_title('Recession rate')
     ax[0, 0].set_yscale('log')
     ax[0, 0].yaxis.set_major_locator(ticker.LogLocator(base=10, numticks=10))
     ax[0, 0].yaxis.set_minor_locator(ticker.LogLocator(base=10, subs=np.arange(2, 10) * .1, numticks=20))
