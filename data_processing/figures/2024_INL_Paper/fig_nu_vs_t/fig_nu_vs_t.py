@@ -13,6 +13,7 @@ import json
 import re
 
 base_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations/nu_vs_t_sim'
+inl_sim = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/INL/ucsd'
 dt = 0.01
 fit_min = 0.6
 
@@ -56,18 +57,32 @@ def jac(b, t, r):
 
 
 def main():
-    global base_path
+    global base_path, inl_sim
     base_path = normalize_path(base_path)
-    file_list = [fn for fn in os.listdir(base_path) if fn.endswith('.csv')]
-    pattern = re.compile(r'.*?q(\d+).csv')
+    inl_path = normalize_path(inl_sim)
+    # file_list = [fn for fn in os.listdir(base_path) if fn.endswith('.csv')]
+    folder_list = [fl for fl in os.listdir(inl_path) if fl.startswith('heat_')]
+    # pattern = re.compile(r'.*?q(\d+).csv')
+    # print(folder_list)
+    pattern = re.compile(r'heat_(\d+)$')
     structured_list = []
-    for fn in file_list:
-        match = pattern.match(fn)
+    # for fn in file_list:
+    for fl in folder_list:
+        match = pattern.match(fl)
+        if match is None:
+            continue
+        rpath = os.path.join(inl_path, fl)
+        csv_files = [fn for fn in os.listdir(rpath) if fn.endswith('.csv')]
         q = int(match.group(1))
-        structured_list.append({'q': q, 'fn': fn})
+        # structured_list.append({'q': q, 'fn': fn})
+        structured_list.append({
+            'q': q, 'fn': csv_files[0], 'rpath': rpath
+        })
     structured_list = sorted(structured_list, key=lambda d: d['q'])
+    for item in structured_list:
+        print(item)
     # print(structured_list)
-    out_path = os.path.join(base_path, 'interpolated')
+    out_path = os.path.join(base_path, 'inl_provided')
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
@@ -77,7 +92,7 @@ def main():
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Recession (mm)')
     ax.set_xlim(0., 3.0)
-    ax.set_ylim(0, 3.5)
+    ax.set_ylim(0, 3.0)
     ax.xaxis.set_major_locator(ticker.MultipleLocator(0.5))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.1))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
@@ -90,26 +105,32 @@ def main():
     for i, item in enumerate(structured_list):
         q = item['q']
         fn = item['fn']
+        rpath = item['rpath']
         print(f'Loading {fn}')
-        df: pd.DataFrame = pd.read_csv(os.path.join(base_path, fn), comment='#').apply(pd.to_numeric)
+        df: pd.DataFrame = pd.read_csv(os.path.join(rpath, fn), comment='#').apply(pd.to_numeric)
+        df = df.rename(columns={'time': 'time (s)'})
         df = df.sort_values(by=['time (s)'], ascending=True)
         df.dropna(inplace=True)
+        df = df[df['time (s)'] > 0.]
+        df = df[df['time (s)'] <= 3.]
+        df = df[df['recession_mm'] <= 3.]
+
         t = df['time (s)'].values
-        r = df['r (mm)'].values
+        r = df['recession_mm'].values
         f = interp1d(x=t, y=r, assume_sorted=True, bounds_error=False, fill_value='extrapolate')
         n_points = t.max() / dt + 1
-        t_interp = np.arange(0, n_points) * dt
-        r_interp = f(t_interp)
+        # t_interp = np.arange(0, n_points) * dt
+        # r_interp = f(t_interp)
         out_df = pd.DataFrame(data={
-            'time (s)': t_interp,
-            'r (mm)': r_interp
+            'time (s)': t,
+            'r (mm)': r
         })
         tag = os.path.splitext(fn)[0]
         dc = line_colors[i]
-        ax.plot(t_interp, r_interp, label=f'$q$ = {q:2d} MW/m$^{{\mathregular{{2}}}}$', c=dc, lw=2.)
-        msk_fit = (t_interp >= fit_min)
-        t_fit = t_interp[msk_fit]
-        r_fit = r_interp[msk_fit]
+        ax.plot(t, r, label=f'$q$ = {q:2d} MW/m$^{{\mathregular{{2}}}}$', c=dc, lw=2.)
+        msk_fit = (t >= fit_min)
+        t_fit = t[msk_fit]
+        r_fit = r[msk_fit]
         print(r_fit[-1], r_fit[0])
         a0 = r_fit[0]
         a1 = (r_fit[-1] - r_fit[0]) / (t_fit[-1] - t_fit[0])
@@ -125,8 +146,8 @@ def main():
         )
         popt = res.x
         ci = cf.confidence_interval(res=res, confidence=0.95)
-        nu = popt[1] * 0.1
-        nu_ci = ci[1,:] * 0.1
+        nu = popt[1] * 0.1 # mm to cm
+        nu_ci = ci[1,:] * 0.1 # mm to cm
         dnu = np.max(np.abs(nu_ci - nu))
         new_nu_df = pd.DataFrame(data={
             'Q (MW/m^2)': [q],
@@ -179,8 +200,8 @@ def main():
 
     ax.legend(loc='upper left', frameon=True, fontsize=11)
     # ax.set_title('$F_{\mathrm{B}}$ = 1.5 N')
-    nu_df.to_csv(os.path.join(out_path, 'fitted_nu_vs_q_interp.csv'), index=False)
-    fig.savefig(os.path.join(base_path, 'fig_nu_vs_q_ft70_interp.svg'), dpi=600)
+    nu_df.to_csv(os.path.join(out_path, 'fitted_nu_vs_q.csv'), index=False)
+    fig.savefig(os.path.join(base_path, 'fig_nu_vs_q_ft70.svg'), dpi=600)
     plt.show()
 
 

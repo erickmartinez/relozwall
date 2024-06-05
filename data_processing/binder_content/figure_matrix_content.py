@@ -143,7 +143,7 @@ def main():
     lp_aquarium = np.array([laser_power_mapping[int(x)] for x in firing_aquarium_df['Power percent setting (%)']])
     sd = firing_df['Sample diameter (cm)'].values
     sa = 0.25 * np.pi * np.power(sd, 2.)
-    av = gaussian_beam_aperture_factor(beam_radius, sd)
+    av = gaussian_beam_aperture_factor(beam_radius, 0.5*sd)
     firing_df['Laser power [MW/m2]'] = lp * av / sa / 100.
 
     sd_sic = firing_aquarium_df['Sample diameter (cm)'].values
