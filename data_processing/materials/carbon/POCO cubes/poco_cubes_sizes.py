@@ -26,7 +26,7 @@ data_str = "1.66,2.62,1.53,1.58,1.72,1.70,1.63,1.64,1.88,1.74,1.71,1.73,1.69,1.6
 seed = 1024
 
 def load_plot_style():
-    with open('../plot_style.json', 'r') as file:
+    with open('../../plot_style.json', 'r') as file:
         json_file = json.load(file)
         plot_style = json_file['defaultPlotStyle']
         mpl.rcParams.update(plot_style)

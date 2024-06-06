@@ -36,7 +36,7 @@ free_pebble_data = {
 }
 
 def load_plot_style():
-    with open('../plot_style.json', 'r') as file:
+    with open('../../plot_style.json', 'r') as file:
         json_file = json.load(file)
         plot_style = json_file['defaultPlotStyle']
     mpl.rcParams.update(plot_style)
