@@ -65,10 +65,10 @@ def main():
     gs = fig.add_gridspec(
         nrows=2, ncols=1,
         # width_ratios=[100, 1.],
-        height_ratios=[1.25, 1]
+        height_ratios=[1, 1.25]
     )
-    ax1 = fig.add_subplot(gs[0, 0])
-    ax2 = fig.add_subplot(gs[1, 0])
+    ax1 = fig.add_subplot(gs[1, 0])
+    ax2 = fig.add_subplot(gs[0, 0])
     axes = [ax1, ax2]
 
     ax1.tick_params(right=True, which='both', direction='out')
@@ -101,7 +101,7 @@ def main():
     axes[0].yaxis.set_major_locator(ticker.MultipleLocator(0.5))
     axes[0].yaxis.set_minor_locator(ticker.MultipleLocator(0.25))
 
-    axes[1].set_ylabel(r'F (N)')
+    axes[1].set_ylabel(r'$F_{\mathrm{b}}$ (N)')
     axes[1].set_xlabel('Binder content (wt %)')
     axes[1].set_xlim(0, 30)
     axes[1].set_ylim(0.0, 2.5)
@@ -150,7 +150,7 @@ def main():
         line, = axes[0].plot(
             deformation_mm[0:idx_max], load_n[0:idx_max], c=colors[ft], lw=2.25,
             # label=rf'Simulation $f_{{\mathregular{{t}}}}$ = {ft} kPa'
-            label = rf'Simulation F = {load_max:.1f} N'
+            label = rf'Simulation $F_{{\mathrm{{b}}}}$ = {load_max:.1f} N'
         )
         axes[0].plot(
             deformation_mm[idx_max-2], load_n[idx_max-2], c=colors[ft], mew=2.,
@@ -259,6 +259,13 @@ def main():
     #     transform=axes[1].transAxes, fontsize=14, color='tab:red',
     #     # usetex=True
     # )
+
+    for i, axi in enumerate(axes[::-1]):
+        panel_label = chr(ord('`') + i + 1)
+        axi.text(
+            -0.15, 1.02, f'({panel_label})', transform=axi.transAxes, fontsize=14, fontweight='bold',
+            va='top', ha='right'
+        )
 
     fig.savefig('fig_bending_tests.png', dpi=300)
     fig.savefig('fig_bending_tests.svg', dpi=600)
