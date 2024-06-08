@@ -36,6 +36,9 @@ def main():
     refractive_index = n_df['n'].values
     extinction_coefficient = k_df['k'].values
 
+    reflectance = (1.0003 - refractive_index) / (1.0003 + refractive_index)
+    reflectance *= reflectance
+
     load_plot_style()
 
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
@@ -55,6 +58,17 @@ def main():
     )
 
     ax.set_title('Boron (Morita & Yakamoto 1975)')
+
+    fig_r, ax_r = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
+    fig_r.set_size_inches(4.0, 3.5)
+
+    ax_r.plot(wl_n_nm, reflectance*100., marker='o', ls='none', c='C0', label='n', mfc='none')
+
+    ax_r.set_xlabel('Wavelength (nm)')
+    ax_r.set_ylabel('R')
+
+    ax_r.set_xlim(300, 1000.)
+    ax_r.set_ylim(0, 100.)
 
     plt.show()
 
