@@ -55,14 +55,6 @@ def gaussian_beam_aperture_factor(beam_radius, sample_radius):
     return 1.0 - np.exp(-2.0 * (sample_radius / beam_radius) ** 2.0)
 
 
-def mean_err(x):
-    return np.linalg.norm(x) / len(x)
-
-
-def std_err(x):
-    n = len(x)
-    return np.std(x, ddof=1) / np.sqrt(n) * t.ppf(1. - 0.5 * 0.05, n - 1)
-
 
 def inlb2t(x):
     return x / 3.

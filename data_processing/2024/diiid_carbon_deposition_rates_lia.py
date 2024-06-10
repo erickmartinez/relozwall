@@ -158,11 +158,11 @@ def main():
         'Heat load (MW/m^2)': heat_load,
         'Recession rate (cm/s)': df['Recession rate (cm/s)'].values,
         'Recession rate error (cm/s)': df['Recession rate error (cm/s)'].values,
-        'Outgassing rate (Torr-L/s/m^2': r_o,
-        'Outgassing rate error (Torr-L/s/m^2': r_o_error,
+        'Outgassing rate (Torr-L/s/m^2)': r_o,
+        'Outgassing rate error (Torr-L/s/m^2)': r_o_error,
     })
 
-    out_df.to_csv('data/outgassing_rates20240606.csv', index=False)
+    out_df.to_csv('data/outgassing_rates_carbon_20240606.csv', index=False)
 
     plt.show()
 
