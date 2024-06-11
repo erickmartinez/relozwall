@@ -108,10 +108,11 @@ def main():
         color='C0', marker='o',
         ms=9, mew=1.25, mfc='none', ls='none',
         capsize=2.75, elinewidth=1.25, lw=1.5,
+        label='Experiment'
     )
 
     axes[0].plot(
-        x_pred, ypred, color='C0', lw=1.25, ls='--'
+        x_pred, ypred, color='C0', lw=1.25, ls='--', label=r'$f(x) = a_0 + a_1 x $'
     )
 
     axes[1].errorbar(
@@ -120,9 +121,36 @@ def main():
         color='C1', marker='s',
         ms=9, mew=1.25, mfc='none', ls='none',
         capsize=2.75, elinewidth=1.25, lw=1.5,
+        label='Experiment'
+    )
+
+    popt = res.x
+    pcov = cf.get_pcov(res)
+    ci = cf.confidence_interval(res)
+    delta = np.abs(ci[:, 1] - popt)
+    fit_txt = ''
+    poly_n = len(popt)
+    for i in range(poly_n):
+        fit_txt += fr'$a_{{{i}}} = {popt[i]:.0f} ± {delta[i]:.0f}$'
+        if i + 1 < poly_n:
+            fit_txt += '\n'
+
+    ax1.text(
+        0.05, 0.95, fit_txt,
+        transform=ax1.transAxes,
+        ha='left', va='top'
+    )
+
+    axes[0].legend(
+        loc='lower right', frameon=True
+    )
+
+    ax2.legend(
+        loc='upper left', frameon=True
     )
 
     ax1.tick_params(axis='x', labelbottom=False)
+    ax1.set_xlim(10, 45)
     ax2.set_xlim(10, 45)
     ax1.set_ylim(0, 125)
     ax2.set_ylim(0, 0.55)
