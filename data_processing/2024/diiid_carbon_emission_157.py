@@ -131,7 +131,7 @@ def main():
     fit_txt = ''
     poly_n = len(popt)
     for i in range(poly_n):
-        fit_txt += fr'$a_{{{i}}} = {popt[i]:.0f} ± {delta[i]:.0f}$'
+        fit_txt += fr'$a_{{{i}}} = {popt[i]:.0f} \pm {delta[i]:.0f}$'
         if i + 1 < poly_n:
             fit_txt += '\n'
 
