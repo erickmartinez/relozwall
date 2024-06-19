@@ -1,6 +1,6 @@
 import logging
 import time
-
+from instruments.BaseSerial import BaseSerial
 import numpy as np
 import serial
 from time import sleep
@@ -11,7 +11,7 @@ from serial import SerialException
 PATTERN = re.compile(r'(\d{2})\=(.*)')
 
 
-class MX200:
+class MX200(BaseSerial):
     """
     Represents the Televac MX200 Controller
     """
@@ -19,12 +19,12 @@ class MX200:
     __address = 'COM3'
     __baud_rate = 115200
     __byte_size = serial.EIGHTBITS
-    __timeout = 0.001
+    __timeout = 0.005
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.001
-    __keep_alive: bool = False
+    __delay = 0.005
+    __keep_alive: bool = True
     __serial: serial.Serial = None
     _log: logging.Logger = None
 
@@ -36,12 +36,27 @@ class MX200:
         'MT': 'mTorr'
     }
 
-    def __init__(self, address: str, keep_alive: bool = False):
-        self.__address = address
-        self.__keep_alive = bool(keep_alive)
-        if self.__keep_alive:
-            self.connect()
-            time.sleep(self.__delay)
+    def __init__(self):
+        super().__init__(name='MX200')
+        self._serial_settings = {
+            "baudrate": 115200,
+            "bytesize": serial.EIGHTBITS,
+            "parity": serial.PARITY_NONE,
+            "stopbits": serial.STOPBITS_ONE,
+            "xonxoff": True,
+            "rtscts": False,
+            "dsrdtr": False,
+            "exclusive": None,
+            "timeout": 0.005,
+            "write_timeout": 1.,
+        }
+
+        self.set_id_validation_query(
+            id_validation_query=self.id_validation_query,
+            valid_id_specific='406714'
+        )
+
+        self.auto_connect()
 
         self._log = logging.getLogger(__name__)
         self._log.addHandler(logging.NullHandler())
@@ -56,46 +71,24 @@ class MX200:
             ch.setLevel(logging.DEBUG)
             self._log.addHandler(ch)
 
-        check_connection = self.check_id()
-        if self.__keep_alive:
-            self.__serial.flush()
-        if not check_connection:
-            msg = f"MX200 not found in port {self.__address}"
-            raise SerialException(msg)
+    def id_validation_query(self) -> str:
+        response = self.query('SN')
+        return response
 
     def set_logger(self, log: logging.Logger):
         self._log = log
 
-    def connect(self):
-        self.__serial = serial.Serial(
-            port=self.__address,
-            baudrate=self.__baud_rate,
-            bytesize=self.__byte_size,
-            timeout=self.__timeout,
-            parity=self.__parity,
-            stopbits=self.__stopbits,
-            xonxoff=self.__xonxoff
-        )
-        sleep(self.__delay)
-
-    def close(self):
-        try:
-            self._log.debug(f'Closing serial connection to MX200 at {self.__address}.')
-            if self.__keep_alive:
-                self.__serial.close()
-        except AttributeError as e:
-            self._log.debug('Connection already closed')
-
     @property
     def timeout(self):
-        return self.__timeout
+        return self._serial['timeout']
 
     @timeout.setter
     def timeout(self, value: float):
         value = abs(float(value))
         self.__timeout = value
-        if self.__serial is not None:
-            self.__serial.timeout = value
+        self._serial_settings['timeout'] = value
+        if self._serial is not None:
+            self._serial.timeout = value
 
     def check_id(self, attempt: int = 0) -> bool:
         time.sleep(0.1)
@@ -140,11 +133,7 @@ class MX200:
     def pressure(self, gauge_number: int):
         if 1 <= gauge_number <= 2:
             q = 'S1{0:02d}'.format(gauge_number)
-            if self.__keep_alive:
-                self.__serial.write(f'{q}\r'.encode('utf-8'))
-                pressure = self.__serial.read(7).decode('utf-8').rstrip("\r\n").rstrip(" ")
-            else:
-                pressure = self.query(q)
+            pressure = self.query(q)
             if re.match(r"\d{5}", pressure):
                 pressure = self.ppsee(pressure)
             return pressure
@@ -167,16 +156,13 @@ class MX200:
     def set_units(self, value: str, attempts=0):
         if value in self.units_mapping:
             q = f"W1{value.upper()}"
-            if self.__keep_alive:
-                self.__serial.write(f'{q}\r'.encode('utf-8'))
-                time.sleep(2.0)
-                r = self.__serial.read(4).decode('utf-8').rstrip("\r\n")
-            else:
-                r = self.query(q, delay=2.0)
+            self._serial.write(f'{q}\r'.encode('utf-8'))
+            time.sleep(2.0)
+            r = self._serial.read(4).decode('utf-8').rstrip("\r\n")
             if r != value:
                 self._log.warning(f'Units {value} could not be set. Query \'{q}\' returned \'{r}\'')
                 if attempts < 3:
-                    self.set_units(value, attempts+1)
+                    self.set_units(value, attempts + 1)
 
     @property
     def sensor_types(self) -> dict:
@@ -264,45 +250,15 @@ class MX200:
             self.__delay = value
 
     def write(self, q: str):
-        if self.__keep_alive:
-            self.__serial.write("{0}\r".format(q).encode('utf-8'))
-            sleep(self.__delay)
-        else:
-            with serial.Serial(
-                    port=self.__address,
-                    baudrate=self.__baud_rate,
-                    bytesize=self.__byte_size,
-                    timeout=self.__timeout,
-                    parity=self.__parity,
-                    stopbits=self.__stopbits,
-                    xonxoff=self.__xonxoff
-            ) as ser:
-                sleep(self.__delay)
-                ser.write("{0}\r".format(q).encode('utf-8'))
-                sleep(self.__delay)
+        # if self.__keep_alive:
+        self._serial.write("{0}\r".format(q).encode('utf-8'))
+        sleep(self.__delay)
 
     def query(self, q: str, delay: float = None) -> str:
         if delay is None:
             delay = self.__delay
-        if self.__keep_alive:
-            self.__serial.write("{0}\r".format(q).encode('utf-8'))
-            sleep(delay)
-            line = self.__serial.readline()
-            sleep(delay)
-            return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
-        else:
-            with serial.Serial(
-                    port=self.__address,
-                    baudrate=self.__baud_rate,
-                    bytesize=self.__byte_size,
-                    timeout=self.__timeout,
-                    parity=self.__parity,
-                    stopbits=self.__stopbits,
-                    xonxoff=self.__xonxoff
-            ) as ser:
-                sleep(self.__delay)
-                ser.write("{0}\r".format(q).encode('utf-8'))
-                sleep(delay)
-                line = ser.readline()
-                sleep(self.__delay)
-                return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
+        self._serial.write("{0}\r".format(q).encode('utf-8'))
+        sleep(delay)
+        line = self._serial.readline()
+        sleep(delay)
+        return line.decode('utf-8').rstrip("\r\n").rstrip(" ")

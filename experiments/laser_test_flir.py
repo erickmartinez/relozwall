@@ -35,7 +35,7 @@ from pymeasure.units import ureg
 
 ESP32_COM = 'COM6'
 TC_LOGGER_IP = '192.168.4.3'
-MX200_COM = 'COM3'
+# MX200_COM = 'COM3'
 TRIGGER_CHANNEL = 2
 THERMOMETRY_CHANNEL = 1
 TRIGGER_LEVEL = 3.3
@@ -57,6 +57,7 @@ def trigger_camera(cam: Camera):
     return
 
 
+
 def get_duty_cycle_params(duty_cycle: float, period_ms: float = 1.0) -> tuple:
     frequency = 1.0E3 / period_ms
     pulse_width = duty_cycle * period_ms
@@ -65,11 +66,11 @@ def get_duty_cycle_params(duty_cycle: float, period_ms: float = 1.0) -> tuple:
 
 class LaserProcedure(Procedure):
     emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=20.0)
-    measurement_time = FloatParameter('Measurement Time', units='s', default=3.0, minimum=1.0, maximum=3600.0)
+    measurement_time = FloatParameter('Measurement Time', units='s', default=10.0, minimum=1.0, maximum=3600.0)
     laser_power_setpoint = FloatParameter("Laser Power Setpoint", units="%", default=100, minimum=0.0, maximum=100.0)
     camera_exposure_time = FloatParameter("Camera exposure time", minimum=1, units='us', default=4)
     camera_acquisition_time = FloatParameter("Camera acquisition time", units="s", minimum=0.01, maximum=600,
-                                             default=2.0)
+                                             default=1.0)
     camera_frame_rate = FloatParameter("Frame rate", units="Hz", minimum=1, maximum=200, default=200)
     camera_gain = FloatParameter("Gain", units="dB", minimum=0, maximum=47.994, default=5)
     acquisition_mode = ListParameter("Acquisition mode", choices=('Continuous', 'Single', 'Multi frame'),
@@ -96,24 +97,9 @@ class LaserProcedure(Procedure):
     def startup(self):
         log.info('***  Startup ****')
         self.__camera: Camera = Camera()
-        # self.__camera.set_logger(log)
-        # self.__oscilloscope = TBS2000(resource_name=TBS2000_RESOURCE_NAME)
-        # self.__oscilloscope.display_channel_list((1, 1, 0, 0))
-        # log.debug(self.__oscilloscope.sesr)
-        # log.debug(self.__oscilloscope.all_events)
-        self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
-        # self.__mx200.set_logger(log)
+        self.__mx200 = MX200()#address=MX200_COM, keep_alive=True)
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
-        # self.__ylr.set_logger(log)
-        # log.info("Setting up Oscilloscope")
-        # self.__oscilloscope.write('ACQUIRE:STATE 0')
-        # self.__oscilloscope.write(f'CH{THERMOMETRY_CHANNEL}:VOLTS 1.0')
-        # self.__oscilloscope.write(f'CH{TRIGGER_CHANNEL}:VOLTS 1.0')
-        # self.__oscilloscope.set_acquisition_time(self.measurement_time)
-        # self.__oscilloscope.write('ACQUIRE:STOPAFTER SEQUENCE')
-        # self.__oscilloscope.write('ACQuire:MODe SAMple')
-        # self.__oscilloscope.timeout = 1000
 
     @property
     def unique_filename(self) -> str:
@@ -221,7 +207,7 @@ class LaserProcedure(Procedure):
 
         log.info("Setting up Triggers")
         try:
-            esp32 = ESP32Trigger(address=ESP32_COM)
+            esp32 = ESP32Trigger()
         except SerialException as e:
             log.error("Error initializing ESP32 trigger")
             raise e
@@ -348,6 +334,7 @@ class LaserProcedure(Procedure):
             log.error(e)
             raise ValueError(e)
 
+        tc_logger.close()
         tc_time = tc_data['Time (s)'].values
         idx_mt = (np.abs(tc_time - self.measurement_time)).argmin()
         tc_data = tc_data.iloc[0:idx_mt + 1, :]
@@ -422,6 +409,7 @@ class LaserProcedure(Procedure):
         data_interp.to_csv(f'{os.path.splitext(self.__unique_filename)[0]}_dinterp.csv', index=False)
 
         pct_f = 100. / n_data_points
+        esp32.close()
 
         time.sleep(5.0)
 
@@ -450,10 +438,6 @@ class LaserProcedure(Procedure):
         if self.__ylr is not None:
             self.__ylr.disconnect()
 
-        # if self.__oscilloscope is not None:
-        #     self.__oscilloscope.timeout = 1
-        #     self.__oscilloscope.close()
-
         if self.__camera is not None:
             if not self.__camera.busy:
                 try:
@@ -472,6 +456,7 @@ class LaserProcedure(Procedure):
             for h in log.handlers:
                 if isinstance(h, logging.FileHandler):
                     log.removeHandler(h)
+                    h.close()
                 # if isinstance(h, logging.NullHandler):
                 #     log.removeHandler(h)
                 #     log.addHandler(logging.NullHandler())

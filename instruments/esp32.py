@@ -1,13 +1,18 @@
 import io
+import os.path
 import socket
 import struct
+import sys
 import time
 from time import sleep
 import logging
+from typing import Callable
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import serial
 from serial import SerialException
+import serial.tools.list_ports
 
 
 class ArduinoTCP:
@@ -191,57 +196,169 @@ class ArduinoSerial:
     Represents an Arduino or ESP32 Serial device
     """
 
-    __address = None
-    __baud_rate = 115200
-    __byte_size = serial.EIGHTBITS
-    __timeout = 0.1
-    __parity = serial.PARITY_NONE
-    __stopbits = serial.STOPBITS_ONE
-    __xonxoff = 1
-    __delay = 0.1
+    _baud_rate = 115200
+    _byte_size = serial.EIGHTBITS
+    _timeout = 0.1
+    _parity = serial.PARITY_NONE
+    _stopbits = serial.STOPBITS_ONE
+    _xonxoff = 1
+    _delay = 0.1
 
-    def __init__(self, address: str):
-        self.__address = address
-        self.connect()
+    def __init__(self, name='DEV_1'):
+        self.name = name
+        self._serial: serial.Serial = None
+        self._serial_settings = {
+            "baudrate": 115200,
+            "bytesize": serial.EIGHTBITS,
+            "parity": serial.PARITY_NONE,
+            "stopbits": serial.STOPBITS_ONE,
+            "xonxoff": False,
+            "rtscts": False,
+            "dsrdtr": False,
+            "exclusive": None,
+            "timeout": 1.,
+            "write_timeout": 1.,
+        }
+        self._id_validation_query = None
+        self._valid_id_specific = None
+        self.path: Path = Path(os.path.join(os.path.dirname(__file__), 'config', self.name + '_port.txt'))
+        self._delay = 0.1
 
-    def connect(self):
-        self.__serial = serial.Serial(
-            port=self.__address,
-            baudrate=self.__baud_rate,
-            bytesize=self.__byte_size,
-            timeout=self.__timeout,
-            parity=self.__parity,
-            stopbits=self.__stopbits,
-            xonxoff=self.__xonxoff
-        )
-        sleep(self.__delay)
+    def set_id_validation_query(
+            self, id_validation_query: Callable[[], str], valid_id_specific: object
+    ):
+        self._id_validation_query: object = id_validation_query
+        self._valid_id_specific: object = valid_id_specific
+
+    def connect_at_port(self, port: str, verbose=False):
+        if verbose:
+            print(f"Connecting to '{self.name}' at port '{port}'.")
+        try:
+            self._serial = serial.Serial(
+                port=port,
+                **self._serial_settings
+            )
+            time.sleep(self._delay)
+        except serial.SerialException as e:
+            print(f"Could not open port {port}.")
+            return False
+        except Exception as err:
+            print(err)
+            sys.exit(0)
+        if self._id_validation_query is None:
+            print(f"Serial connection success!")
+            return True
+
+        try:
+            reply = self._id_validation_query()
+            if reply == self._valid_id_specific:
+                print(f"Found '{self._valid_id_specific}' at port '{port}'")
+                return True
+        except Exception as e:
+            print(f"'{self._valid_id_specific}' not found in port '{port}'")
+
+        print("Wrong device.")
+        self.close()
+        return False
+
+    def scan_ports(self, verbose: bool = False) -> bool:
+        if verbose:
+            print(f"Scanning ports for '{self.name}'")
+        ports = list(serial.tools.list_ports.comports())
+        for p in ports:
+            port = p[0]
+            if self.connect_at_port(port):
+                return True
+            else:
+                continue
+
+        print(f"  Error: device '{self._valid_id_specific}' not found.")
+        return False
+
+    def auto_connect(self):
+        port = self._get_last_known_port()
+        if port is None:
+            if self.scan_ports():
+                self._store_last_known_port(port_str=self._serial.portstr)
+                return True
+            return False
+        if self.connect_at_port(port):
+            self._store_last_known_port(self._serial.portstr)
+            return True
+        # if self.scan_ports():
+        #     self._store_last_known_port(self._serial.portstr)
+        #     return True
+
+        return False
+
+    def _get_last_known_port(self):
+        if isinstance(self.path, Path):
+            if self.path.is_file():
+                try:
+                    with self.path.open() as f:
+                        port = f.readline().strip()
+                    return port
+                except Exception as e:
+                    print(e)
+                    pass  # Do not panic and remain silent
+        return None
+
+    def _store_last_known_port(self, port_str):
+        if isinstance(self.path, Path):
+            if not self.path.parent.is_dir():
+                try:
+                    self.path.parent.mkdir()
+                except Exception:
+                    pass  # Do not panic and remain silent
+
+            try:
+                # Write the cnonfig file
+                self.path.write_text(port_str)
+            except Exception:
+                pass  # Do not panic and remain silent
+
+            return True
+        return False
 
     @property
     def timeout(self):
-        return self.__timeout
+        return self._serial_settings['timeout']
 
     @timeout.setter
     def timeout(self, value: float):
         value = abs(float(value))
-        self.__timeout = value
-        self.__serial.timeout = value
+        self._timeout = value
+        self._serial_settings['timeout'] = value
+        self._serial.timeout = value
 
     @property
     def delay(self) -> float:
-        return self.__delay
+        return self._delay
 
     @delay.setter
     def delay(self, value):
         value = float(value)
         if value > 0:
-            self.__delay = value
+            self._delay = value
 
     def close(self):
-        try:
-            print(f'Closing serial connection to ESP32 at {self.__address}.')
-            self.__serial.close()
-        except AttributeError as e:
-            print('Connection already closed')
+        if self._serial is not None:
+            try:
+                self._serial.cancel_read()
+            except Exception:
+                pass
+            try:
+                self._serial.cancel_write()
+            except Exception:
+                pass
+
+            try:
+                self._serial.close()
+                print(f'Closed serial connection to ESP32.')
+            except AttributeError as e:
+                print(e)
+            except Exception as e:
+                print(e)
 
     def __del__(self):
         self.close()
@@ -257,8 +374,8 @@ class ArduinoSerial:
         #         xonxoff=self.__xonxoff
         # ) as ser:
         # sleep(self.__delay)
-        self.__serial.write(f'{q}\r'.encode('utf-8'))
-        sleep(self.__delay)
+        self._serial.write(f'{q}\r'.encode('utf-8'))
+        sleep(self._delay)
 
     def query(self, q: str) -> str:
         # with serial.Serial(
@@ -272,29 +389,40 @@ class ArduinoSerial:
         # ) as ser:
         # sleep(self.__delay)
         self.write(f"{q}")
-        sleep(self.__delay)
-        line = self.__serial.readline()
-        sleep(self.__delay)
+        sleep(self._delay)
+        line = self._serial.readline()
+        sleep(self._delay)
         return line.decode('utf-8').rstrip("\n").rstrip(" ")
 
     def flush_output(self):
-        self.__serial.reset_output_buffer()
+        self._serial.reset_output_buffer()
 
     def flush_input(self):
-        self.__serial.reset_input_buffer()
+        self._serial.reset_input_buffer()
 
 
 class ESP32Trigger(ArduinoSerial):
-    __address = 'COM10'
     __pulse_duration_min: float = 40E-6
     __pulse_duration_max: float = 20.0
 
-    def __init__(self, address: str):
-        super().__init__(address=address)
-        check_connection = self.check_id()
-        if not check_connection:
-            msg = f"TRIGGER not found in port {self.address}"
-            raise SerialException(msg)
+    def __init__(self):
+        super().__init__(name='ARD_TRIGGER')
+        self.set_id_validation_query(
+            id_validation_query=self.id_validation_query,
+            valid_id_specific='TRIGGER'
+        )
+
+        self.auto_connect()
+
+    def id_validation_query(self) -> str:
+        # old_delay = self.delay
+        # old_timeout = self.timeout
+        # self.delay = 0.5
+        # self.timeout = 0.5
+        response = self.query('i')
+        # self.delay = old_delay
+        # self.timeout = old_timeout
+        return response
 
     def check_id(self, attempt: int = 0) -> bool:
         time.sleep(0.5)
@@ -352,14 +480,28 @@ class ESP32Trigger(ArduinoSerial):
 
 
 class DualTCLogger(ArduinoSerial):
-    __address = 'COM10'
+    def __init__(self):
+        super().__init__(name='DEV_TCLOGGER')
+        self.set_id_validation_query(
+            id_validation_query=self.id_validation_query,
+            valid_id_specific='TRIGGER'
+        )
+        self.auto_connect()
+        # check_connection = self.check_id()
+        # if not check_connection:
+        #     msg = f"EXTRUDER_READOUT not found in port {self.address}"
+        #     raise SerialException(msg)
 
-    def __init__(self, address: str):
-        super().__init__(address=address)
-        check_connection = self.check_id()
-        if not check_connection:
-            msg = f"EXTRUDER_READOUT not found in port {self.address}"
-            raise SerialException(msg)
+    def id_validation_query(self) -> str:
+        # time.sleep(0.5)
+        # old_delay = self.delay
+        # old_timeout = self.timeout
+        # self.delay = 0.5
+        # self.timeout = 0.5
+        response = self.query('i')
+        # self.delay = old_delay
+        # self.timeout = old_timeout
+        return response
 
     def check_id(self, attempt: int = 0) -> bool:
         time.sleep(0.5)

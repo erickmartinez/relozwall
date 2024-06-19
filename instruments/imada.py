@@ -1,13 +1,13 @@
 import logging
 import time
-
+from instruments.BaseSerial import BaseSerial
 import numpy as np
 import serial
 from time import sleep
 import re
 
 
-class DST44A:
+class DST44A(BaseSerial):
     """
     Represents the IMADA DST-44A Force Gauge
 
@@ -17,14 +17,13 @@ class DST44A:
         The address at which the gauge is located
     """
 
-    __address = 'COM5'
     __baud_rate = 256000
     __byte_size = serial.EIGHTBITS
     __timeout = 0.005
     __parity = serial.PARITY_NONE
     __stopbits = serial.STOPBITS_ONE
     __xonxoff = 1
-    __delay = 0.010
+    __delay = 0.005
 
     __previous: float = 0.0
     __previous_json: dict = {}
@@ -41,11 +40,24 @@ class DST44A:
         'E': 'Overload'
     }
 
-    __serial: serial.Serial = None
+    _serial: serial.Serial = None
     __log: logging.Logger = None
 
-    def __init__(self, address: str):
-        self.__address = address
+    def __init__(self):
+        super().__init__(name='DST44A')
+        self._serial_settings = {
+            "baudrate": 256000,
+            "bytesize": serial.EIGHTBITS,
+            "parity": serial.PARITY_NONE,
+            "stopbits": serial.STOPBITS_ONE,
+            "xonxoff": True,
+            "rtscts": False,
+            "dsrdtr": False,
+            "exclusive": None,
+            "timeout": 0.005,
+            "write_timeout": 0.005,
+        }
+        
         self.__log = logging.getLogger(__name__)
         self.__log.addHandler(logging.NullHandler())
 
@@ -60,7 +72,30 @@ class DST44A:
             ch = logging.StreamHandler()
             ch.setLevel(logging.DEBUG)
             self.__log.addHandler(ch)
+
+        self.set_id_validation_query(
+            id_validation_query=self.id_validation_query,
+            valid_id_specific='DST44A'
+        )
+
+        self.auto_connect()
+
         self.zero()
+
+    def id_validation_query(self) -> str:
+        old_delay = self.delay
+        old_timeout = self.timeout
+        self.delay = 0.5
+        self.timeout = 2.
+        self._serial.write("D\r".encode('utf-8'))
+        time.sleep(self.__delay)
+        data_str = self._serial.read(10).decode('utf-8').rstrip("\r").rstrip(" ")
+        self.delay = old_delay
+        self.timeout = old_timeout
+        match = self.__D_PATTERN.match(data_str)
+        if match is not None:
+            return 'DST44A'
+        return False
 
     def logger(self) -> logging.Logger:
         return self.__log
@@ -68,34 +103,12 @@ class DST44A:
     def set_logger(self, log: logging.Logger):
         self.__log = log
 
-    def connect(self):
-        self.__serial = serial.Serial(
-            port=self.__address,
-            baudrate=self.__baud_rate,
-            bytesize=self.__byte_size,
-            timeout=self.__timeout,
-            parity=self.__parity,
-            stopbits=self.__stopbits,
-            xonxoff=self.__xonxoff
-        )
-        sleep(self.__delay)
-
-    def close(self):
-        if self.__serial is not None:
-            self.__serial.close()
-
-    def __del__(self):
-        self.close()
-
     def read(self, json=False, attempts=0):
-        if self.__serial is None:
-            data_str = self.query("D")
-        else:
-            # self.__serial.flush()
-            self.__serial.write("D\r".encode('utf-8'))
-            # time.sleep(self.__delay)
-            data_str = self.__serial.read(10).decode('utf-8').rstrip("\r").rstrip(" ")
-            # self.__serial.flush()
+        self._serial.write("D\r".encode('utf-8'))
+        # self._serial.flush()
+        time.sleep(self.__delay)
+        data_str = self._serial.read(10).decode('utf-8').rstrip("\r").rstrip(" ")
+        # self._serial.flush()
         match = self.__D_PATTERN.match(data_str)
         if match is None:
             logging.warning(f'Received gauge reponse: {data_str}')
@@ -123,18 +136,18 @@ class DST44A:
                 'judgement': judgment,
                 'judgement_code': groups[4],
             }
-            self.__previous_json
+            self.__previous_json = r
             return r
         return reading
 
     def zero(self):
-        self.write("Z")
+        self.query("Z")
 
     def real_time_mode(self):
-        self.write("T")
+        self.query("T")
 
     def peak_mode(self):
-        self.write("P")
+        self.query("P")
 
     def units(self, value: str):
         if value in self.__units_r:
@@ -159,44 +172,13 @@ class DST44A:
 
     def set_high_low_setpoints(self, high:int, low:int):
         q = f"E{high:04d}{low:04d}"
-        self.write(q)
+        self.query(q)
 
     def write(self, q: str):
-        if self.__serial is None:
-            with serial.Serial(
-                    port=self.__address,
-                    baudrate=self.__baud_rate,
-                    bytesize=self.__byte_size,
-                    timeout=self.__timeout,
-                    parity=self.__parity,
-                    stopbits=self.__stopbits,
-                    xonxoff=self.__xonxoff
-            ) as ser:
-                sleep(self.__delay)
-                ser.write("{0}\r".format(q).encode('utf-8'))
-                # sleep(self.__delay)
-        else:
-            self.__serial.write(f'{q}\r'.encode('utf-8'))
-            # sleep(self.__delay)
+        self._serial.write(f'{q}\r'.encode('utf-8'))
+        time.sleep(self.__delay)
 
     def query(self, q: str) -> str:
-        if self.__serial is None:
-            with serial.Serial(
-                    port=self.__address,
-                    baudrate=self.__baud_rate,
-                    bytesize=self.__byte_size,
-                    timeout=self.__timeout,
-                    parity=self.__parity,
-                    stopbits=self.__stopbits,
-                    xonxoff=self.__xonxoff
-            ) as ser:
-                time.sleep(self.__delay)
-                ser.write("{0}\r".format(q).encode('utf-8'))
-                # sleep(self.__delay)
-                line = ser.readline()
-                return line.decode('utf-8').rstrip("\r").rstrip(" ")
-        else:
-            self.write(q)
-            line = self.__serial.readline()
-            # sleep(self.__delay)
-            return line.decode('utf-8').rstrip("\r").rstrip(" ")
+        self.write(q)
+        line = self._serial.readline()
+        return line.decode('utf-8').rstrip("\r").rstrip(" ")
