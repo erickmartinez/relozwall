@@ -16,9 +16,9 @@ It also finds the roots for V(w) for different values of V and saves it in a csv
 PI2 = np.pi ** 2.
 
 def get_dv(ww):
-    s = 0
-    for i in range(1, 5002):
-        sign = -1. if (i % 2) == 1 else 1.
+    s = 0.
+    for i in range(1, 502):
+        sign = -1.0 if (i % 2) == 1.0 else 1.0
         n2 = i * i
         s += sign * n2 * np.exp(-n2 * ww)
     r = -2.0 * s
@@ -26,9 +26,9 @@ def get_dv(ww):
 
 
 def get_v(ww):
-    s = 0
-    for i in range(1, 5002):
-        sign = -1.0 if i % 2 == 1.0 else 1.0
+    s = 0.
+    for i in range(1, 502):
+        sign = -1.0 if (i % 2) == 1.0 else 1.0
         n2 = i * i
         s += sign * np.exp(-n2 * ww)
     r = 1.0 + 2.0 * s
@@ -54,11 +54,13 @@ if __name__ == '__main__':
     w = np.linspace(1E-2, 15, 300)
     v = get_v(w)
     dv = get_dv(w)
-    all_tol = np.finfo(np.float64).eps
+    all_tol = float(np.finfo(np.float64).eps)
     # sol = root_scalar(get_wh, bracket=[1.1, 3], method='brentq', xtol=all_tol, rtol=all_tol ** 0.5,
     #                   maxiter=100 * len(w))
-    sol = root_scalar(get_wh, x0=1., fprime=get_dv, method='newton', xtol=all_tol,
-                      rtol=all_tol, maxiter=10000)
+    sol = root_scalar(
+        get_wh, x0=1.38, fprime=get_dv, method='newton', xtol=all_tol,
+        rtol=all_tol, maxiter=100000
+    )
 
     wh = sol.root
     slope = get_dv(wh)
