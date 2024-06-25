@@ -79,37 +79,37 @@ def latex_float(f, significant_digits=2):
         return float_str
 
 
-def latex_float_with_error(value, error=None, digits=2):
-    value_exp_str = f"{{value:.{digits}e}}"
+def latex_float_with_error(value, error=None, digits=2, digits_err=3):
+    value_exp_str = f"{{value:.{digits+10}e}}"
     value_float_str = f"{{value:.{digits}f}}"
-    error_exp_str = f"{{value:.{digits}e}}"
-    error_float_str = f"{{value:.{digits}f}}"
+    error_exp_str = f"{{value:.{digits+10}e}}"
+    error_float_str = f"{{value:.{digits_err}f}}"
     use_exponential = 1E3 < abs(value) or abs(value) < 1E-2
     # print(f"Input value: {f}")
     # print(f"Use exponential: {use_exponential}")
     float_str = value_exp_str.format(value=value).lower() if use_exponential else value_float_str.format(
-        value=value).lower()
+        value=value)
     if error is not None:
         error_str = error_exp_str.format(value=error).lower() if use_exponential else error_float_str.format(
-            value=error).lower()
+            value=error)
 
     if "e" in float_str:
         v_base, v_exponent = float_str.split("e")
-
-        # return r"{0} \times 10^{{{1}}}".format(base, int(exponent))
-        if v_exponent[0] == '+':
-            v_exponent = v_exponent[1::]
         v_base_float, v_exponent_float = float(v_base), float(v_exponent)
         fs = f"{{v_base:.{digits}f}}"
         lf = fs.format(v_base=v_base_float)
         if error is not None:
             e_base, e_exponent = error_str.split("e")
-            if e_exponent[0] == '+':
-                e_exponent = e_exponent[1::]
             e_base_float, e_exponent_float = float(e_base), float(e_exponent)
-            pef = 10. ** (v_exponent_float - e_exponent_float)
-            fs = rf"({{v_base:.{digits}f}}\pm{{e_base:.{digits}f}})"
-            lf = fs.format(v_base=v_base_float * pef, e_base=e_base_float)
+            adjust_exp = v_exponent_float - e_exponent_float
+            pef = 10. ** adjust_exp
+            fs = rf"({{v_base:.{digits}f}}\pm{{e_base:.{digits_err}f}})"
+            if pef > 1000:
+                fs = rf"{{v_base:.{digits}f}} \times 10^{{{{{v_exponent_float:.0f}}}}} "
+                fs += rf"\pm {{e_base:.{digits_err}f}} \times 10^{{{{{e_exponent_float:.0f}}}}}"
+                lf = fs.format(v_base=v_base_float, e_base=e_base_float)
+                return lf
+            lf = fs.format(v_base=v_base_float*pef, e_base=e_base_float)
         return rf"{lf} \times 10^{{{e_exponent_float:.0f}}}"
     else:
         return float_str + '\\pm' + error_str

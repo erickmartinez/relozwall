@@ -14,16 +14,14 @@ import cv2
 from scipy.stats.distributions import t
 import platform
 
-
-drive_path = r'C:\Users\erick\OneDrive' if platform.system() == 'Windows' else r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
-camera_csv = r'Documents\ucsd\Postdoc\research\thermal camera\BFS-U3-16S2M_QE.csv'
-filter_csv = r'Documents\ucsd\Postdoc\research\thermal camera\86117_Transmission.csv'
+camera_csv = r'data/BFS-U3-16S2M_QE.csv'
+filter_csv = r'data/86117_Transmission.csv'
 labsphere_csv = r'../../ir_thermography/PISCES labsphere.csv'
-save_path = r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010'
+save_path = r'calibration/CALIBRATION_20231010'
 
-TEMP_CAL = 3310. # K
-TEMP_CAL_ERR = 10. #K
-I0 = 5.0E-04
+TEMP_CAL = 3310.  # K
+TEMP_CAL_ERR = 10.  # K
+I0 = 5.241E-04
 I0_CI = np.array([5.172E-04, 5.379E-04])
 
 TRANSMISSION_WINDOW = 0.912
@@ -51,17 +49,19 @@ def get_phi_s(optical_factor_df: pd.DataFrame, temperature: float, i0=1.):
     wl = optical_factor_df['Wavelength [nm]'].values
     tsp_qe = optical_factor_df['TSPxQE'].values
     b = radiance_at_temperature(temperature=temperature, wavelength_nm=wl)
-    return 2.* np.pi * i0 * simps(y=b * tsp_qe, x=wl)
+    return 2. * np.pi * i0 * simps(y=b * tsp_qe, x=wl)
 
 
 TRANSMISSION_FACTOR = 1. / (TRANSMISSION_SLIDE * TRANSMISSION_WINDOW * TRANMISSION_ND2)
+
+
 def get_calibrated_g_at_temperature(
         temperature: float, g_temp_cal: float, t_cal: float, t_m: float, phi_s_temp_cal: float,
         optical_factor_df: pd.DataFrame,
         i0: float
 ):
     phi_s_temp_m = get_phi_s(optical_factor_df=optical_factor_df, temperature=temperature, i0=i0)
-    g =  TRANSMISSION_FACTOR * (t_m / t_cal) * (phi_s_temp_m / phi_s_temp_cal) * g_temp_cal
+    g = TRANSMISSION_FACTOR * (t_m / t_cal) * (phi_s_temp_m / phi_s_temp_cal) * g_temp_cal
     return g
 
 
@@ -76,15 +76,6 @@ def fobj(b, x, y):
 
 def main():
     global camera_csv, labsphere_csv, save_path, filter_csv
-    if platform.system() != 'Windows':
-        camera_csv = camera_csv.replace('\\', '/')
-        labsphere_csv = labsphere_csv.replace('\\', '/')
-        save_path = save_path.replace('\\','/')
-        filter_csv = filter_csv.replace('\\','/')
-    camera_csv = os.path.join(drive_path, camera_csv)
-    #labsphere_csv = os.path.join(drive_path, labsphere_csv)
-    save_path = os.path.join(drive_path, save_path)
-    filter_csv = os.path.join(drive_path, filter_csv)
 
     load_plot_style()
     qe_df = pd.read_csv(camera_csv, comment='#').apply(pd.to_numeric)
@@ -119,31 +110,28 @@ def main():
         'TSPxQE': tsp_qe
     })
 
-    all_tol = np.finfo(np.float64).eps
+    all_tol = float(np.finfo(np.float64).eps)
     b0 = np.array([2900., 1E-5])
     res = least_squares(
         fobj,
         b0,
         # loss='cauchy', f_scale=0.001,
-        loss='soft_l1', f_scale=0.1,
-        # jac=jac_poly,
+        # loss='soft_l1', f_scale=0.1,
         args=(wl_ls, sr_ls),
         bounds=([0., 0.], [np.inf, np.inf]),
         xtol=all_tol,  # ** 0.5,
         ftol=all_tol,  # ** 0.5,
         gtol=all_tol,  # ** 0.5,
+        diff_step=all_tol,
         max_nfev=10000 * N,
-        x_scale='jac',
+        # x_scale='jac',
         verbose=2
     )
 
     """
     Measure the stats for the capture images
     """
-    img_dir = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010')
-    if platform.system() != 'Windows':
-        img_dir = img_dir.replace('\\', '/')
-        img_dir = os.path.join(drive_path, img_dir)
+    img_dir = os.path.join(r'calibration/CALIBRATION_20231010')
     img_files_df = pd.DataFrame(data={
         'File': [
             'PISCES_LABSPHERE_501_us_5dB_6.147A_8902_ft-L.tiff',
@@ -199,11 +187,11 @@ def main():
     """
     Use the calibration to create a table for temperatures in the range between 800 and 4000 K
     """
-    # Get the calibrated radiated power per unit area as perceived by the NIR camer with the short pass filter
+    # Get the calibrated radiated power per unit area as perceived by the NIR camera with the short pass filter
     phi_s_cal = get_phi_s(optical_factor_df=system_factor_df, temperature=TEMP_CAL, i0=I0)
     print(f'Phi_s({TEMP_CAL:.0f} K) = {phi_s_cal:.3E}')
-    temperature_calibration = 800. + np.arange(0, 3010, 10.)
-    exposure_times = np.array([4., 5., 20., 50, 100., 500])
+    temperature_calibration = 800. + np.arange(0, 3010, 10)*1.
+    exposure_times = np.array([4., 5., 20., 50, 100., 500, 1000.])
     n_temps = len(temperature_calibration)
     table_rows = n_temps * len(exposure_times)
     error_pct = TEMP_CAL_ERR / TEMP_CAL
@@ -214,19 +202,25 @@ def main():
     k = 0
     for i in range(table_rows):
         e = exposure_times[k]
-        temp = float(temperature_calibration[i%n_temps])
+        temp = float(temperature_calibration[i % n_temps])
+        if e >= 100:
+            g_cal = g2
+            t_cal = 1002.
+        else:
+            g_cal = g1
+            t_cal = 501.
         g = get_calibrated_g_at_temperature(
             temperature=temp,
-            g_temp_cal=g1,
-            t_cal=501.,
+            g_temp_cal=g_cal,
+            t_cal=t_cal,
             t_m=e,
             phi_s_temp_cal=phi_s_cal,
             optical_factor_df=system_factor_df,
             i0=I0
         )
         print(f'Exposure: {e:>5.3f} us, T: {temp:>4.0f} K, g: {g:>6.3f}')
-        calibration_table[i] = (e, g, temp, temp*error_pct)
-        if (i+1) % (n_temps) == 0:
+        calibration_table[i] = (e, g, temp, temp * error_pct)
+        if (i + 1) % (n_temps) == 0:
             k += 1
 
     calibration_table_df = pd.DataFrame(data=calibration_table)
@@ -245,6 +239,7 @@ def main():
     pcov = cf.get_pcov(res)
     ci = cf.confint(n=N, pars=popt, pcov=pcov, confidence=0.95)
     popt_err = np.array([max(abs(ci[i, :] - popt[i])) for i in range(len(popt))])
+    print(f"I0: {popt[1]:.3E}, 95% CI: [{ci[1,0]:.5E}, {ci[1,1]:.5E}]")
 
     ypred, lpb, upb = cf.predint(x=wl_ls, xd=wl_ls, yd=sr_ls, func=model_bb, res=res)
 
@@ -264,7 +259,7 @@ def main():
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1E-4))
 
     results_txt = f'T = {popt[0]:.0f}±{popt_err[0]:.0f} K\n'
-    results_txt += f'I$_{{\mathregular{{0}}}}$ = $\mathregular{{{latex_float_with_error(value=popt[1], error=popt_err[1], digits=0)}}}$'
+    results_txt += f'I$_{{\mathregular{{0}}}}$ = $\mathregular{{{latex_float_with_error(value=popt[1], error=popt_err[1], digits=3, digits_err=0)}}}$'
 
     for i in range(len(popt)):
         print(f'popt[{i}]: {popt[i]:.3E}, 95% CI: ({ci[i, 0]:.3E}, {ci[i, 1]:.3E})')
@@ -284,7 +279,6 @@ def main():
     calibration_4us = calibration_table_df[calibration_table_df['Exposure time [us]'] == 4.]
     g_4us_f = calibration_4us['Gray value'].values
     temp_4us_f = calibration_4us['Temperature [K]'].values
-
 
     ff = interp1d(g_4us_f, temp_4us_f, fill_value='extrapolate')
 
@@ -316,8 +310,6 @@ def main():
         out_fn = f'calibration_20231010_{cal_exposure:.0f}_us.csv'
         cal_at_exp_df = pd.DataFrame(data=calibration_at_exp)
         cal_at_exp_df.to_csv(os.path.join(save_path, out_fn), index=False)
-
-
 
     x_plot = calibration_4us_int['Gray value']
     y_plot = calibration_4us_int['Temperature [K]']

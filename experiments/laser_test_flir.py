@@ -406,7 +406,7 @@ class LaserProcedure(Procedure):
             "Laser output peak power (W)": peak_power_interp
         })
 
-        data_interp.to_csv(f'{os.path.splitext(self.__unique_filename)[0]}_dinterp.csv', index=False)
+        # data_interp.to_csv(f'{os.path.splitext(self.__unique_filename)[0]}_dinterp.csv', index=False)
 
         pct_f = 100. / n_data_points
         esp32.close()

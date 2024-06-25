@@ -318,9 +318,9 @@ def predint(x: np.ndarray, xd: np.ndarray, yd: np.ndarray, func: Callable[[np.nd
             change = np.zeros(p)
             if res.x[i] == 0:
                 nb = np.sqrt(LA.norm(beta))
-                change[i] = fdiffstep[i] * (nb + (nb == 0))
+                change[i] = fdiffstep * (nb + (nb == 0))
             else:
-                change[i] = fdiffstep[i] * res.x[i]
+                change[i] = fdiffstep * res.x[i]
 
             predplus = func(x, beta + change)
             delta[:, i] = (predplus - ypred) / change[i]

@@ -17,7 +17,7 @@ PI2 = np.pi ** 2.
 
 def get_dv(ww):
     s = 0
-    for i in range(1, 502):
+    for i in range(1, 5002):
         sign = -1. if (i % 2) == 1 else 1.
         n2 = i * i
         s += sign * n2 * np.exp(-n2 * ww)
@@ -27,7 +27,7 @@ def get_dv(ww):
 
 def get_v(ww):
     s = 0
-    for i in range(1, 502):
+    for i in range(1, 5002):
         sign = -1.0 if i % 2 == 1.0 else 1.0
         n2 = i * i
         s += sign * np.exp(-n2 * ww)
@@ -51,7 +51,7 @@ def load_plot_style():
 
 
 if __name__ == '__main__':
-    w = np.linspace(1E-2, 10, 200)
+    w = np.linspace(1E-2, 15, 300)
     v = get_v(w)
     dv = get_dv(w)
     all_tol = np.finfo(np.float64).eps
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     Make a table with the values of the intercept for different values of V
     """
     selected_v = 10. * np.arange(0, 10) 
-    selected_v = np.hstack([selected_v, 33.3, 66.7])
+    selected_v = np.hstack([selected_v, 25., 33.3, 66.7, 75.0])
     selected_v.sort()
     resulting_w = np.empty_like(selected_v)
     for i, vv in enumerate(selected_v):
@@ -109,6 +109,13 @@ if __name__ == '__main__':
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1.0))
     ax1.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
     plt.axline((wh, 0.5), slope=slope, color="tab:grey", ls='--', lw=1.0)
+
+    flash_curve_df = pd.DataFrame(data={
+        'V': v,
+        'w': w
+    })
+
+    flash_curve_df.to_csv('flash_curve_theory.csv', index=False)
 
     wh_txt = f'$\\omega_{{1/2}}$ = {wh:.4f}, $V$ = {get_v(wh):.4f}\n'
     wh_txt += f'$\\omega_{{x}}$ = {wx:.4f}'

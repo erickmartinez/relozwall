@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import os
 import cv2
@@ -9,6 +11,7 @@ from skimage.util import crop
 import matplotlib.pyplot as plt
 from data_processing.utils import get_experiment_params
 from matplotlib_scalebar.scalebar import ScaleBar
+from tkinter.filedialog import askopenfile
 import re
 import matplotlib as mpl
 import matplotlib.ticker as ticker
@@ -17,13 +20,13 @@ import platform
 
 platform_system = platform.system()
 
-base_path = r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
-info_csv = r'LCT_R4N137_ROW513_100PCT_2024-01-24_1.csv'
+# base_path = r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+# info_csv = r'LCT_R4N137_ROW513_100PCT_2024-01-24_1.csv'
 img_extension = 'tiff'
 
 color_map = 'viridis'
 # color_map = 'coolwarm'
-t_range = [1500, 4000]
+t_range = [1500, 2500]
 
 """
 Remove the attenuation from carbon deposit on the windows
@@ -44,16 +47,19 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-deposition_rate = 100.  # nm/s
-absorption_coefficient = 4 * np.pi * 0.3 / 656.3  # 1/nm
+# deposition_rate = 100.  # nm/s
+# absorption_coefficient = 4 * np.pi * 0.3 / 656.3  # 1/nm
+
+deposition_rate = 1.  # nm/s
+absorption_coefficient = 1E-3
+
 frame_rate = 200.0
 # pixel_size = 20.4215  # pixels/mm
 pixel_size = 23.6364
 p = re.compile(r'.*?-(\d+)\.'+img_extension)
 nmax = 200
 # calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
-calibration_path = os.path.join(drive_path,
-                                r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010')  # \calibration_20231010_4us.csv'
+calibration_path = 'calibration/CALIBRATION_20231010'
 
 # calibration_csv = r'Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20231010\calibration_20231010_4us.csv'
 px2mm = 1. / pixel_size
@@ -165,6 +171,7 @@ def convert_to_temperature(signal, cali: np.ndarray, dt, emission_time) -> np.nd
             s = correct_for_window_deposit_intensity(signal[i, j], dt)
             if dt <= emission_time + 0.005:
                 s = correct_for_window_deposit_intensity(signal[i, j], emission_time)
+            s = min(s, 255)
             temp_img[i, j] = cali[int(s)]
     return temp_img  # .astype(np.uint8)
 
@@ -187,12 +194,25 @@ def normalize_path(the_path):
 
 
 def main():
-    global base_path, calibration_path, img_extension, color_map
-    base_path = normalize_path(base_path)
-    # calibration_csv = normalize_path(calibration_csv)
-    calibration_path = normalize_path(calibration_path)
-    file_tag = os.path.splitext(info_csv)[0]
+    global calibration_path, img_extension, color_map
+    file = askopenfile(title="Select laser experiment file", filetypes=[("CSV files", ".csv")])
+    info_csv = file.name
+    base_path = os.path.dirname(info_csv)
+    top_path = os.path.abspath(os.path.dirname(base_path))
+    base_name = os.path.basename(info_csv)
+    file_tag = os.path.splitext(base_name)[0]
+    save_img_dir = os.path.abspath(os.path.join(top_path, 'thermal_images'))
+    save_dir = os.path.join(save_img_dir, file_tag)
+    if not os.path.exists(save_img_dir):
+        os.makedirs(save_img_dir)
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     images_path = os.path.join(base_path, file_tag + '_images')
+
+    image_save_path = os.path.join(save_dir, f'processed_images')
+    if not os.path.exists(image_save_path):
+        os.makedirs(image_save_path)
     # print(f'Looking for .{img_extension} files in folder \'{images_path}\'')
     # print('Image folder exists:', os.path.exists(images_path))
     params = get_experiment_params(relative_path=base_path, filename=file_tag)
@@ -200,7 +220,9 @@ def main():
     sample_name = params['Sample Name']['value']
     exposure_time = float(params['Camera exposure time']['value'])
     calibration_csv = f'calibration_20231010_{exposure_time:.0f}_us.csv'
+    print(calibration_csv)
     temperature_calibration = load_calibration(os.path.join(calibration_path, calibration_csv))
+    print(temperature_calibration)
     # print(f'length of cal: {len(cal)}')
     # for i, c in enumerate(cal):
     #     print(f'ADC: {i}, temp: {c} K')
@@ -218,17 +240,14 @@ def main():
     frame_keys.sort()
     list_of_files = [files_dict[i] for i in frame_keys]
     list_of_files = list_of_files[0:nmax]
-    for f in list_of_files:
-        print(f)
+    # for f in list_of_files:
+    #     print(f)
     # frameSize = (1440, 1080)
     img = cv2.imread(os.path.join(images_path, list_of_files[0]), 0)
     # img = Image.open(os.path.join(images_path, list_of_files[0]))
     print(f'Image{list_of_files[0]} has the following size:')
     frameSize = img.shape
 
-    image_save_path = os.path.join(base_path, f'{file_tag}_processed_images')
-    if not os.path.exists(image_save_path):
-        os.makedirs(image_save_path)
 
     print(frameSize)
     if crop_image:
@@ -308,6 +327,7 @@ def main():
                     comment=f'frame rate: {frame_rate}')
     writer = FFMpegWriter(fps=5, metadata=metadata, codec='mpeg4')
 
+
     n_max = len(list_of_files)
     ani = manimation.FuncAnimation(
         fig, update_line, interval=100,
@@ -322,7 +342,7 @@ def main():
     ft = file_tag + '_movie.mp4'
     if crop_image:
         ft = file_tag + '_cropped_movie.mp4'
-    ani.save(os.path.join(base_path, ft), writer=writer, dpi=300)  # dpi=pixel_size*25.4)
+    ani.save(os.path.join(image_save_path, ft), writer=writer, dpi=300)  # dpi=pixel_size*25.4)
 
     # out = cv2.VideoWriter(
     #     # os.path.join(base_path, f'{file_tag}.avi'), cv2.VideoWriter_fourcc(*'DIVX'), 5, frameSize
