@@ -1,0 +1,558 @@
+2024-06-27 15:28:52,186 - __main__ - INFO - Starting experiment
+2024-06-27 15:28:52,212 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:28:54,281 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:28:54,305 - __main__ - INFO - Image captures will be stored at:
+C:\Users\ARPA-E\Documents\GitHub\relozwall\experiments\GRAPHITE_PIECE\LCT_GRAPHITE_ROD_D127_100PCT_2024-06-27_1_images
+2024-06-27 15:28:54,327 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:28:54,337 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:28:54,348 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:28:54,349 - __main__ - INFO - The frame rate read from the camera is: 99.9717679727245 Hz
+2024-06-27 15:28:54,349 - __main__ - INFO - The number of images to take: 60
+2024-06-27 15:28:54,349 - __main__ - INFO - The acquisition time is: 0.6 s
+2024-06-27 15:28:54,350 - __main__ - INFO - Setting the laser to the current setpoint: 100.00 %
+2024-06-27 15:28:54,468 - __main__ - INFO - Laser current setpoint: 100.00 %
+2024-06-27 15:28:57,495 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:28:58,040 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:28:58,802 - __main__ - INFO - Pulse duration: 0.30 s.
+2024-06-27 15:29:59,021 - __main__ - INFO - dt: 60.219
+2024-06-27 15:29:59,021 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:32:22,491 - __main__ - INFO - Starting experiment
+2024-06-27 15:32:22,507 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:32:24,321 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:32:24,338 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_17_images
+2024-06-27 15:32:24,372 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:32:24,382 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:32:24,383 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:32:24,384 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:32:24,385 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:32:24,386 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:32:24,386 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:32:24,493 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:32:27,517 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:32:28,174 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:32:28,944 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:32:39,133 - __main__ - INFO - dt: 10.190
+2024-06-27 15:32:39,134 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:34:02,346 - __main__ - INFO - Starting experiment
+2024-06-27 15:34:02,360 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:34:04,176 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:34:04,194 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_18_images
+2024-06-27 15:34:04,225 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:34:04,245 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:34:04,245 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:34:04,245 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:34:04,255 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:34:04,255 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:34:04,255 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:34:04,365 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:34:07,384 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:34:08,097 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:34:08,849 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:34:19,025 - __main__ - INFO - dt: 10.176
+2024-06-27 15:34:19,025 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:34:22,869 - __main__ - INFO - Starting experiment
+2024-06-27 15:34:38,419 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:34:40,122 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:34:40,132 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_19_images
+2024-06-27 15:34:40,163 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:34:40,183 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:34:40,183 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:34:40,183 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:34:40,183 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:34:40,183 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:34:40,183 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:34:40,303 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:34:43,314 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:34:43,946 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:34:44,679 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:34:54,862 - __main__ - INFO - dt: 10.183
+2024-06-27 15:34:54,862 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:34:55,411 - __main__ - INFO - Starting experiment
+2024-06-27 15:35:17,538 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:35:19,253 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:35:19,271 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_20_images
+2024-06-27 15:35:19,303 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:35:19,315 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:35:19,316 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:35:19,317 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:35:19,317 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:35:19,318 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:35:19,319 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:35:19,439 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:35:22,456 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:35:23,068 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:35:23,828 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:35:34,040 - __main__ - INFO - dt: 10.212
+2024-06-27 15:35:34,041 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:35:38,698 - __main__ - INFO - Starting experiment
+2024-06-27 15:35:52,754 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:35:54,478 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:35:54,503 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_21_images
+2024-06-27 15:35:54,536 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:35:54,547 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:35:54,548 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:35:54,548 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:35:54,549 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:35:54,550 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:35:54,551 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:35:54,665 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:35:57,691 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:35:58,286 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:35:59,043 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:36:09,241 - __main__ - INFO - dt: 10.197
+2024-06-27 15:36:09,242 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:36:34,619 - __main__ - INFO - Starting experiment
+2024-06-27 15:36:34,633 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:36:36,354 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:36:36,379 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_22_images
+2024-06-27 15:36:36,402 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:36:36,414 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:36:36,416 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:36:36,416 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:36:36,418 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:36:36,419 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:36:36,419 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:36:36,527 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:36:39,554 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:36:40,271 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:36:41,036 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:36:51,229 - __main__ - INFO - dt: 10.193
+2024-06-27 15:36:51,229 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:37:14,467 - __main__ - INFO - Starting experiment
+2024-06-27 15:37:14,481 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:37:16,152 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:37:16,169 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_23_images
+2024-06-27 15:37:16,202 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:37:16,214 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:37:16,215 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:37:16,216 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:37:16,217 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:37:16,217 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:37:16,218 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:37:16,339 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:37:19,365 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:37:20,003 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:37:20,765 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:37:30,952 - __main__ - INFO - dt: 10.185
+2024-06-27 15:37:30,952 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:37:40,032 - __main__ - INFO - Starting experiment
+2024-06-27 15:37:50,474 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:37:52,208 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:37:52,228 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_24_images
+2024-06-27 15:37:52,251 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:37:52,261 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:37:52,262 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:37:52,263 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:37:52,264 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:37:52,264 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:37:52,265 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:37:52,379 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:37:55,397 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:37:56,046 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:37:56,824 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:38:07,014 - __main__ - INFO - dt: 10.188
+2024-06-27 15:38:07,014 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:38:09,170 - __main__ - INFO - Starting experiment
+2024-06-27 15:38:26,465 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:38:27,570 - __main__ - INFO - Starting experiment
+2024-06-27 15:38:28,168 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:38:28,187 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_25_images
+2024-06-27 15:38:28,218 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:38:28,237 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:38:28,239 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:38:28,240 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:38:28,241 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:38:28,242 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:38:28,243 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:38:28,364 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:38:31,395 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:38:32,091 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:38:32,852 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:38:43,062 - __main__ - INFO - dt: 10.208
+2024-06-27 15:38:43,063 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:39:02,456 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:39:04,226 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:39:04,237 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_26_images
+2024-06-27 15:39:04,260 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:39:04,271 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:39:04,273 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:39:04,274 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:39:04,274 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:39:04,275 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:39:04,276 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:39:04,396 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:39:07,410 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:39:08,136 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:39:08,906 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:39:18,619 - __main__ - INFO - Starting experiment
+2024-06-27 15:39:19,096 - __main__ - INFO - dt: 10.189
+2024-06-27 15:39:19,097 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:39:38,386 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:39:40,101 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:39:40,118 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_27_images
+2024-06-27 15:39:40,153 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:39:40,163 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:39:40,165 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:39:40,166 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:39:40,167 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:39:40,167 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:39:40,168 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:39:40,287 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:39:43,303 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:39:43,981 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:39:44,757 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:39:47,490 - __main__ - INFO - Starting experiment
+2024-06-27 15:39:54,983 - __main__ - INFO - dt: 10.225
+2024-06-27 15:39:54,984 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:40:14,324 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:40:16,046 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:40:16,063 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_28_images
+2024-06-27 15:40:16,088 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:40:16,099 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:40:16,100 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:40:16,101 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:40:16,102 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:40:16,103 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:40:16,103 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:40:16,216 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:40:19,233 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:40:19,821 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:40:20,584 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:40:30,776 - __main__ - INFO - dt: 10.192
+2024-06-27 15:40:30,777 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:40:54,796 - __main__ - INFO - Starting experiment
+2024-06-27 15:40:54,814 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:40:56,512 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:40:56,534 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_29_images
+2024-06-27 15:40:56,554 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:40:56,564 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:40:56,565 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:40:56,566 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:40:56,570 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:40:56,573 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:40:56,574 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:40:56,683 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:40:59,694 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:41:00,366 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:41:01,122 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:41:11,318 - __main__ - INFO - dt: 10.193
+2024-06-27 15:41:11,319 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:41:12,314 - __main__ - INFO - Starting experiment
+2024-06-27 15:41:30,572 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:41:32,282 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:41:32,298 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_030PCT_2024-06-27_30_images
+2024-06-27 15:41:32,319 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:41:32,328 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:41:32,329 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:41:32,330 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:41:32,332 - __main__ - INFO - The number of images to take: 100
+2024-06-27 15:41:32,332 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 15:41:32,333 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 15:41:32,443 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 15:41:35,460 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:41:36,206 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:41:36,964 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 15:41:47,150 - __main__ - INFO - dt: 10.185
+2024-06-27 15:41:47,151 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 15:41:48,065 - __main__ - INFO - Starting experiment
+2024-06-27 15:42:06,558 - __main__ - INFO - ***  Startup ****
+2024-06-27 15:42:08,383 - __main__ - INFO - Setting up Lasers
+2024-06-27 15:42:08,404 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_100PCT_2024-06-27_2_images
+2024-06-27 15:42:08,438 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 15:42:08,460 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 15:42:08,462 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 15:42:08,463 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 15:42:08,465 - __main__ - INFO - The number of images to take: 50
+2024-06-27 15:42:08,466 - __main__ - INFO - The acquisition time is: 1.0 s
+2024-06-27 15:42:08,467 - __main__ - INFO - Setting the laser to the current setpoint: 100.00 %
+2024-06-27 15:42:08,585 - __main__ - INFO - Laser current setpoint: 100.00 %
+2024-06-27 15:42:11,615 - __main__ - INFO - Setting up Triggers
+2024-06-27 15:42:12,251 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 15:42:13,010 - __main__ - INFO - Pulse duration: 0.50 s.
+2024-06-27 15:43:13,229 - __main__ - INFO - dt: 60.219
+2024-06-27 15:43:13,234 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:43:01,490 - __main__ - INFO - Starting experiment
+2024-06-27 16:43:01,505 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:43:03,333 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:43:03,352 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_100PCT_2024-06-27_1_images
+2024-06-27 16:43:03,373 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:43:03,383 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:43:03,384 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:43:03,385 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:43:03,386 - __main__ - INFO - The number of images to take: 50
+2024-06-27 16:43:03,387 - __main__ - INFO - The acquisition time is: 1.0 s
+2024-06-27 16:43:03,388 - __main__ - INFO - Setting the laser to the current setpoint: 100.00 %
+2024-06-27 16:43:03,503 - __main__ - INFO - Laser current setpoint: 100.00 %
+2024-06-27 16:43:06,525 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:43:07,113 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:43:07,868 - __main__ - INFO - Pulse duration: 0.50 s.
+2024-06-27 16:44:08,046 - __main__ - INFO - dt: 60.176
+2024-06-27 16:44:08,047 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:46:08,876 - __main__ - INFO - Starting experiment
+2024-06-27 16:46:08,896 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:46:10,747 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:46:10,775 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_1_images
+2024-06-27 16:46:10,798 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:46:10,808 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:46:10,809 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:46:10,810 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:46:10,811 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:46:10,812 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:46:10,813 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:46:10,922 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:46:13,951 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:46:14,508 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:46:15,270 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:46:25,469 - __main__ - INFO - dt: 10.198
+2024-06-27 16:46:25,469 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:46:33,826 - __main__ - INFO - Starting experiment
+2024-06-27 16:47:01,366 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:47:03,131 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:47:03,152 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_2_images
+2024-06-27 16:47:03,175 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:47:03,185 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:47:03,187 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:47:03,188 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:47:03,189 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:47:03,190 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:47:03,191 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:47:03,303 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:47:06,320 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:47:06,933 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:47:07,702 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:47:16,978 - __main__ - INFO - Starting experiment
+2024-06-27 16:47:17,929 - __main__ - INFO - dt: 10.216
+2024-06-27 16:47:17,931 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:47:47,085 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:47:48,873 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:47:48,890 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_3_images
+2024-06-27 16:47:48,912 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:47:48,926 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:47:48,928 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:47:48,929 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:47:48,929 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:47:48,930 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:47:48,931 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:47:49,046 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:47:49,762 - __main__ - INFO - Starting experiment
+2024-06-27 16:47:52,067 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:47:52,602 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:47:53,353 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:48:03,581 - __main__ - INFO - dt: 10.226
+2024-06-27 16:48:03,582 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:48:23,143 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:48:24,886 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:48:24,906 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_4_images
+2024-06-27 16:48:24,934 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:48:24,946 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:48:24,949 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:48:24,950 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:48:24,951 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:48:24,953 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:48:24,954 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:48:25,076 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:48:28,106 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:48:28,871 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:48:29,645 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:48:39,860 - __main__ - INFO - dt: 10.214
+2024-06-27 16:48:39,860 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:48:59,586 - __main__ - INFO - Starting experiment
+2024-06-27 16:48:59,599 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:49:01,268 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:49:01,286 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_5_images
+2024-06-27 16:49:01,315 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:49:01,327 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:49:01,329 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:49:01,330 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:49:01,331 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:49:01,332 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:49:01,333 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:49:01,461 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:49:04,488 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:49:05,102 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:49:05,869 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:49:16,088 - __main__ - INFO - dt: 10.216
+2024-06-27 16:49:16,089 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:49:43,260 - __main__ - INFO - Starting experiment
+2024-06-27 16:49:43,275 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:49:45,064 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:49:45,083 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_6_images
+2024-06-27 16:49:45,123 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:49:45,134 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:49:45,135 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:49:45,136 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:49:45,138 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:49:45,139 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:49:45,140 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:49:45,251 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:49:48,270 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:49:48,930 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:49:49,699 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:49:59,893 - __main__ - INFO - dt: 10.190
+2024-06-27 16:49:59,893 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:50:28,587 - __main__ - INFO - Starting experiment
+2024-06-27 16:50:28,602 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:50:30,278 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:50:30,313 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_7_images
+2024-06-27 16:50:30,335 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:50:30,347 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:50:30,348 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:50:30,349 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:50:30,351 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:50:30,352 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:50:30,353 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:50:30,458 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:50:30,496 - __main__ - INFO - Starting experiment
+2024-06-27 16:50:33,475 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:50:34,189 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:50:34,946 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:50:45,162 - __main__ - INFO - dt: 10.210
+2024-06-27 16:50:45,163 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:51:04,531 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:51:06,237 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:51:06,271 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_8_images
+2024-06-27 16:51:06,292 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:51:06,307 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:51:06,312 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:51:06,313 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:51:06,314 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:51:06,314 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:51:06,315 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:51:06,423 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:51:09,447 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:51:10,033 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:51:10,796 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:51:20,978 - __main__ - INFO - dt: 10.178
+2024-06-27 16:51:20,980 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:51:23,779 - __main__ - INFO - Starting experiment
+2024-06-27 16:51:30,995 - __main__ - INFO - Starting experiment
+2024-06-27 16:51:40,445 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:51:42,155 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:51:42,173 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_9_images
+2024-06-27 16:51:42,195 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:51:42,207 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:51:42,209 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:51:42,210 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:51:42,212 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:51:42,212 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:51:42,214 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:51:42,340 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:51:45,359 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:51:46,088 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:51:46,853 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:51:57,033 - __main__ - INFO - dt: 10.174
+2024-06-27 16:51:57,033 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:52:16,482 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:52:18,208 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:52:18,223 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_10_images
+2024-06-27 16:52:18,244 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:52:18,255 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:52:18,256 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:52:18,257 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:52:18,258 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:52:18,259 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:52:18,260 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:52:18,384 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:52:21,406 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:52:22,122 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:52:22,635 - __main__ - INFO - Starting experiment
+2024-06-27 16:52:22,856 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:52:33,050 - __main__ - INFO - dt: 10.187
+2024-06-27 16:52:33,051 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:52:52,440 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:52:54,144 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:52:54,171 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_11_images
+2024-06-27 16:52:54,199 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:52:54,210 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:52:54,212 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:52:54,213 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:52:54,214 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:52:54,215 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:52:54,216 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:52:54,332 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:52:57,362 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:52:57,959 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:52:58,729 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:53:08,903 - __main__ - INFO - dt: 10.171
+2024-06-27 16:53:08,904 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:53:15,724 - __main__ - INFO - Starting experiment
+2024-06-27 16:53:28,435 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:53:30,203 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:53:30,223 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_12_images
+2024-06-27 16:53:30,248 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:53:30,262 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:53:30,263 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:53:30,265 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:53:30,267 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:53:30,268 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:53:30,269 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:53:30,392 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:53:33,416 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:53:34,003 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:53:34,770 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:53:44,993 - __main__ - INFO - dt: 10.218
+2024-06-27 16:53:44,994 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:53:55,851 - __main__ - INFO - Starting experiment
+2024-06-27 16:54:04,438 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:54:06,187 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:54:06,210 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_030PCT_2024-06-27_13_images
+2024-06-27 16:54:06,229 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:54:06,240 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:54:06,241 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:54:06,243 - __main__ - INFO - The frame rate read from the camera is: 49.995660376679304 Hz
+2024-06-27 16:54:06,244 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:54:06,245 - __main__ - INFO - The acquisition time is: 2.0 s
+2024-06-27 16:54:06,246 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-27 16:54:06,359 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-27 16:54:09,387 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:54:10,049 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:54:10,768 - __main__ - INFO - Pulse duration: 2.00 s.
+2024-06-27 16:54:20,927 - __main__ - INFO - dt: 10.159
+2024-06-27 16:54:20,928 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-27 16:54:29,539 - __main__ - INFO - Starting experiment
+2024-06-27 16:54:40,196 - __main__ - INFO - ***  Startup ****
+2024-06-27 16:54:41,942 - __main__ - INFO - Setting up Lasers
+2024-06-27 16:54:41,963 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_100PCT_2024-06-27_2_images
+2024-06-27 16:54:41,983 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-27 16:54:41,995 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-27 16:54:41,996 - __main__ - INFO - The exposure read from the camera: 102.0
+2024-06-27 16:54:41,997 - __main__ - INFO - The frame rate read from the camera is: 99.9717679727245 Hz
+2024-06-27 16:54:41,999 - __main__ - INFO - The number of images to take: 100
+2024-06-27 16:54:42,000 - __main__ - INFO - The acquisition time is: 1.0 s
+2024-06-27 16:54:42,002 - __main__ - INFO - Setting the laser to the current setpoint: 100.00 %
+2024-06-27 16:54:42,115 - __main__ - INFO - Laser current setpoint: 100.00 %
+2024-06-27 16:54:45,141 - __main__ - INFO - Setting up Triggers
+2024-06-27 16:54:45,889 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-27 16:54:46,646 - __main__ - INFO - Pulse duration: 0.50 s.
+2024-06-27 16:55:46,867 - __main__ - INFO - dt: 60.216
+2024-06-27 16:55:46,868 - __main__ - INFO - *** ACQUISITION OVER ***

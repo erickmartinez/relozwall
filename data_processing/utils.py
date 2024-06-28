@@ -150,10 +150,26 @@ def correct_thermocouple_response(measured_temperature, measured_time, tau):
 
 
 def specific_heat_of_graphite(temperature: float, **kwargs):
+    """
+    Estimates graphite specific heat capacity of graphite according to
+    Butland, A.T.D.; Maddison, R.J., The specific heat of graphite: an evaluation of measurements,
+    J. Nucl. Mater., 1973, 49, 45-56.
+    https://doi.org/10.1016/0022-3115(73)90060-3
+    Parameters
+    ----------
+    temperature: float
+        The temperature
+    kwargs: keyword arguments
+        units: str
+            The units of temperature. Default K, otherwise assume Celsius
+    Returns
+    -------
+
+    """
     units = kwargs.get('units', 'K')
     T = temperature if units == 'K' else (temperature + 273.15)
     cp = 0.538657 + 9.11129E-6 * T - 90.2725 * (T ** (-1)) - 43449.3 * (T ** (-2.0)) + 1.59309E7 * (
-            T ** (-3.0)) - 1.43688E9 * (T ** (-4.0))
+                T ** (-3.0)) - 1.43688E9 * (T ** (-4.0))
     return cp * 4.184
 
 

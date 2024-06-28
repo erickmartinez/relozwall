@@ -429,7 +429,10 @@ def prediction_intervals(model: Callable, x_pred, ls_res: OptimizeResult, level=
             predplus = model(x_pred, beta + change)
             delta[:, i] = (predplus - y_pred) / change[i]
     else:
-        delta = jac(beta, x_pred, y_pred)
+        try:
+            delta = jac(beta, x_pred, y_pred, weights)
+        except Exception:
+            delta = jac(beta, x_pred, y_pred) # Don't panic, try without weights
 
     J = ls_res.jac
 
