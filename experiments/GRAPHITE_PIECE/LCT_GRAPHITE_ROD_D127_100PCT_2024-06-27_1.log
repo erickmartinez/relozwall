@@ -556,3 +556,169 @@ D:\ARPA-E\data\laser tests\2024\DiMES\20260627\LCT_GRAPHITE_PIECE_REALIGNED_100P
 2024-06-27 16:54:46,646 - __main__ - INFO - Pulse duration: 0.50 s.
 2024-06-27 16:55:46,867 - __main__ - INFO - dt: 60.216
 2024-06-27 16:55:46,868 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-28 10:29:33,476 - __main__ - INFO - Starting experiment
+2024-06-28 10:29:33,495 - __main__ - INFO - ***  Startup ****
+2024-06-28 10:29:35,559 - __main__ - INFO - Setting up Lasers
+2024-06-28 10:29:35,579 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\laser_runs\LCT_AMB2R010_ROW596_010PCT_2024-06-28_1_images
+2024-06-28 10:29:35,599 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 10:29:35,609 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 10:29:35,609 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 10:29:35,609 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 10:29:35,609 - __main__ - INFO - The number of images to take: 200
+2024-06-28 10:29:35,619 - __main__ - INFO - The acquisition time is: 1.0 s
+2024-06-28 10:29:35,619 - __main__ - INFO - Setting the laser to the current setpoint: 10.00 %
+2024-06-28 10:29:35,729 - __main__ - INFO - Laser current setpoint: 10.00 %
+2024-06-28 10:29:38,751 - __main__ - INFO - Setting up Triggers
+2024-06-28 10:29:39,315 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-28 10:29:40,057 - __main__ - INFO - Pulse duration: 3.00 s.
+2024-06-28 10:29:50,246 - __main__ - INFO - dt: 10.189
+2024-06-28 10:29:50,247 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-28 12:47:55,087 - __main__ - INFO - Starting experiment
+2024-06-28 12:47:55,118 - __main__ - INFO - ***  Startup ****
+2024-06-28 12:47:57,096 - __main__ - INFO - Setting up Lasers
+2024-06-28 12:47:57,114 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_010PCT_2024-06-28_1_images
+2024-06-28 12:47:57,136 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 12:47:57,147 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 12:47:57,149 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 12:47:57,150 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 12:47:57,152 - __main__ - INFO - The number of images to take: 100
+2024-06-28 12:47:57,153 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 12:47:57,155 - __main__ - INFO - Setting the laser to the current setpoint: 10.00 %
+2024-06-28 12:47:57,268 - __main__ - INFO - Laser current setpoint: 10.00 %
+2024-06-28 12:48:00,292 - __main__ - INFO - Setting up Triggers
+2024-06-28 12:48:00,877 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-28 12:48:01,642 - __main__ - INFO - Pulse duration: 0.40 s.
+2024-06-28 12:49:01,844 - __main__ - INFO - dt: 60.201
+2024-06-28 12:49:01,845 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-28 13:13:31,261 - __main__ - INFO - Starting experiment
+2024-06-28 13:13:31,278 - __main__ - INFO - ***  Startup ****
+2024-06-28 13:13:33,110 - __main__ - INFO - Setting up Lasers
+2024-06-28 13:13:33,134 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_020PCT_2024-06-28_1_images
+2024-06-28 13:13:33,163 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 13:13:33,177 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 13:13:33,181 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 13:13:33,183 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 13:13:33,185 - __main__ - INFO - The number of images to take: 100
+2024-06-28 13:13:33,187 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 13:13:33,193 - __main__ - INFO - Setting the laser to the current setpoint: 20.00 %
+2024-06-28 13:13:33,314 - __main__ - INFO - Laser current setpoint: 20.00 %
+2024-06-28 13:13:33,322 - __main__ - WARNING - Unknown error: ERR: Cannot start emission because laser is not ready.
+2024-06-28 13:13:36,386 - __main__ - INFO - Setting up Triggers
+2024-06-28 13:13:37,081 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-28 13:13:37,842 - __main__ - INFO - Pulse duration: 0.40 s.
+2024-06-28 13:13:42,072 - __main__ - WARNING - Caught the stop flag in the procedure
+2024-06-28 13:13:42,078 - __main__ - INFO - dt: 4.235
+2024-06-28 13:13:42,080 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-28 13:13:42,301 - __main__ - ERROR - A value in x_new is above the interpolation range.
+Traceback (most recent call last):
+  File "C:\Users\ARPA-E\Documents\GitHub\relozwall\experiments\laser_test_flir.py", line 384, in execute
+    trigger_interp = f3(time_interp)
+  File "C:\ProgramData\Anaconda3\envs\vacuum_gauge\lib\site-packages\scipy\interpolate\_polyint.py", line 78, in __call__
+    y = self._evaluate(x)
+  File "C:\ProgramData\Anaconda3\envs\vacuum_gauge\lib\site-packages\scipy\interpolate\_interpolate.py", line 695, in _evaluate
+    below_bounds, above_bounds = self._check_bounds(x_new)
+  File "C:\ProgramData\Anaconda3\envs\vacuum_gauge\lib\site-packages\scipy\interpolate\_interpolate.py", line 727, in _check_bounds
+    raise ValueError("A value in x_new is above the interpolation "
+ValueError: A value in x_new is above the interpolation range.
+2024-06-28 13:13:57,461 - __main__ - INFO - Starting experiment
+2024-06-28 13:14:26,894 - __main__ - INFO - ***  Startup ****
+2024-06-28 13:14:28,602 - __main__ - INFO - Setting up Lasers
+2024-06-28 13:14:28,621 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_020PCT_2024-06-28_1_images
+2024-06-28 13:14:28,642 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 13:14:28,658 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 13:14:28,659 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 13:14:28,661 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 13:14:28,662 - __main__ - INFO - The number of images to take: 100
+2024-06-28 13:14:28,663 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 13:14:28,664 - __main__ - INFO - Setting the laser to the current setpoint: 20.00 %
+2024-06-28 13:14:28,773 - __main__ - INFO - Laser current setpoint: 20.00 %
+2024-06-28 13:14:31,794 - __main__ - INFO - Setting up Triggers
+2024-06-28 13:14:32,378 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-28 13:14:33,144 - __main__ - INFO - Pulse duration: 0.40 s.
+2024-06-28 13:15:33,359 - __main__ - INFO - dt: 60.214
+2024-06-28 13:15:33,360 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-28 13:50:36,356 - __main__ - INFO - Starting experiment
+2024-06-28 13:50:36,376 - __main__ - INFO - ***  Startup ****
+2024-06-28 13:50:38,192 - __main__ - INFO - Setting up Lasers
+2024-06-28 13:50:38,210 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_030PCT_2024-06-28_1_images
+2024-06-28 13:50:38,230 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 13:50:38,242 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 13:50:38,244 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 13:50:38,245 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 13:50:38,246 - __main__ - INFO - The number of images to take: 100
+2024-06-28 13:50:38,248 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 13:50:38,249 - __main__ - INFO - Setting the laser to the current setpoint: 30.00 %
+2024-06-28 13:50:38,364 - __main__ - INFO - Laser current setpoint: 30.00 %
+2024-06-28 13:50:41,391 - __main__ - INFO - Setting up Triggers
+2024-06-28 13:50:42,026 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-28 13:50:42,794 - __main__ - INFO - Pulse duration: 0.40 s.
+2024-06-28 13:51:42,984 - __main__ - INFO - dt: 60.189
+2024-06-28 13:51:42,985 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-28 14:29:36,470 - __main__ - INFO - Starting experiment
+2024-06-28 14:29:36,494 - __main__ - INFO - ***  Startup ****
+2024-06-28 14:29:38,314 - __main__ - INFO - Setting up Lasers
+2024-06-28 14:29:38,331 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_040PCT_2024-06-28_1_images
+2024-06-28 14:29:38,358 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 14:29:38,372 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 14:29:38,381 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 14:29:38,387 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 14:29:38,389 - __main__ - INFO - The number of images to take: 100
+2024-06-28 14:29:38,392 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 14:29:38,393 - __main__ - INFO - Setting the laser to the current setpoint: 40.00 %
+2024-06-28 14:29:38,500 - __main__ - INFO - Laser current setpoint: 40.00 %
+2024-06-28 14:29:41,521 - __main__ - INFO - Setting up Triggers
+2024-06-28 14:29:42,070 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-28 14:29:42,838 - __main__ - INFO - Pulse duration: 0.40 s.
+2024-06-28 14:30:43,058 - __main__ - INFO - dt: 60.212
+2024-06-28 14:30:43,059 - __main__ - INFO - *** ACQUISITION OVER ***
+2024-06-28 15:49:50,934 - __main__ - INFO - Starting experiment
+2024-06-28 15:49:50,976 - __main__ - INFO - ***  Startup ****
+2024-06-28 15:49:52,950 - __main__ - INFO - Setting up Lasers
+2024-06-28 15:49:52,970 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_050PCT_2024-06-28_1_images
+2024-06-28 15:49:52,995 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 15:49:53,008 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 15:49:53,008 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 15:49:53,008 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 15:49:53,008 - __main__ - INFO - The number of images to take: 100
+2024-06-28 15:49:53,018 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 15:49:53,018 - __main__ - INFO - Setting the laser to the current setpoint: 50.00 %
+2024-06-28 15:49:53,129 - __main__ - INFO - Laser current setpoint: 50.00 %
+2024-06-28 15:57:34,064 - __main__ - INFO - Starting experiment
+2024-06-28 15:57:34,081 - __main__ - INFO - ***  Startup ****
+2024-06-28 15:57:35,875 - __main__ - INFO - Setting up Lasers
+2024-06-28 15:57:35,895 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_050PCT_2024-06-28_1_images
+2024-06-28 15:57:35,925 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 15:57:35,937 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 15:57:35,937 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 15:57:35,937 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 15:57:35,937 - __main__ - INFO - The number of images to take: 100
+2024-06-28 15:57:35,945 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 15:57:35,945 - __main__ - INFO - Setting the laser to the current setpoint: 50.00 %
+2024-06-28 15:57:36,056 - __main__ - INFO - Laser current setpoint: 50.00 %
+2024-06-28 15:57:36,066 - __main__ - WARNING - Unknown error: ERR: Cannot start emission because laser is not ready.
+2024-06-28 15:57:39,094 - __main__ - INFO - Setting up Triggers
+2024-06-28 15:57:39,759 - __main__ - INFO - Successfully initialized thermocouple readout...
+2024-06-28 15:57:40,495 - __main__ - INFO - Pulse duration: 0.40 s.
+2024-06-28 15:57:40,614 - __main__ - WARNING - Caught the stop flag in the procedure
+2024-06-28 15:58:06,719 - __main__ - INFO - Starting experiment
+2024-06-28 15:58:15,743 - __main__ - INFO - ***  Startup ****
+2024-06-28 15:58:17,421 - __main__ - INFO - Setting up Lasers
+2024-06-28 15:58:17,445 - __main__ - INFO - Image captures will be stored at:
+D:\ARPA-E\data\laser tests\2024\flash_method_thermal_conductivity\20240628\LCT_GRAPHITE_ROD_9.5MM_050PCT_2024-06-28_1_images
+2024-06-28 15:58:17,474 - __main__ - INFO - Acquisition mode set to multi frame.
+2024-06-28 15:58:17,486 - __main__ - INFO - Current Gain: 4.999405628440247
+2024-06-28 15:58:17,488 - __main__ - INFO - The exposure read from the camera: 998.0
+2024-06-28 15:58:17,490 - __main__ - INFO - The frame rate read from the camera is: 199.8653706863057 Hz
+2024-06-28 15:58:17,492 - __main__ - INFO - The number of images to take: 100
+2024-06-28 15:58:17,493 - __main__ - INFO - The acquisition time is: 0.5 s
+2024-06-28 15:58:17,495 - __main__ - INFO - Setting the laser to the current setpoint: 50.00 %
+2024-06-28 15:58:17,601 - __main__ - INFO - Laser current setpoint: 50.00 %
+2024-06-28 15:58:20,620 - __main__ - INFO - Setting up Triggers

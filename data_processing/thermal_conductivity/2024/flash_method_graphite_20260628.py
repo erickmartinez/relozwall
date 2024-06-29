@@ -12,10 +12,9 @@ from scipy.signal import savgol_filter
 from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 
-data_dir = './data'
+data_dir = './data/20240628'
 
-thickness_mm = 40.0
-thickness_err_mm = 0.05
+emission_time_s = 0.4
 
 w_h, w_x = 1.3698, 0.3172
 
@@ -31,18 +30,20 @@ cowan_corrections_df = pd.DataFrame(data={
 For density estimation
 """
 rod_diameters_mm = np.array([
-    12.77, 12.92, 13.00, 12.82, 12.76, 12.78, 12.81, 12.76, 12.78, 12.78, 12.85, 12.85, 12.76, 12.76, 12.81
+    9.59, 9.60, 9.62, 9.63, 9.62, 9.56, 9.56, 9.55, 9.54, 9.55, 9.59, 9.54, 9.54, 9.54, 9.55, 9.55, 9.54, 9.55, 9.59
 ])
 sample_thickness_mm = np.array([
-    30.55, 30.90, 31.02, 31.05, 30.53, 29.35, 30.26, 31.07, 29.92, 31.07, 30.68, 30.64, 30.69
+    30.14, 30.14, 30.05, 27.73, 30.06, 27.87, 30.16, 30.14, 27.72
 ])
 
 rod_length_mm = np.array([
-    27.76, 27.87, 27.96, 27.96, 27.61, 27.57, 27.67, 27.82, 27.90, 27.88, 27.89, 27.79, 27.94
+    113.90, 114.14, 114.02, 114.00, 113.99, 114.00, 114.00, 114.00, 114.03
 ])
 
-rod_mass_g = 6.111
+rod_mass_g = 14.980
 rod_mass_error_g = 0.002
+
+sample_mass_g = 3.902
 # rod_length_mm = 113.93
 cp = 0.710  # J /g-K
 cp_err = 0.1 * cp
@@ -78,16 +79,16 @@ def mean_and_standard_error(values: np.ndarray, confidence: float = 0.95) -> tup
 
 def correct_thermocouple_response(measured_temperature, measured_time, tau):
     n = len(measured_time)
-    k = int(n / 50)
+    k = int(n / 40)
     k = k + 1 if k % 2 == 0 else k
     k = max(k, 5)
     # T = savgol_filter(measured_temperature, k, 3)
     # dTdt = np.gradient(T, measured_time, edge_order=2)
     delta = measured_time[-1] - measured_time[-2]
-    dTdt = savgol_filter(x=measured_temperature, window_length=k, polyorder=4, deriv=1, delta=delta)
+    dTdt = savgol_filter(x=measured_temperature, window_length=k, polyorder=3, deriv=1, delta=delta)
     # dTdt = savgol_filter(dTdt, k - 2, 3)
     r = measured_temperature + tau * dTdt
-    return savgol_filter(r, 11, 3)
+    return savgol_filter(r, k, 3)
 
 
 def poly(x, b):
@@ -129,8 +130,18 @@ def jac_poly(b, x, y, w=1.):
     return jac
 
 
+def e_to_q(x):
+    global emission_time_s
+    return (x / emission_time_s) * 1E-2
+
+
+def q_to_e(x):
+    global emission_time_s
+    return x * emission_time_s * 100.
+
+
 def main():
-    global data_dir, cmap_name, thickness_mm, thickness_err_mm, cowan_corrections_df
+    global data_dir, cmap_name, cowan_corrections_df
     global rod_length_mm, rod_mass_g, rod_mass_error_g, rod_diameters_mm, sample_thickness_mm, rod_length_mm
     global cp, cp_err, beam_radius, tc_time_response_s
     thickness_cm, thickness_err_cm = mean_and_standard_error(values=sample_thickness_mm * 0.1)
@@ -170,12 +181,12 @@ def main():
     norm = mpl.colors.Normalize(vmin=0, vmax=n_files - 1)
     colors = [cmap(norm(i)) for i in range(n_files)]
 
-    n_cols = 3
-    n_rows = 3  # max(int(n_files / 2) + 1, 2)
+    n_cols = 2
+    n_rows = 5  # max(int(n_files / 2) + 1, 2)
 
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, sharex=True, constrained_layout=True)
     # fig.subplots_adjust(hspace=0)
-    fig.set_size_inches(7., 6.0)
+    fig.set_size_inches(6., 7.0)
 
     # axes[-1, 0].set_xlabel('$t/t_{1/2}$')
     # axes[-1, 1].set_xlabel('$t/t_{1/2}$')
@@ -195,6 +206,8 @@ def main():
         'T_min (K)', 'DT_max (K)',
     ])
 
+    emission_time_s = np.empty(n_files, dtype=np.float64)
+
     for i, fn in enumerate(list_files):
         file_tag = os.path.splitext(fn)[0]
         params = get_experiment_params(relative_path=data_dir, filename=file_tag)
@@ -207,7 +220,7 @@ def main():
         # idx_pulse = np.argmin(np.abs(time_s - t0))-1
         # t0 = time_s[idx_pulse]
         time_s -= t0
-        temperature_raw = data_df['TC1 (C)'].values  + 273.15
+        temperature_raw = data_df['TC1 (C)'].values + 273.15
         msk_t0 = time_s > 0.
         time_s = time_s[msk_t0]
         temperature_raw = temperature_raw[msk_t0]
@@ -225,6 +238,7 @@ def main():
 
         laser_setpoint = float(params['Laser Power Setpoint']['value'])
         emission_time = float(params['Emission Time']['value'])
+        emission_time_s[i] = emission_time
 
         laser_power = laser_power[msk_power]
         laser_power_mean, laser_power_se = mean_and_standard_error(values=laser_power)
@@ -320,7 +334,7 @@ def main():
         alpha_df = pd.concat([alpha_df, results_row]).reset_index(drop=True)
 
         idx_c = i % n_cols
-        idx_r = int(i / n_rows)
+        idx_r = int(i / n_cols)
         # print(f'idx_r: {idx_r}, idx_c: {idx_c}, axes.shape: {axes.shape}')
 
         axes[idx_r, idx_c].plot(
@@ -340,6 +354,7 @@ def main():
         axes[idx_r, idx_c].set_xlim(0, 10)
         axes[idx_r, idx_c].set_ylim(0, 1.05)
         axes[idx_r, idx_c].xaxis.set_major_locator(ticker.MultipleLocator(1))
+        axes[idx_r, idx_c].xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
 
     alpha_df.to_csv('flash_method_graphite_20240625.csv', index=False)
 
@@ -347,24 +362,24 @@ def main():
     Find the relationship between q_laser and q_absorbed
     """
     t_emission = alpha_df['Emission time (s)'].values
-    q_laser = alpha_df['Laser power density (MW/m^2)'].values * emission_time * 100.
-    q_laser_err = alpha_df['Laser power density error (MW/m^2)'].values * emission_time * 100.
+    e_laser = alpha_df['Laser power density (MW/m^2)'].values * emission_time_s * 100.
+    e_laser_err = alpha_df['Laser power density error (MW/m^2)'].values * emission_time_s * 100.
     dT_max = alpha_df['DT_max (K)'].values
     dT_max_err = 0.25 * np.sqrt(2.)
-    weights = np.power(q_laser_err, -2)  # + np.power(dT_max_err, -2)
+    weights = np.power(e_laser_err, -2)  # + np.power(dT_max_err, -2)
     weights = 1.  # weights / weights.max()
 
     all_tol = float(np.finfo(np.float64).eps)
     res: OptimizeResult = least_squares(
         x0=[0.5],
         fun=res_linear,
-        args=(dT_max, q_laser, weights),
+        args=(dT_max, e_laser, weights),
         jac=jac_linear,
-        # loss='soft_l1', f_scale=0.1,
+        loss='soft_l1', f_scale=0.1,
         xtol=all_tol,  # ** 0.5,
         ftol=all_tol,  # ** 0.5,
         gtol=all_tol,  # ** 0.5,
-        max_nfev=10000 * len(q_laser),
+        max_nfev=10000 * len(e_laser),
         x_scale='jac',
         verbose=2
     )
@@ -374,20 +389,22 @@ def main():
     fig_q.set_size_inches(4., 3.)
 
     ax.errorbar(
-        dT_max, q_laser, yerr=q_laser_err,  # xerr=dT_max_err,
+        dT_max, e_laser, yerr=e_laser_err,  # xerr=dT_max_err,
         color='C0', marker='o',
         ms=9, mew=1.25, mfc='none', ls='none',
         capsize=2.75, elinewidth=1.25, lw=1.5,
         label='Experiment'
     )
-    # lpb, upb = ypred - delta, ypred + delta
     ax.fill_between(x_pred, ypred - delta, ypred + delta, color='C0', alpha=0.25)
     ax.plot(
-        x_pred, ypred, color='k', lw=1.25, ls='--', label=r'$f(x) = a_0 + a_1 x $'
+        x_pred, ypred, color='k', lw=1.25, ls='--', label=r'$f(x) = a_0 x $'
     )
 
+    secaxy = ax.secondary_yaxis('right', functions=(e_to_q, q_to_e))
+
     ax.set_xlabel(r'$\Delta T_{\mathrm{max}}$ (K)')
-    ax.set_ylabel(r'$q_{\mathrm{L}}$ (W/cm$^{\mathregular{2}}$)')
+    ax.set_ylabel(r'$E_{\mathrm{L}}$ (J/cm$^{\mathregular{2}}$)')
+    secaxy.set_ylabel(r'$q_{\mathrm{L}}$ (MW/m$^{\mathregular{2}}$)')
 
     popt = res.x
     pcov = cf.get_pcov(res)
@@ -416,13 +433,15 @@ def main():
         loc='lower right', frameon=True
     )
 
-    ax.set_xlim(10., 100.)
-    ax.set_ylim(0., 800.)
+    ax.set_xlim(0., 160.)
+    ax.set_ylim(0., 1000.)
 
     ax.xaxis.set_major_locator(ticker.MultipleLocator(20.))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(10.))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(200.))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(100.))
+    secaxy.yaxis.set_major_locator(ticker.MultipleLocator(5.))
+    secaxy.yaxis.set_minor_locator(ticker.MultipleLocator(1.))
 
     fig.savefig('./figures/flash_method_20240625.png', dpi=600)
     fig_q.savefig('./figures/graphite_absorption_20240625.png', dpi=600)
