@@ -12,9 +12,12 @@ from scipy.signal import savgol_filter
 from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 
-data_dir = './data/20240628'
+data_dir = './20240701/flash_method'
 
-emission_time_s = 0.4
+emission_time_s = 0.5
+density = 1.76  # g/cm3
+thickness_mm = 25.5
+diameter_mm = 47.70
 
 w_h, w_x = 1.3698, 0.3172
 
@@ -26,31 +29,10 @@ cowan_corrections_df = pd.DataFrame(data={
     '10 half times': [0.054825246, 0.16697761, -0.28603437, 0.28356337, -0.13403286, 0.024077586, 0.0, 0.0]
 })
 
-"""
-For density estimation
-"""
-rod_diameters_mm = np.array([
-    9.59, 9.60, 9.62, 9.63, 9.62, 9.56, 9.56, 9.55, 9.54, 9.55, 9.59, 9.54, 9.54, 9.54, 9.55, 9.55, 9.54, 9.55, 9.59
-])
-sample_thickness_mm = np.array([
-    30.14, 30.14, 30.05, 27.73, 30.06, 27.87, 30.16, 30.14, 27.72
-])
 
-rod_length_mm = np.array([
-    113.90, 114.14, 114.02, 114.00, 113.99, 114.00, 114.00, 114.00, 114.03
-])
-
-rod_mass_g = 14.980
-rod_mass_error_g = 0.002
-
-sample_mass_g = 3.902
-# rod_length_mm = 113.93
-cp = 0.710  # J /g-K
-cp_err = 0.1 * cp
 
 beam_radius = 0.5 * 0.8165  # * 1.5 # 0.707
 # time response
-# https://www.omega.com/en-us/resources/thermocouples-response-time?utm_source=google&utm_medium=cpc&utm_campaign=Omega_NA_US_Core_Performance_Max_Pressure_Transducers&utm_content=undefined&utm_term=go_cmp-17887736118_adg-_ad-__dev-c_ext-_prd-_mca-_sig-Cj0KCQjwsuSzBhCLARIsAIcdLm50zO4D1j9JLKN5_kIJjNoaOKwwTJMFCt3Boh_xnvb5G4opHLSSHloaAuc4EALw_wcB&gad_source=1&gclid=Cj0KCQjwsuSzBhCLARIsAIcdLm50zO4D1j9JLKN5_kIJjNoaOKwwTJMFCt3Boh_xnvb5G4opHLSSHloaAuc4EALw_wcB
 tc_time_response_s = np.array([0.522, 0.454, 0.477]).mean()
 
 
@@ -142,27 +124,19 @@ def q_to_e(x):
 
 def main():
     global data_dir, cmap_name, cowan_corrections_df
-    global rod_length_mm, rod_mass_g, rod_mass_error_g, rod_diameters_mm, sample_thickness_mm, rod_length_mm
-    global cp, cp_err, beam_radius, tc_time_response_s
-    thickness_cm, thickness_err_cm = mean_and_standard_error(values=sample_thickness_mm * 0.1)
+    global density, thickness_mm
+    global cp, cp_err, beam_radius, tc_time_response_s, diameter_mm
+    thickness_cm = thickness_mm * 0.1
+    thickness_err_cm = 0.25 * thickness_cm
+    density_error = density * 0.02
     l2 = thickness_cm ** 2.
-    diameter_cm, diameter_se = mean_and_standard_error(values=rod_diameters_mm * 0.1)
-    rod_length_cm, rod_length_se_cm = mean_and_standard_error(values=rod_length_mm * 0.1)
+    diameter_cm = 0.1 * diameter_mm
 
-    rod_area = 0.25 * np.pi * diameter_cm ** 2.
-    rod_area_err = 2. * rod_area * diameter_se / diameter_cm
-    volume = rod_area * rod_length_cm
-    volume_error = volume * np.linalg.norm([rod_area_err / rod_area, rod_length_se_cm / rod_length_cm])
-    density = rod_mass_g / volume
-    density_error = density * np.linalg.norm([rod_mass_error_g / rod_mass_g, volume_error / volume])
-    # density = 1.799
-    # density_error = 0.0125
-    print(f'Volume: {volume:.3f} -/+ {volume_error:.4f} cm^3')
-    print(f'Density: {density:.3f} -/+ {density_error:.4f} g/cm^3')
 
     # Load the dimensionless parameters
-    kval_df = pd.read_csv('../dimensionless_parameters.csv').apply(pd.to_numeric)
-    theory_df = pd.read_csv('../flash_curve_theory.csv').apply(pd.to_numeric)
+    path_to_theory = os.path.abspath('../../../thermal_conductivity')
+    kval_df = pd.read_csv(os.path.join(path_to_theory, 'dimensionless_parameters.csv')).apply(pd.to_numeric)
+    theory_df = pd.read_csv(os.path.join(path_to_theory, 'flash_curve_theory.csv')).apply(pd.to_numeric)
 
     kval_df = kval_df[kval_df['V (%)'].isin([25., 50., 75.])]
     kval_v = kval_df['V (%)'].values
@@ -181,12 +155,12 @@ def main():
     norm = mpl.colors.Normalize(vmin=0, vmax=n_files - 1)
     colors = [cmap(norm(i)) for i in range(n_files)]
 
-    n_cols = 2
+    n_cols = 1
     n_rows = 5  # max(int(n_files / 2) + 1, 2)
 
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, sharex=True, constrained_layout=True)
     # fig.subplots_adjust(hspace=0)
-    fig.set_size_inches(6., 7.0)
+    fig.set_size_inches(4., 7.0)
 
     # axes[-1, 0].set_xlabel('$t/t_{1/2}$')
     # axes[-1, 1].set_xlabel('$t/t_{1/2}$')
@@ -220,7 +194,7 @@ def main():
         # idx_pulse = np.argmin(np.abs(time_s - t0))-1
         # t0 = time_s[idx_pulse]
         time_s -= t0
-        temperature_raw = data_df['TC1 (C)'].values + 273.15
+        temperature_raw = data_df['TC2 (C)'].values + 273.15
         msk_t0 = time_s > 0.
         time_s = time_s[msk_t0]
         temperature_raw = temperature_raw[msk_t0]
@@ -251,6 +225,7 @@ def main():
         t_h = f_inv_red(0.5)
         # idx_h = np.argmin(np.abs(v[0:idx_peak] - 0.5))
         # t_h = time_s[idx_h]
+        print(f't_h = {t_h:.3f} s')
         t_by_th = time_s / t_h
         f_v = interp1d(x=t_by_th, y=v)
 
@@ -309,9 +284,12 @@ def main():
         #     [density_error / density, cp_err / cp, dT_err / dT_max, thickness_err_mm / thickness_mm])
         af = gaussian_beam_aperture_factor(beam_radius=beam_radius, sample_radius=0.5 * diameter_cm)
 
-        laser_power_aperture = af * laser_power_mean / rod_area * 1E-2
+        area = 0.25 * np.pi * diameter_cm ** 2.
+        area_err = area * 0.01
+
+        laser_power_aperture = af * laser_power_mean / area * 1E-2
         laser_power_aperture_err = laser_power_aperture * np.linalg.norm([
-            laser_power_se / laser_power_mean, rod_area_err / rod_area
+            laser_power_se / laser_power_mean, area_err / area
         ])
 
         # print(f'Aperture factor: {af:.3f}, Laser heat load: {laser_power_aperture:.1f} MW/m^2')
@@ -333,28 +311,28 @@ def main():
 
         alpha_df = pd.concat([alpha_df, results_row]).reset_index(drop=True)
 
-        idx_c = i % n_cols
+        # idx_c = i % n_cols
         idx_r = int(i / n_cols)
         # print(f'idx_r: {idx_r}, idx_c: {idx_c}, axes.shape: {axes.shape}')
 
-        axes[idx_r, idx_c].plot(
+        axes[idx_r].plot(
             t_by_th, v, ls='-', color=colors[i],
             label=fr'$\kappa = {kappa_c:.0f} \pm {kappa_c_err:.0f}~\mathrm{{W/m/K}}$'
         )
 
-        axes[idx_r, idx_c].set_title(
+        axes[idx_r].set_title(
             fr'$q_{{\mathrm{{L}}}} = {laser_power_mean:.0f}~\mathrm{{W}}~({laser_setpoint:>2.0f}\%)$')
-        axes[idx_r, idx_c].plot(t_by_th_theory, v_theory, color='k', label='Model')
+        axes[idx_r].plot(t_by_th_theory, v_theory, color='k', label='Model')
 
-        axes[idx_r, idx_c].legend(
+        axes[idx_r].legend(
             loc='lower right', frameon=True, fontsize=9
         )
 
         # axes[i].set_ylabel(r'$\Delta T/ \Delta T_{\mathrm{max}}$')
-        axes[idx_r, idx_c].set_xlim(0, 10)
-        axes[idx_r, idx_c].set_ylim(0, 1.05)
-        axes[idx_r, idx_c].xaxis.set_major_locator(ticker.MultipleLocator(1))
-        axes[idx_r, idx_c].xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
+        axes[idx_r].set_xlim(0, 10)
+        axes[idx_r].set_ylim(0, 1.05)
+        axes[idx_r].xaxis.set_major_locator(ticker.MultipleLocator(1))
+        axes[idx_r].xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
 
     alpha_df.to_csv('flash_method_graphite_20240625.csv', index=False)
 
@@ -421,7 +399,7 @@ def main():
         [delta_popt[0] / popt[0], density_error / density, cp_err / cp, thickness_err_cm / thickness_cm])
     fit_txt += '\n'
     fit_txt += r"$E_{\mathrm{L}} = (LDC_{\mathrm{p}}/\xi) \Delta T_{\mathrm{max}}$" + '\n'
-    fit_txt += fr'$\xi = {absorbance:.2f} \pm {absorbance_err:.2f}$'
+    fit_txt += fr'$\xi = {absorbance:.1f} \pm {absorbance_err:.1f}$'
 
     ax.text(
         0.05, 0.95, fit_txt,
@@ -433,18 +411,18 @@ def main():
         loc='lower right', frameon=True
     )
 
-    ax.set_xlim(0., 240.)
-    ax.set_ylim(0., 1800.)
+    ax.set_xlim(0., 12.)
+    ax.set_ylim(0., 100.)
 
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(40.))
-    ax.xaxis.set_minor_locator(ticker.MultipleLocator(10.))
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(200.))
-    ax.yaxis.set_minor_locator(ticker.MultipleLocator(100.))
-    secaxy.yaxis.set_major_locator(ticker.MultipleLocator(5.))
-    secaxy.yaxis.set_minor_locator(ticker.MultipleLocator(1.))
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(2.))
+    ax.xaxis.set_minor_locator(ticker.MultipleLocator(1.))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(20.))
+    ax.yaxis.set_minor_locator(ticker.MultipleLocator(10.))
+    secaxy.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
+    secaxy.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
-    fig.savefig('./figures/flash_method_20240628.png', dpi=600)
-    fig_q.savefig('./figures/graphite_absorption_20240628.png', dpi=600)
+    fig.savefig('./figures/dimes_flash_method_20240701.png', dpi=600)
+    fig_q.savefig('./figures/atj_graphite_absorption_20240701.png', dpi=600)
     plt.show()
 
 

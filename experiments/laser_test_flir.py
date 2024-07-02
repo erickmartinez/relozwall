@@ -64,6 +64,7 @@ def get_duty_cycle_params(duty_cycle: float, period_ms: float = 1.0) -> tuple:
     return frequency, pulse_width
 
 
+
 class LaserProcedure(Procedure):
     emission_time = FloatParameter('Emission Time', units='s', default=0.5, minimum=0.001, maximum=20.0)
     measurement_time = FloatParameter('Measurement Time', units='s', default=10.0, minimum=1.0, maximum=3600.0)
