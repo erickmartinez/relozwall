@@ -91,9 +91,9 @@ def main():
         f1 = interp1d(x=time_s, y=temperature_raw, bounds_error=False, fill_value='extrapolate')
         f2 = interp1d(x=time_s, y=temperature_raw-temperature_raw[0], bounds_error=False, fill_value='extrapolate')
         id = i + 1
-        output_df[f'T_{id} (°C)'] = f1(time_interp)
+        output_df[f'T{id} (C)'] = f1(time_interp)
 
-        delta_df[f'dT_{id} (°C)'] = f2(time_interp)
+        delta_df[f'dT{id} (C)'] = f2(time_interp)
 
         axes[0].plot(
             time_s, temperature_raw, color=colors[i], label=fr'Adjustment #{id}'
@@ -146,6 +146,7 @@ def main():
     se = std * tval / np.sqrt(n_files)
 
     total_error = np.linalg.norm([se]) / np.sqrt(len(se))
+    fig.savefig('./figures/dimes_temperatures.png', dpi=600)
     print(f'Total error: {total_error:.3f} °C')
 
     plt.show()
