@@ -456,13 +456,13 @@ def main():
         loc='lower right', frameon=True
     )
 
-    ax.set_xlim(0., 240.)
-    ax.set_ylim(0., 1800.)
+    ax.set_xlim(0., 80.)
+    ax.set_ylim(0., 600.)
 
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(40.))
-    ax.xaxis.set_minor_locator(ticker.MultipleLocator(10.))
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(200.))
-    ax.yaxis.set_minor_locator(ticker.MultipleLocator(100.))
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(20.))
+    ax.xaxis.set_minor_locator(ticker.MultipleLocator(5.))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(100.))
+    ax.yaxis.set_minor_locator(ticker.MultipleLocator(50.))
     secaxy.yaxis.set_major_locator(ticker.MultipleLocator(5.))
     secaxy.yaxis.set_minor_locator(ticker.MultipleLocator(1.))
 
