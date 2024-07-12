@@ -1,4 +1,3 @@
-import h5py
 import numpy as np
 import matplotlib.pylab as plt
 import pandas as pd
@@ -10,11 +9,17 @@ import matplotlib as mpl
 import json
 from scipy import interpolate
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
+base_path = r'./data'
 data_file = 'reflectance_of_graphite_Taft&Philipp_PR1965'
 laser_wavelength = 1.07  # um
 band_pass_wavelength = 0.91  # um
 interpolation_steps = 2000
+
+"""
+Taken from 
+E.A. Taft and H.R. Philipp. Phys. Rev. 138, A197 (1965)
+doi: 10.1103/PhysRev.138.A197
+"""
 
 
 def um_to_ev(energy: np.ndarray) -> np.ndarray:
@@ -45,8 +50,8 @@ if __name__ == '__main__':
 
     reflectivity_at_laser_wl = f1(1.2398 / laser_wavelength)
     reflectivity_at_bp_wl = f1(1.2398 / band_pass_wavelength)
-    reflectivity_at_laser_wl = f2(laser_wavelength)
-    reflectivity_at_bp_wl = f2(band_pass_wavelength)
+    # reflectivity_at_laser_wl = f2(laser_wavelength)
+    # reflectivity_at_bp_wl = f2(band_pass_wavelength)
     print(f"Reflectance at {laser_wavelength:.3f} um: {reflectivity_at_laser_wl:4.1f} %")
     print(f"Reflectance at {band_pass_wavelength:.3f} um: {reflectivity_at_bp_wl:4.1f} %")
 
@@ -179,6 +184,6 @@ if __name__ == '__main__':
     # ax.legend(loc='best', frameon=False)
 
     # fig.tight_layout()
-    fig.savefig(os.path.join(base_path, data_file + '_plot.png'), dpi=600)
-    fig.savefig(os.path.join(base_path, data_file + '_plot.svg'), dpi=600)
+    fig.savefig(os.path.join('./figures', data_file + '_plot.png'), dpi=600)
+    fig.savefig(os.path.join('./figures', data_file + '_plot.svg'), dpi=600)
     plt.show()

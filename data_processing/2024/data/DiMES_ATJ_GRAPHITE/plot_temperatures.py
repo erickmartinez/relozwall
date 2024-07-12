@@ -136,10 +136,10 @@ def main():
 
     print(output_df)
     print(delta_df)
-    output_df.to_csv(os.path.join(output_data_dir, 'raw_temperatures.csv'), index=False)
+    output_df.to_csv(os.path.join(output_data_dir, 'raw_temperatures.csv'), index=False, encoding="utf-8-sig")
     columns = delta_df.columns
     descriptive_df = delta_df[columns[1::]].apply(pd.DataFrame.describe, axis=1)
-    delta_df.to_csv(os.path.join(output_data_dir, 'del_temperature.csv'), index=False)
+    delta_df.to_csv(os.path.join(output_data_dir, 'del_temperature.csv'), index=False, encoding="utf-8-sig")
     print(descriptive_df)
     std = descriptive_df['std'].values
     tval = t.ppf(1. - 0.05*0.5, n_files - 1)

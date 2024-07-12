@@ -1,13 +1,19 @@
+import sys
+import os
 from instruments.flir import Camera, TriggerType
 from PySpin import PySpin
 import time
 
 path_to_images = r'C:\Users\ARPA-E\Documents\FLIR TEST\SAFE_GRAB'
 # path_to_images = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\LASER_TRIGGER'
-acquisition_time = 0.2
+acquisition_time = 0.5
 
 
 def main():
+    files_in_dir = os.listdir(path_to_images)
+    for f in files_in_dir:
+        fp = os.path.join(path_to_images, f)
+        os.remove(fp)
     cam = Camera()
     cam.path_to_images = path_to_images
     cam.image_prefix = 'THROUGHPUT_TEST'
@@ -20,6 +26,12 @@ def main():
     # cam.gamma = 0.5
     cam.disable_gamma()
     # cam.trigger_delay = 9
+    # Retrieve singleton reference to system object
+    system = PySpin.System.GetInstance()
+
+    # Get current library version
+    version = system.GetLibraryVersion()
+    print('Library version: %d.%d.%d.%d' % (version.major, version.minor, version.type, version.build))
     print(f'Current Gain: {cam.gain}')
     print(f'The exposure read from the camera: {cam.exposure}')
     print(f'The frame rate read from the camera is: {cam.frame_rate} Hz')
@@ -36,6 +48,11 @@ def main():
     cam.reset_trigger()
     cam.reset_exposure()
     cam.reset_gain()
+    try:
+        cam.shutdown()
+    except PySpin.SpinnakerException as e:
+        print(e)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

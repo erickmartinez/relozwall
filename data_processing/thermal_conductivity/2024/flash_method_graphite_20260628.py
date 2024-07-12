@@ -13,6 +13,7 @@ from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 
 data_dir = './data/20240628'
+output_data_dir = './data/20240628/output'
 
 emission_time_s = 0.4
 

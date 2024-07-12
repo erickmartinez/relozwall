@@ -5,6 +5,16 @@ import os
 import logging
 from exif import Image as ImageInfo
 
+"""
+See Also
+https://softwareservices.flir.com/BFS-U3-16S2/latest/Model/public/index.html
+"""
+
+class FlirException(Exception):
+    def __int__(self, message='FLIR exception'):
+        self.message = message
+        super().__init__(self.message)
+
 class TriggerType:
     SOFTWARE = 1
     HARDWARE = 2
@@ -71,6 +81,10 @@ class Camera:
     debug: bool = False
 
     def __init__(self):
+        system = PySpin.System.GetInstance()
+        # Get current library version
+        version = system.GetLibraryVersion()
+        self.log('Library version: %d.%d.%d.%d' % (version.major, version.minor, version.type, version.build))
         self._system: PySpin.System = PySpin.System.GetInstance()
         self._cam_list: PySpin.CameraList = self._system.GetCameras()
         self._cam: PySpin.Camera = self._cam_list[0]
@@ -296,11 +310,12 @@ class Camera:
         self.log('Maximum Buffer Count: %d' % buffer_count.GetMax(), level=logging.DEBUG)
 
         num_buffers_to_set = min(buffer_count.GetMax(), num_buffers)
-        buffer_count.SetValue(buffer_count.GetMax())
+        buffer_count.SetValue(num_buffers_to_set)
 
         self.log('Buffer count now set to: %d' % buffer_count.GetValue())
 
         handling_mode_entry = handling_mode.GetEntryByName('OldestFirst')
+        # handling_mode_entry = handling_mode.GetEntryByName('OldestFirstOverwrite')
         handling_mode.SetIntValue(handling_mode_entry.GetValue())
         self.log('Buffer Handling Mode has been set to %s' % handling_mode_entry.GetDisplayName(), level=logging.DEBUG)
 
@@ -432,7 +447,7 @@ class Camera:
                 self.log("Changing trigger source to Line0")
                 if self._cam.TriggerActivation.GetAccessMode() != PySpin.RW:
                     self.log("Couldn't change trigger activation to Rising Edge", logging.ERROR)
-                self._cam.TriggerActivation.SetValue(PySpin.TriggerActivation_RisingEdge)
+                self._cam.TriggerActivation.SetValue(PySpin.TriggerActivation_LevelHigh)
                 self.log("Changing trigger activation to RisingEdge")
                 self.log('Trigger source set to hardware...')
             self._cam.TriggerMode.SetValue(PySpin.TriggerMode_On)
@@ -535,7 +550,7 @@ class Camera:
             # self.acquisition_mode = PySpin.AcquisitionMode_Continuous
             # self.log('Acquisition mode set to multi frame...')
             # MAX 1440
-            self.set_buffers(50)
+            self.set_buffers(1471)
 
             # self._cam.Width.SetValue(self._cam.WidthMax.GetValue())
             #  Begin acquiring images
@@ -557,7 +572,8 @@ class Camera:
             # *** NOTES ***
             # By default, if no specific color processing algorithm is set, the image
             # processor will default to NEAREST_NEIGHBOR method.
-            # processor.SetColorProcessing(PySpin.HQ_LINEAR)
+            processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
+            # processor.SetColorProcessing(PySpin.NEAREST_NEIGHBOR)
 
             # Get the value of exposure time to set an appropriate timeout for GetNextImage
             exposure = self.exposure
@@ -566,8 +582,9 @@ class Camera:
                 return False
             # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency
             # with the unit being used in GetNextImage
-            fast_timeout = (int) (1000.0 / self.frame_rate + 50 + self.exposure/1000)
-            # timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 10)
+            # fast_timeout = (int) (1000.0 / self.frame_rate + 100 + self.exposure/1000)
+            # fast_timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 1000)
+            fast_timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 100)
             self.execute_trigger()
             previous_seconds = 0
             elapsed_time = 0
@@ -609,6 +626,7 @@ class Camera:
                         # Release image
                         image_result.Release()
                         # self.log(f'Released image {i}')
+                        # time.sleep(0.5/self.frame_rate)
                         i += 1
                 except PySpin.SpinnakerException as ex:
                     self.log(f'Error acquiring single image: {ex}', logging.ERROR)
@@ -624,7 +642,7 @@ class Camera:
                     try:
                         # self.grab_next_image_by_trigger()
                         if i == 0:
-                            timeout = 5000
+                            timeout = fast_timeout
                         else:
                             timeout = fast_timeout
                         image_result = self._cam.GetNextImage(timeout)
@@ -635,7 +653,7 @@ class Camera:
 
                         else:
                             chunk_data = image_result.GetChunkData()
-                            frame_id = chunk_data.GetFrameID()
+                            # frame_id = chunk_data.GetFrameID()
                             timestamp = chunk_data.GetTimestamp()
                             # Print image information
                             if self.debug:
@@ -663,9 +681,10 @@ class Camera:
                             # self.log(f'Released image {i}')
                             i += 1
                     except PySpin.SpinnakerException as ex:
-                        self.log(f'Error acquiring images: {ex}', logging.ERROR)
+                        self.log(f'Error acquiring image {i+1}/{self._number_of_images}: {ex}', logging.ERROR)
                         self.__busy = False
-                        return False
+                        # return False
+                        break
                         # self.execute_trigger()
                     # previous_seconds = current_seconds
             self._cam.EndAcquisition()
@@ -739,12 +758,19 @@ class Camera:
     def shutdown(self):
         self.reset()
         time.sleep(1.0)
-        self._cam.DeInit()
-        del self._cam
-        self._cam_list.Clear()
-        self._system.ReleaseInstance()
-        time.sleep(0.1)
+        try:
+            self._cam.DeInit()
+            del self._cam
+            self._cam_list.Clear()
+            self._system.ReleaseInstance()
+            time.sleep(0.1)
+        except Exception as e:
+            raise FlirException(e)
+
         self.log(msg='Deleted camera instance.', level=logging.INFO)
 
     def __del__(self):
-        self.shutdown()
+        try:
+            self.shutdown()
+        except:
+            pass

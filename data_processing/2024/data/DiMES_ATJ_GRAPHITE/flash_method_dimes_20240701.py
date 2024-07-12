@@ -18,6 +18,9 @@ emission_time_s = 0.5
 density = 1.76  # g/cm3
 thickness_mm = 25.5
 diameter_mm = 47.70
+hp = 10.0
+P = 26.3
+rh = diameter_mm * 0.5
 
 w_h, w_x = 1.3698, 0.3172
 
@@ -28,6 +31,13 @@ cowan_corrections_df = pd.DataFrame(data={
     '5 half times': [-0.1037162, 1.239040, -3.974433, 6.888738, -6.804883, 3.856663, -1.167799, 0.1465332],
     '10 half times': [0.054825246, 0.16697761, -0.28603437, 0.28356337, -0.13403286, 0.024077586, 0.0, 0.0]
 })
+
+def g(x):
+    global rh, hp, P
+    return x * np.sin(x) - rh / P
+
+def gp(x):
+    return x * np.cos(x) + np.sin(x)
 
 
 
@@ -124,14 +134,28 @@ def q_to_e(x):
 
 def main():
     global data_dir, cmap_name, cowan_corrections_df
-    global density, thickness_mm
-    global cp, cp_err, beam_radius, tc_time_response_s, diameter_mm
+    global density, thickness_mm, rh
+    global beam_radius, tc_time_response_s, diameter_mm
     thickness_cm = thickness_mm * 0.1
-    thickness_err_cm = 0.25 * thickness_cm
+    thickness_err_cm = 0.05 * thickness_cm
     density_error = density * 0.02
     l2 = thickness_cm ** 2.
     diameter_cm = 0.1 * diameter_mm
 
+    # find the radius of curvature of the front hemisphere
+    theta_0 = 0.5 * np.pi
+    all_tol = float(np.finfo(np.float64).eps)
+    for i in range(100):
+        print(f'theta_i: {theta_0*180./np.pi:.6f}')
+        theta_n = theta_0 - g(theta_0) / gp(theta_0)
+        if np.abs(theta_n - theta_0) < all_tol:
+            break
+        theta_0 = theta_n
+    print(f'Theta: {theta_n/np.pi:.3} pi ({theta_n*180./np.pi:.2f} °)')
+    R = 0.1* rh / np.sin(theta_n)
+    print(f'R: {R:.1f} cm')
+    area_cm = 2. * np.pi * (R ** 2.) * (1. - np.cos(theta_n))
+    print(f'Front surface area: {area_cm:.2f} cm^2')
 
     # Load the dimensionless parameters
     path_to_theory = os.path.abspath('../../../thermal_conductivity')
@@ -225,7 +249,7 @@ def main():
         t_h = f_inv_red(0.5)
         # idx_h = np.argmin(np.abs(v[0:idx_peak] - 0.5))
         # t_h = time_s[idx_h]
-        print(f't_h = {t_h:.3f} s')
+        # print(f't_h = {t_h:.3f} s')
         t_by_th = time_s / t_h
         f_v = interp1d(x=t_by_th, y=v)
 
@@ -284,7 +308,8 @@ def main():
         #     [density_error / density, cp_err / cp, dT_err / dT_max, thickness_err_mm / thickness_mm])
         af = gaussian_beam_aperture_factor(beam_radius=beam_radius, sample_radius=0.5 * diameter_cm)
 
-        area = 0.25 * np.pi * diameter_cm ** 2.
+        # area = 0.25 * np.pi * diameter_cm ** 2.
+        area = area_cm
         area_err = area * 0.01
 
         laser_power_aperture = af * laser_power_mean / area * 1E-2
@@ -399,7 +424,7 @@ def main():
         [delta_popt[0] / popt[0], density_error / density, cp_err / cp, thickness_err_cm / thickness_cm])
     fit_txt += '\n'
     fit_txt += r"$E_{\mathrm{L}} = (LDC_{\mathrm{p}}/\xi) \Delta T_{\mathrm{max}}$" + '\n'
-    fit_txt += fr'$\xi = {absorbance:.1f} \pm {absorbance_err:.1f}$'
+    fit_txt += fr'$\xi = {absorbance:.2f} \pm {absorbance_err:.2f}$'
 
     ax.text(
         0.05, 0.95, fit_txt,

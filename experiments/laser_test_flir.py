@@ -52,17 +52,15 @@ def trigger_camera(cam: Camera):
         cam.acquire_images()
     except PySpin.SpinnakerException as ex:
         log.error(ex)
-        # cam.shutdown()
+        cam.shutdown()
         raise ex
     return
-
 
 
 def get_duty_cycle_params(duty_cycle: float, period_ms: float = 1.0) -> tuple:
     frequency = 1.0E3 / period_ms
     pulse_width = duty_cycle * period_ms
     return frequency, pulse_width
-
 
 
 class LaserProcedure(Procedure):
@@ -98,7 +96,7 @@ class LaserProcedure(Procedure):
     def startup(self):
         log.info('***  Startup ****')
         self.__camera: Camera = Camera()
-        self.__mx200 = MX200()#address=MX200_COM, keep_alive=True)
+        self.__mx200 = MX200()  # address=MX200_COM, keep_alive=True)
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
 
@@ -156,7 +154,7 @@ class LaserProcedure(Procedure):
             log.info(f'Acquisition mode set to multi frame.')
             self.__camera.acquisition_time = self.camera_acquisition_time
             self.__camera.chosen_trigger = TriggerType.HARDWARE
-            self.__camera.configure_trigger(trigger_type=PySpin.TriggerSelector_AcquisitionStart)
+            self.__camera.configure_trigger(trigger_type=PySpin.TriggerSelector_FrameBurstStart)
         else:
             self.__camera.acquisition_mode = PySpin.AcquisitionMode_SingleFrame
             log.info(f'Acquisition mode set to single frame.')
@@ -251,7 +249,7 @@ class LaserProcedure(Procedure):
             current_time = time.time()
             if current_time - start_time >= 0.2 and not started_acquisition:
                 flir_trigger.start()
-                self.__camera.fast_timeout = True
+                # self.__camera.fast_timeout = True
                 started_acquisition = True
             if (current_time - previous_time) >= 0.015:
                 total_time = current_time - start_time
