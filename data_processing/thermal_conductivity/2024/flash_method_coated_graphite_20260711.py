@@ -190,7 +190,7 @@ def main():
 
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, sharex=True, constrained_layout=True)
     # fig.subplots_adjust(hspace=0)
-    fig.set_size_inches(6., 7.0)
+    fig.set_size_inches(4., 5.0)
 
     # axes[-1, 0].set_xlabel('$t/t_{1/2}$')
     # axes[-1, 1].set_xlabel('$t/t_{1/2}$')
