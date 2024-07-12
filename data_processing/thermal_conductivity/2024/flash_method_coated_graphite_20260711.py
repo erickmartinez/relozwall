@@ -12,8 +12,8 @@ from scipy.signal import savgol_filter
 from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 
-data_dir = './data/20240628'
-output_data_dir = './data/20240628/output'
+data_dir = './data/20240711'
+output_data_dir = './data/20240711/output'
 
 emission_time_s = 0.4
 
@@ -185,8 +185,8 @@ def main():
     norm = mpl.colors.Normalize(vmin=0, vmax=n_files - 1)
     colors = [cmap(norm(i)) for i in range(n_files)]
 
-    n_cols = 2
-    n_rows = 5  # max(int(n_files / 2) + 1, 2)
+    n_cols = 1
+    n_rows = 3  # max(int(n_files / 2) + 1, 2)
 
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, sharex=True, constrained_layout=True)
     # fig.subplots_adjust(hspace=0)
@@ -337,28 +337,28 @@ def main():
 
         alpha_df = pd.concat([alpha_df, results_row]).reset_index(drop=True)
 
-        idx_c = i % n_cols
-        idx_r = int(i / n_cols)
+        # idx_c = i % n_cols
+        # idx_r = int(i / n_cols)
         # print(f'idx_r: {idx_r}, idx_c: {idx_c}, axes.shape: {axes.shape}')
 
-        axes[idx_r, idx_c].plot(
+        axes[i].plot(
             t_by_th, v, ls='-', color=colors[i],
             label=fr'$\kappa = {kappa_c:.0f} \pm {kappa_c_err:.0f}~\mathrm{{W/m/K}}$'
         )
 
-        axes[idx_r, idx_c].set_title(
+        axes[i].set_title(
             fr'$q_{{\mathrm{{L}}}} = {laser_power_mean:.0f}~\mathrm{{W}}~({laser_setpoint:>2.0f}\%)$')
-        axes[idx_r, idx_c].plot(t_by_th_theory, v_theory, color='k', label='Model')
+        axes[i].plot(t_by_th_theory, v_theory, color='k', label='Model')
 
-        axes[idx_r, idx_c].legend(
+        axes[i].legend(
             loc='lower right', frameon=True, fontsize=9
         )
 
         # axes[i].set_ylabel(r'$\Delta T/ \Delta T_{\mathrm{max}}$')
-        axes[idx_r, idx_c].set_xlim(0, 10)
-        axes[idx_r, idx_c].set_ylim(0, 1.05)
-        axes[idx_r, idx_c].xaxis.set_major_locator(ticker.MultipleLocator(1))
-        axes[idx_r, idx_c].xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
+        axes[i].set_xlim(0, 10)
+        axes[i].set_ylim(0, 1.05)
+        axes[i].xaxis.set_major_locator(ticker.MultipleLocator(1))
+        axes[i].xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
 
     alpha_df.to_csv('flash_method_graphite_20240625.csv', index=False)
 
@@ -466,8 +466,8 @@ def main():
     secaxy.yaxis.set_major_locator(ticker.MultipleLocator(5.))
     secaxy.yaxis.set_minor_locator(ticker.MultipleLocator(1.))
 
-    fig.savefig('./figures/flash_method_20240628.png', dpi=600)
-    fig_q.savefig('./figures/graphite_absorption_20240628.png', dpi=600)
+    fig.savefig('./figures/flash_method_cg_20240711.png', dpi=600)
+    fig_q.savefig('./figures/coated_graphite_absorption_20240711.png', dpi=600)
     plt.show()
 
 
