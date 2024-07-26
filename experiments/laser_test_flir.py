@@ -251,7 +251,7 @@ class LaserProcedure(Procedure):
             if not trigger_fired:
                 esp32.fire()
                 trigger_fired = True
-            if current_time - start_time >= 0.03 and not started_acquisition:
+            if (current_time - start_time) >= 0.01 and not started_acquisition:
                 flir_trigger.start()
                 started_acquisition = True
             if (current_time - previous_time) >= 0.010:
@@ -276,7 +276,7 @@ class LaserProcedure(Procedure):
                     power_value = 0.0
                 laser_output_power.append(power_value)
                 laser_output_peak_power.append(power_peak_value)
-                if round(power_peak_value) == 0. and emission_on and total_time >= float(self.emission_time) + 0.5:
+                if round(power_peak_value) == 0. and emission_on and (total_time >= (float(self.emission_time) + 0.5)):
                     try:
                         self.__ylr.emission_off()
                         emission_on = False
@@ -286,11 +286,8 @@ class LaserProcedure(Procedure):
                 elapsed_time.append(total_time)
                 previous_time = current_time
 
-        print('\n')
         while self.__camera.busy:
-            print('Waiting for camera process...', end='\r')
             time.sleep(0.1)
-        print('\n')
 
         # self.__camera.shutdown()
         # self.__camera = None
@@ -440,7 +437,7 @@ class LaserProcedure(Procedure):
             # log.debug("Emitting results: %s" % dd)
             if (ii % 10 == 0) or (ii + 1 == n_data_points):
                 self.emit('progress', (ii + 1) * pct_f)
-            time.sleep(0.005)
+            # time.sleep(0.005)
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
                 break

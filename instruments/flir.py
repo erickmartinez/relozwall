@@ -88,6 +88,7 @@ class Camera:
         self._system: PySpin.System = PySpin.System.GetInstance()
         self._cam_list: PySpin.CameraList = self._system.GetCameras()
         self._cam: PySpin.Camera = self._cam_list[0]
+        self.__deleted = False
         try:
             self._cam.Init()
             self._nodemap: PySpin.NodeMap = self._cam.GetNodeMap()
@@ -764,13 +765,15 @@ class Camera:
             self._cam_list.Clear()
             self._system.ReleaseInstance()
             time.sleep(0.1)
+            self.__deleted = True
         except Exception as e:
             raise FlirException(e)
 
         self.log(msg='Deleted camera instance.', level=logging.INFO)
 
     def __del__(self):
-        try:
-            self.shutdown()
-        except:
-            pass
+        if not self.__deleted:
+            try:
+                self.shutdown()
+            except:
+                pass

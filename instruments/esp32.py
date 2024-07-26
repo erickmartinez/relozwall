@@ -553,9 +553,9 @@ class DualTCLogger(ArduinoSerial):
     @log_time.setter
     def log_time(self, value_in_seconds: float):
         value_in_seconds = float(value_in_seconds)
-        if 0.0 > value_in_seconds or value_in_seconds > 120:
+        if 0.0 > value_in_seconds or value_in_seconds > 350.0:
             msg = f'Cannot set the log duration to {value_in_seconds}. Value is outside valid range:'
-            msg += f'[0, 120] s.'
+            msg += f'[0, 350] s.'
             raise Warning(msg)
         else:
             interval_ms = value_in_seconds * 1000.0
@@ -652,9 +652,9 @@ class DualTCLoggerTCP(ArduinoTCP):
     @log_time.setter
     def log_time(self, value_in_seconds: float):
         value_in_seconds = float(value_in_seconds)
-        if 0.0 > value_in_seconds or value_in_seconds > 120:
+        if 0.0 > value_in_seconds or value_in_seconds > 350.:
             msg = f'Cannot set the log duration to {value_in_seconds}. Value is outside valid range:'
-            msg += f'[0, 120] s.'
+            msg += f'[0, 350] s.'
             raise Warning(msg)
         else:
             interval_ms = value_in_seconds * 1000.0
