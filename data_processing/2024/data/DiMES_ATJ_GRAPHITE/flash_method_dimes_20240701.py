@@ -227,6 +227,7 @@ def main():
         )
 
         cp = specific_heat_of_graphite(temperature_raw[0])
+        print(f'c_p = {cp:.3f} J/g-K')
         cp_err = cp * 0.05
         # temperature = temperature_raw
         temperature_max = temperature.max()
@@ -423,7 +424,7 @@ def main():
     absorbance_err = absorbance * np.linalg.norm(
         [delta_popt[0] / popt[0], density_error / density, cp_err / cp, thickness_err_cm / thickness_cm])
     fit_txt += '\n'
-    fit_txt += r"$E_{\mathrm{L}} = (LDC_{\mathrm{p}}/\xi) \Delta T_{\mathrm{max}}$" + '\n'
+    fit_txt += r"$E_{\mathrm{L}} = (L\rho c_{\mathrm{p}}/\xi) \Delta T_{\mathrm{max}}$" + '\n'
     fit_txt += fr'$\xi = {absorbance:.2f} \pm {absorbance_err:.2f}$'
 
     ax.text(

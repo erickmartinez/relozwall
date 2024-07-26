@@ -74,29 +74,32 @@ def main():
     ax.set_ylabel(r'$\nu$ (cm/s)')
 
     ax.errorbar(
-        heat_load, nu, yerr=nu_err, marker='o', ms=9, mew=1.25, mfc='none',
+        heat_load*0.95, nu, yerr=nu_err, marker='o', ms=9, mew=1.25, mfc='none',
         capsize=2.75, elinewidth=1.25, lw=1.5, c='C1', ls='none',
         label='Boron granules'
     )
 
-    ax.errorbar(
-        carbon_df['Heat load (MW/m2)'],
-        carbon_df['Recession rate (cm/s)'],
-        yerr=(carbon_df['Recession rate (cm/s)'] * 0.5),
-        marker='s', color='C0',
-        ms=9, mew=1.25, mfc='none', ls='none',
-        capsize=2.75, elinewidth=1.25, lw=1.5,
-        label=r'Glassy carbon ($F_{\mathrm{b}}$ = 1.5 N)'
-    )
+    # ax.errorbar(
+    #     carbon_df['Heat load (MW/m2)']*0.9,
+    #     carbon_df['Recession rate (cm/s)'],
+    #     yerr=(carbon_df['Recession rate (cm/s)'] * 0.5),
+    #     marker='s', color='C0',
+    #     ms=9, mew=1.25, mfc='none', ls='none',
+    #     capsize=2.75, elinewidth=1.25, lw=1.5,
+    #     label=r'Glassy carbon ($F_{\mathrm{b}}$ = 1.5 N)'
+    # )
 
     ax.legend(
         loc='lower right', frameon=True
     )
 
-    ax.set_xlim(-0.5, 50)
-    ax.set_ylim(1E-4, 1)
+    ax.set_xlim(-0.5, 45)
+    ax.set_ylim(1E-4, 0.5)
 
-    ax.set_yscale('log')
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+
+    # ax.set_yscale('log')
 
     fig.savefig('figures/boron_pebble_rod_recession.png', dpi=600)
 

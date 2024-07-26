@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.ticker as ticker
 import os
-from data_processing.utils import get_experiment_params
+from data_processing.utils import get_experiment_params, specific_heat_of_graphite
 from scipy.interpolate import interp1d
 import json
 from scipy.signal import savgol_filter
@@ -42,10 +42,39 @@ def correct_thermocouple_response(measured_temperature, measured_time, tau):
     return savgol_filter(r, k, 3)
 
 
+emission_time_s = 0.5
+density = 1.76  # g/cm3
+thickness_mm = 25.5
+diameter_mm = 47.70
+hp = 10.0
+P = 26.3
+rh = diameter_mm * 0.5
+
+w_h, w_x = 1.3698, 0.3172
+
+# cmap_name = 'jet'
+
+cowan_corrections_df = pd.DataFrame(data={
+    'Coefficient': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+    '5 half times': [-0.1037162, 1.239040, -3.974433, 6.888738, -6.804883, 3.856663, -1.167799, 0.1465332],
+    '10 half times': [0.054825246, 0.16697761, -0.28603437, 0.28356337, -0.13403286, 0.024077586, 0.0, 0.0]
+})
+
+
+beam_radius = 0.5 * 0.8165  # * 1.5 # 0.707
+# time response
+tc_time_response_s = np.array([0.522, 0.454, 0.477]).mean()
+
+
+def gaussian_beam_aperture_factor(beam_radius, sample_radius):
+    return 1.0 - np.exp(-2.0 * (sample_radius / beam_radius) ** 2.0)
+
 def main():
     global data_dir, output_data_dir
     global tc_time_constant
+    global cowan_corrections_df, density, thickness_mm, rh
     load_plot_style()
+
 
     dt = 0.05
     n_points = int(100. / dt) + 1
@@ -56,9 +85,27 @@ def main():
     n_files = len(list_files)
     colors = ['C0', 'C1', 'C2', 'C3', 'C4']
 
+    """
+    Load theoretical curve
+    """
+    path_to_theory = os.path.abspath('../../../thermal_conductivity')
+    kval_df = pd.read_csv(os.path.join(path_to_theory, 'dimensionless_parameters.csv')).apply(pd.to_numeric)
+    theory_df = pd.read_csv(os.path.join(path_to_theory, 'flash_curve_theory.csv')).apply(pd.to_numeric)
+
+    kval_df = kval_df[kval_df['V (%)'].isin([25., 50., 75.])]
+    kval_v = kval_df['V (%)'].values
+    kval_k = kval_df['k(V)'].values
+
+    omega = theory_df['w'].values
+    v_theory = theory_df['V'].values
+    t_by_th_theory = omega / w_h
+
+    cowan_coefficients_5 = cowan_corrections_df['5 half times'].values
+    cowan_coefficients_10 = cowan_corrections_df['10 half times'].values
+
     fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, constrained_layout=True)
     # fig.subplots_adjust(hspace=0)
-    fig.set_size_inches(4., 5.)
+    fig.set_size_inches(4., 6.)
 
     output_df = pd.DataFrame(data={
         'time (s)': time_interp
@@ -88,6 +135,31 @@ def main():
             measured_temperature=temperature_raw, measured_time=time_s, tau=tc_time_constant
         )
 
+        cp = specific_heat_of_graphite(temperature_raw[0])
+        cp_err = cp * 0.05
+        # temperature = temperature_raw
+        temperature_max = temperature.max()
+        idx_peak = np.argmin(np.abs(temperature - temperature_max))
+        time_red = time_s[0:idx_peak]
+        temperature_red = temperature[0:idx_peak]
+
+        dT = temperature - temperature.min()
+        dT_max = dT.max()
+        v = dT / dT_max
+        f_inv = interp1d(x=v, y=time_s, bounds_error=False, fill_value='extrapolate')
+        f_inv_red = interp1d(x=v[0:idx_peak], y=time_red, fill_value='extrapolate')
+        t_h = f_inv_red(0.5)
+        # idx_h = np.argmin(np.abs(v[0:idx_peak] - 0.5))
+        # t_h = time_s[idx_h]
+        # print(f't_h = {t_h:.3f} s')
+        t_by_th = time_s / t_h
+        f_v = interp1d(x=t_by_th, y=v)
+
+        t_flash = t_by_th_theory * t_h
+        dtemp_max = np.max(temperature_max - temperature_raw[0])
+        dT_flash = dtemp_max * v_theory
+
+
         f1 = interp1d(x=time_s, y=temperature_raw, bounds_error=False, fill_value='extrapolate')
         f2 = interp1d(x=time_s, y=temperature_raw-temperature_raw[0], bounds_error=False, fill_value='extrapolate')
         id = i + 1
@@ -98,6 +170,11 @@ def main():
         axes[0].plot(
             time_s, temperature_raw, color=colors[i], label=fr'Adjustment #{id}'
         )
+
+        if i == 0:
+            axes[1].plot(
+                t_flash, dT_flash, color='k', label='Parker theory'
+            )
 
         # axes[0].plot(
         #     time_s, temperature, ls='--', lw=1.25, color=colors[i], #label=fr'Adjustment #{id}'
@@ -130,7 +207,7 @@ def main():
     axes[1].yaxis.set_minor_locator(ticker.MultipleLocator(0.5))
 
     for ax in axes:
-        ax.set_xlim(0, 100)
+        ax.set_xlim(0, 30)
         ax.xaxis.set_major_locator(ticker.MultipleLocator(20.))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(5.))
 
