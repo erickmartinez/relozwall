@@ -34,7 +34,7 @@ rod_diameters_mm = np.array([
     10.15,10.09,10.09,10.04,10.13,10.10,10.04,10.01,10.04,10.06,9.95,10.07,10.13,10.24,10.24,10.06,10.00
 ])
 sample_thickness_mm = np.array([
-    18.49,18.40,18.41,18.41,18.45,18.44,18.42,18.52,18.74,18.49,17.82,17.51,17.56
+    18.49,18.40,18.41,18.41,18.45,18.44,18.42,18.52,18.74,18.49,17.82,17.51,17.56, 16.91
 ])
 
 rod_length_mm = np.array([
@@ -44,9 +44,9 @@ rod_length_mm = np.array([
 rod_mass_g = 1.59
 rod_mass_error_g = 0.002
 
-sample_mass_g = 3.902
+sample_mass_g = 1.59
 # rod_length_mm = 113.93
-cp_vals = np.array([1.10, 1.04, 1.11]) # J /g-K (@300K)
+cp_vals = np.array([1.10, 1.04, 1.11, 1.02]) # J /g-K (@300K)
 cp = np.round(cp_vals.mean(), 2)  # J /g-K
 cp_err = np.std(cp_vals, ddof=1) * t.ppf(1.-0.5*0.05, 2) / np.sqrt(3.)
 
@@ -460,10 +460,10 @@ def main():
     ax.set_xlim(0., 50.)
     ax.set_ylim(0., 800.)
 
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(40.))
-    ax.xaxis.set_minor_locator(ticker.MultipleLocator(10.))
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(10.))
+    ax.xaxis.set_minor_locator(ticker.MultipleLocator(5.))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(200.))
-    ax.yaxis.set_minor_locator(ticker.MultipleLocator(100.))
+    ax.yaxis.set_minor_locator(ticker.MultipleLocator(50.))
     secaxy.yaxis.set_major_locator(ticker.MultipleLocator(5.))
     secaxy.yaxis.set_minor_locator(ticker.MultipleLocator(1.))
 
