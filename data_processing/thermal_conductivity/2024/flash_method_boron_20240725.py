@@ -256,7 +256,6 @@ def main():
         # idx_h = np.argmin(np.abs(v[0:idx_peak] - 0.5))
         # t_h = time_s[idx_h]
         t_by_th = time_s / t_h
-        print(f'POWER {laser_power_mean:>3.0f} W, t_1/2: {t_h:>3.1f} s')
         f_v = interp1d(x=t_by_th, y=v, bounds_error=False, fill_value='extrapolate')
 
         # Find the time required to reach 0.1, ... 0.9 rise in V from the experiment
@@ -292,6 +291,8 @@ def main():
             print(err)
 
         alpha_c = alpha_05 * kc / 0.13885
+
+        print(f'POWER {laser_power_mean:>3.0f} W, t_1/2: {t_h:>3.1f} s, kappa_c: {alpha_c*density*cp*100.:.1} W/m-K')
 
         # Heat loss Clark Taylor
         # v_reduced = v[t_by_th <= 2.]

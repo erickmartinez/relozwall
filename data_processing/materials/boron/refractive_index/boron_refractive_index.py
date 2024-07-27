@@ -62,13 +62,25 @@ def main():
     fig_r, ax_r = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
     fig_r.set_size_inches(4.0, 3.5)
 
-    ax_r.plot(wl_n_nm, reflectance*100., marker='o', ls='none', c='C0', label='n', mfc='none')
+    ax_r.plot(
+        wl_n_nm, reflectance * 100., marker='o', ls='none', c='C0',  mfc='none',
+        label='Morita & Yakamoto (1975)'
+    )
 
     ax_r.set_xlabel('Wavelength (nm)')
     ax_r.set_ylabel('R')
 
     ax_r.set_xlim(300, 1000.)
     ax_r.set_ylim(0, 100.)
+
+    ax_r.legend(
+        loc='upper right',
+        frameon=True
+    )
+
+    fig.savefig('Morita_Yakamoto1975_refractive_index.png', dpi=600)
+    fig_r.savefig('Morita_Yakamoto1975_reflectance.png', dpi=600)
+    print(f'R at {wl_n_nm[-1]:.0f}: {reflectance[-1]:.3f}')
 
     plt.show()
 

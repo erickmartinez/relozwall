@@ -258,6 +258,8 @@ def main():
         t_by_th = time_s / t_h
         f_v = interp1d(x=t_by_th, y=v)
 
+        print(f'POWER {laser_power_mean:>3.0f} W, t_1/2: {t_h:>3.1f} s')
+
         # Find the time required to reach 0.1, ... 0.9 rise in V from the experiment
         n_k = len(kval_v)
         alpha_x = np.zeros(n_k)
