@@ -129,7 +129,7 @@ class Camera:
 
     @acquisition_time.setter
     def acquisition_time(self, acquisition_time_s):
-        self.number_of_images = int(acquisition_time_s * self._frame_rate)
+        self.number_of_images = int(acquisition_time_s * self._frame_rate) + 1
 
     @property
     def chosen_trigger(self) -> TriggerType:
@@ -311,7 +311,7 @@ class Camera:
         self.log('Maximum Buffer Count: %d' % buffer_count.GetMax(), level=logging.DEBUG)
 
         num_buffers_to_set = min(buffer_count.GetMax(), num_buffers)
-        buffer_count.SetValue(num_buffers_to_set)
+        buffer_count.SetValue(buffer_count.GetMax())
 
         self.log('Buffer count now set to: %d' % buffer_count.GetValue())
 
@@ -447,9 +447,10 @@ class Camera:
                 self._cam.TriggerSource.SetValue(PySpin.TriggerSource_Line0)
                 self.log("Changing trigger source to Line0")
                 if self._cam.TriggerActivation.GetAccessMode() != PySpin.RW:
-                    self.log("Couldn't change trigger activation to Rising Edge", logging.ERROR)
+                    # self.log("Couldn't change trigger activation to Rising Edge", logging.ERROR)
+                    self.log("Couldn't change trigger activation to Level High", logging.ERROR)
                 self._cam.TriggerActivation.SetValue(PySpin.TriggerActivation_LevelHigh)
-                self.log("Changing trigger activation to RisingEdge")
+                self.log("Changing trigger activation to LevelHigh")
                 self.log('Trigger source set to hardware...')
             self._cam.TriggerMode.SetValue(PySpin.TriggerMode_On)
             self.log('Trigger mode turned back on...')
@@ -551,7 +552,7 @@ class Camera:
             # self.acquisition_mode = PySpin.AcquisitionMode_Continuous
             # self.log('Acquisition mode set to multi frame...')
             # MAX 1440
-            self.set_buffers(1471)
+            self.set_buffers(1576)
 
             # self._cam.Width.SetValue(self._cam.WidthMax.GetValue())
             #  Begin acquiring images
@@ -585,10 +586,8 @@ class Camera:
             # with the unit being used in GetNextImage
             # fast_timeout = (int) (1000.0 / self.frame_rate + 100 + self.exposure/1000)
             # fast_timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 1000)
-            fast_timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 100)
+            fast_timeout = (int) (self._cam.ExposureTime.GetValue() / 1000 + 1000.0 / self.frame_rate)
             self.execute_trigger()
-            previous_seconds = 0
-            elapsed_time = 0
             i = 0
             self.__busy = True
             if self.acquisition_mode == 'single frame':
@@ -633,21 +632,16 @@ class Camera:
                     self.log(f'Error acquiring single image: {ex}', logging.ERROR)
                     self.__busy = False
                     return False
-                    # self.execute_trigger()
-                # previous_seconds = current_seconds
 
             else:
                 for i in range(self._number_of_images):
-                    # current_seconds = time.time()
-                    # if (current_seconds - previous_seconds) >= 1.0:
                     try:
                         # self.grab_next_image_by_trigger()
                         if i == 0:
-                            timeout = fast_timeout
+                            timeout = 500
                         else:
                             timeout = fast_timeout
                         image_result = self._cam.GetNextImage(timeout)
-                        # image_result = self.safe_grab(timeout=timeout)
                         if image_result.IsIncomplete():
                             self.log('Image incomplete with image status %d...' % image_result.GetImageStatus(),
                                      logging.WARNING)
@@ -675,7 +669,8 @@ class Camera:
                             # Save image
                             image_converted.Save(full_filename)
 
-                            self.log('(%d/%d) Image saved at %s' % (i+1, self._number_of_images, full_filename) )
+                            # if self.debug:
+                            self.log('(%d/%d) Image saved at %s' % (i+1, self._number_of_images, filename) )
 
                             # Release image
                             image_result.Release()
@@ -685,11 +680,9 @@ class Camera:
                         self.log(f'Error acquiring image {i+1}/{self._number_of_images}: {ex}', logging.ERROR)
                         self.__busy = False
                         # return False
-                        break
-                        # self.execute_trigger()
-                    # previous_seconds = current_seconds
+                        # break
             self._cam.EndAcquisition()
-            time.sleep(0.5)
+            time.sleep(0.1)
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}', logging.ERROR)
             self.__busy = False
@@ -698,18 +691,6 @@ class Camera:
         # self.log('Acquisition mode set back to continuous...')
         self.__busy = False
         return True
-
-    def safe_grab(self, timeout=1000, attempts=0) -> PySpin.Image:
-        try:
-            image_result = self._cam.GetNextImage(timeout)
-        except PySpin.SpinnakerException as ex:
-            logging.warning(f'Error: {ex}')
-            if attempts < 3:
-                attempts += 1
-                return self.safe_grab(timeout=timeout, attempts=attempts)
-            else:
-                raise ex
-        return image_result
 
     def execute_trigger(self):
         try:

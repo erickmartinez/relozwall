@@ -154,7 +154,7 @@ class LaserProcedure(Procedure):
             log.info(f'Acquisition mode set to multi frame.')
             self.__camera.acquisition_time = self.camera_acquisition_time
             self.__camera.chosen_trigger = TriggerType.HARDWARE
-            self.__camera.configure_trigger(trigger_type=PySpin.TriggerSelector_FrameStart)
+            self.__camera.configure_trigger(trigger_type=PySpin.TriggerSelector_AcquisitionStart)
         else:
             self.__camera.acquisition_mode = PySpin.AcquisitionMode_SingleFrame
             log.info(f'Acquisition mode set to single frame.')
@@ -202,7 +202,7 @@ class LaserProcedure(Procedure):
             self.__ylr.aiming_beam_on = True
 
         self.__mx200.units = 'MT'
-        time.sleep(2.0)
+        time.sleep(5.0)
 
         log.info("Setting up Triggers")
         try:
@@ -218,7 +218,7 @@ class LaserProcedure(Procedure):
         esp32.pulse_duration = float(self.emission_time)
         time.sleep(0.1)
         et = esp32.pulse_duration
-        log.info(f'Pulse duration: {et:.2f} s.')
+        # log.info(f'Pulse duration: {et:.2f} s.')
 
         t1 = time.time()
         tc_logger.log_time = self.measurement_time
@@ -227,7 +227,6 @@ class LaserProcedure(Procedure):
         # Start firing sequence
         elapsed_time = []
         pressure = []
-        p_previous = self.__mx200.pressure(1)
 
         # esp32.fire()
 
@@ -237,53 +236,45 @@ class LaserProcedure(Procedure):
         laser_output_power = []
         laser_output_peak_power = []
         start_time = time.time()
-        trigger_voltage = []
 
-        # flir_trigger.start()
+        esp32.fire()
+        flir_trigger.start()
         started_acquisition = False
-        trigger_fired = False
+        # trigger_fired = False
 
-        while total_time <= self.measurement_time + 0.005:
+        while total_time <= self.measurement_time + 0.015:
             if self.should_stop():
                 log.warning("Caught the stop flag in the procedure")
                 break
             current_time = time.time()
-            if not trigger_fired:
-                esp32.fire()
-                trigger_fired = True
-            if (current_time - start_time) >= 0.01 and not started_acquisition:
-                flir_trigger.start()
-                started_acquisition = True
-            if (current_time - previous_time) >= 0.010:
+            # if not trigger_fired:
+            #     esp32.fire()
+            #     trigger_fired = True
+            # if not started_acquisition:
+            #     if (current_time - start_time) >= 0.35:
+            #         flir_trigger.start()
+            #         started_acquisition = True
+            if (current_time - previous_time) >= 0.015:
                 total_time = current_time - start_time
-                if total_time > self.camera_acquisition_time:
-                    print(f'Progress: {100. * total_time / (float(self.measurement_time) + 0.005):>5.1f} %', end='\r')
-                if (total_time >= 0.5) and (total_time <= float(self.emission_time) + 0.5):
-                    trigger_voltage.append(3.0)
-                else:
-                    trigger_voltage.append(0.0)
-                p = self.__mx200.pressure(1)
-                if type(p) is str:
-                    p = p_previous
+                p = self.__mx200.pressure(gauge_number=1, use_previous=True)
                 pressure.append(p)
-
-                p_previous = p
                 power_value = self.__ylr.output_power
                 power_peak_value = self.__ylr.output_peak_power
-                if type(power_peak_value) == str:
-                    power_peak_value = 0.0
-                if type(power_value) == str:
-                    power_value = 0.0
+                # if type(power_peak_value) == str:
+                #     power_peak_value = 0.0
+                # if type(power_value) == str:
+                #     power_value = 0.0
                 laser_output_power.append(power_value)
                 laser_output_peak_power.append(power_peak_value)
-                if round(power_peak_value) == 0. and emission_on and (total_time >= (float(self.emission_time) + 0.5)):
-                    try:
-                        self.__ylr.emission_off()
-                        emission_on = False
-                    except LaserException as e:
-                        self.__ylr.aiming_beam_on = False
-                        log.warning(e)
                 elapsed_time.append(total_time)
+                # if emission_on:
+                #     if round(power_peak_value) == 0. and (total_time >= (float(self.emission_time) + 0.5)):
+                #         try:
+                #             self.__ylr.emission_off()
+                #             emission_on = False
+                #         except LaserException as e:
+                #             self.__ylr.aiming_beam_on = False
+                #             log.warning(e)
                 previous_time = current_time
 
         while self.__camera.busy:
@@ -305,11 +296,18 @@ class LaserProcedure(Procedure):
             self.__ylr.enable_modulation()
             gate_mode = False
 
+        # Remove strings from laser_output_power and laser_output_peak_power
+        laser_output_power = [0. if type(val) is str else val for val in laser_output_power]
+        laser_output_peak_power = [0. if type(val) is str else val for val in laser_output_peak_power]
+
         elapsed_time = np.array(elapsed_time, dtype=float)
         elapsed_time -= elapsed_time.min()
         pressure = np.array(pressure, dtype=float)
         laser_output_power = np.array(laser_output_power)
         laser_output_peak_power = np.array(laser_output_peak_power)
+        msk_on = laser_output_peak_power > 0.
+        trigger_voltage = np.zeros_like(laser_output_peak_power)
+        trigger_voltage[msk_on] = 3.
         # log.info(f'YLR output power: {laser_output_power.mean()}')
         # log.info(f'YLR output peak power: {laser_output_peak_power.max()}')
         laser_output_power_full = laser_output_power  # np.zeros_like(elapsed_time)
@@ -331,10 +329,10 @@ class LaserProcedure(Procedure):
         flir_trigger.join()
 
         self.save_pressure()
-        t2 = time.time()
+        # t2 = time.time()
 
-        dt = t2 - t1
-        log.info(f"dt: {dt:.3f}")
+        # dt = t2 - t1
+        # log.info(f"dt: {dt:.3f}")
 
         log.info('*** ACQUISITION OVER ***')
 
@@ -356,11 +354,12 @@ class LaserProcedure(Procedure):
         time_tc = tc_data['Time (s)'].values
         tc1 = tc_data['TC1 (C)'].values
         tc2 = tc_data['TC2 (C)'].values
+        dt_tc = np.round(np.gradient(time_tc).mean(), 3)
 
         # print('time_tc:')
         # print(time_tc)
         print(f'len(time_tc): {len(time_tc)}, time_tc.min = {time_tc.min():.3f}, time_tc.max = {time_tc.max():.3f}, '
-              f'dt: {time_tc[1] - time_tc[0]}')
+              f'dt: {time_tc[1] - time_tc[0]:.3f}')
         # print('elapsed_time:')
         # print(elapsed_time)
         print(f'len(elapsed_time): {len(elapsed_time)}, elapsed_time.min = {elapsed_time.min():.3f}, '
@@ -368,6 +367,7 @@ class LaserProcedure(Procedure):
 
         t_min = max(round(time_tc.min(), 3), round(elapsed_time.min(), 3))
         t_max = min(round(time_tc.max(), 3), round(elapsed_time.max(), 3))
+        t_max = round(t_max*200)/200
 
         f0 = interpolate.interp1d(time_tc, tc1, fill_value="extrapolate")
         f1 = interpolate.interp1d(time_tc, tc2, fill_value='extrapolate')
@@ -375,14 +375,16 @@ class LaserProcedure(Procedure):
         if all(v <= 0. for v in pressure):
             pressure_is_zero = True
         else:
-            f2 = interpolate.interp1d(elapsed_time, pressure)
-        f3 = interpolate.interp1d(elapsed_time, trigger_voltage)
-        f4 = interpolate.interp1d(elapsed_time, laser_output_power_full)
-        f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full)
+            f2 = interpolate.interp1d(elapsed_time, pressure, fill_value="extrapolate")
+        f3 = interpolate.interp1d(elapsed_time, trigger_voltage, fill_value="extrapolate")
+        f4 = interpolate.interp1d(elapsed_time, laser_output_power_full, fill_value="extrapolate")
+        f5 = interpolate.interp1d(elapsed_time, laser_output_peak_power_full, fill_value="extrapolate")
 
-        n_data_points = int(float(self.measurement_time) / 0.005) + 1
-        # time_interp = np.linspace(t_min, t_max, n_data_points)
+        n_data_points = int(t_max / 0.005) + 1
         time_interp = 0.0 + 0.005 * np.arange(0, n_data_points)
+        msk_interp = time_interp <= t_max
+        time_interp = time_interp[msk_interp]
+        n_data_points = len(time_interp)
 
         try:
             tc1_interp = f0(time_interp)
@@ -497,6 +499,9 @@ class MainWindow(ManagedWindow):
                 if isinstance(h, logging.NullHandler):
                     log.removeHandler(h)
                     log.addHandler(logging.NullHandler())
+                if isinstance(h, logging.FileHandler):
+                    log.removeHandler(h)
+                    h.close()
 
     def queue(self):
         directory = self.directory

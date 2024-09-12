@@ -6,7 +6,7 @@ import time
 
 path_to_images = r'C:\Users\ARPA-E\Documents\FLIR TEST\SAFE_GRAB'
 # path_to_images = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\LASER_TRIGGER'
-acquisition_time = 0.5
+acquisition_time = 2.0
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     cam.print_device_info()
     cam.gain = 4.0
     cam.frame_rate = 200
-    cam.exposure = 5
+    cam.exposure = 500
     cam.acquisition_time = acquisition_time
     # cam.number_of_images = 5
     # cam.gamma = 0.5
