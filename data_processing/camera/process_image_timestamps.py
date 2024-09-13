@@ -13,14 +13,14 @@ def main():
     # Get the path where the images are stored
     base_dir = askdirectory(
         title="Select the directory where the images are stored",
-        initialdir=r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests'
+        initialdir=r'D:\ARPA-E\data\laser tests\2024\laser_runs'
     )
     # Save results one level up
     save_dir = os.path.dirname(base_dir)
     # Get the list of jpg images in the directory
-    file_list = [f for f in os.listdir(base_dir) if f.endswith('.jpg')]
+    file_list = [f for f in os.listdir(base_dir) if f.endswith('.tiff')]
     # The regexp pattern that scans for sample id, row id, frame id and timestamp
-    p = re.compile(r'(\w+\d+\d+)\_ROW(\d+)\_IMG\-(\d+)\-(\d+)\.jpg')
+    p = re.compile(r'(.*?)\_ROW(\d+)\_IMG\-(\d+)\-(\d+)\.tiff')
     columns = ['sample_id', 'row_id', 'frame_id', 'timestamp', 'time (s)', 'filename']
     df = pd.DataFrame(columns=columns)
     df.set_index(['row_id', 'frame_id'], inplace=True)

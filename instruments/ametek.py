@@ -176,7 +176,8 @@ class DCSource:
                 return self.query(q=q, attempts=attempts)
         buffer = b''
         while b'\n' not in buffer:
-            data = self.__socket.recv(1024)
+            # data = self.__socket.recv(1024)
+            data = self.__socket.recv(4096)  # <- tried increasing the buffer size
             if not data:
                 return ''
             buffer += data
@@ -187,6 +188,7 @@ class DCSource:
         try:
             self.__socket.sendall(f"{q}\r".encode('utf-8'))
         except ConnectionAbortedError as e:
+            print("Error writing to AMETEK DC power supply.")
             self.__socket.close()
             self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__socket.connect((self.__ip_address, self.__port))
@@ -197,4 +199,3 @@ class DCSource:
 
     def __del__(self):
         self.disconnect()
-

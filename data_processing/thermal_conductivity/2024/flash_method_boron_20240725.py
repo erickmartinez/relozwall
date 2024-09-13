@@ -374,6 +374,10 @@ def main():
     dT_max_err = 0.25 * np.sqrt(2.)
     weights = np.power(e_laser_err, -2)  # + np.power(dT_max_err, -2)
     # weights = 1.  # weights / weights.max()
+    # e_laser = e_laser[1::]
+    # e_laser_err = e_laser_err[1::]
+    # dT_max = dT_max[1::]
+    # weights = weights[1::]
 
     all_tol = float(np.finfo(np.float64).eps)
     res: OptimizeResult = least_squares(

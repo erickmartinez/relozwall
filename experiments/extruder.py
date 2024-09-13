@@ -123,6 +123,7 @@ class ExtrusionProcedure(Procedure):
             ki = 0.4 * self.__pid_ku / self.__pid_tu
             kd = 2.0 * self.__pid_ku * self.__pid_tu / 30.0
             pid = PID(kp, ki, kd, setpoint=initial_temperature)
+            pid.differential_on_measurement = False
             pid.output_limits = (0, 200.0)
 
             log.info('Setting up DC voltage')

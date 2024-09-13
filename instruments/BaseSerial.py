@@ -1,13 +1,10 @@
-import io
 import os.path
-import struct
 import sys
 import time
-import logging
-from typing import Callable
 from pathlib import Path
+from typing import Callable
+
 import serial
-from serial import SerialException
 import serial.tools.list_ports
 
 
@@ -54,6 +51,7 @@ class BaseSerial:
             time.sleep(self._delay)
         except serial.SerialException as e:
             print(f"Could not open port {port}.")
+            print(f"\t{e}")
             return False
         except Exception as err:
             print(err)
@@ -67,6 +65,8 @@ class BaseSerial:
             if reply == self._valid_id_specific:
                 print(f"Found '{self.name}' at port '{port}'")
                 return True
+            else:
+                print(f"'{self.name}' not found in port '{port}'")
         except Exception as e:
             print(f"'{self.name}' not found in port '{port}'")
 

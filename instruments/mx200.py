@@ -16,16 +16,8 @@ class MX200(BaseSerial):
     Represents the Televac MX200 Controller
     """
 
-    __address = 'COM3'
-    __baud_rate = 115200
-    __byte_size = serial.EIGHTBITS
-    __timeout = 0.005
-    __parity = serial.PARITY_NONE
-    __stopbits = serial.STOPBITS_ONE
-    __xonxoff = 1
-    __delay = 0.005
-    __keep_alive: bool = True
-    __serial: serial.Serial = None
+    __timeout = 0.01
+    __delay = 0.002
     _log: logging.Logger = None
 
     units_mapping = {
@@ -47,9 +39,10 @@ class MX200(BaseSerial):
             "rtscts": False,
             "dsrdtr": False,
             "exclusive": None,
-            "timeout": 0.005,
-            "write_timeout": 1.,
+            "timeout": self.__timeout,
+            "write_timeout": 0.05,
         }
+
 
         self.set_id_validation_query(
             id_validation_query=self.id_validation_query,
@@ -70,6 +63,12 @@ class MX200(BaseSerial):
             ch = logging.StreamHandler()
             ch.setLevel(logging.DEBUG)
             self._log.addHandler(ch)
+
+        self._ppsee_pattern = re.compile(r"\d{5}")
+        self._previous_pressures = ['', '']
+        for i in range(2):
+            while type(self._previous_pressures[i]) != float:
+                self._previous_pressures[i] = self.pressure(i + 1)
 
     def id_validation_query(self) -> str:
         response = self.query('SN')
@@ -122,7 +121,7 @@ class MX200(BaseSerial):
                 groups = match.groups()
                 gauge_number = int(groups[0])
                 reading = groups[1]
-                if re.match(r"\d{5}", reading):
+                if self._ppsee_pattern.match(reading) is not None:
                     pressures[gauge_number] = self.ppsee(reading)
                 else:
                     pressures[gauge_number] = reading
@@ -130,12 +129,18 @@ class MX200(BaseSerial):
                 pressures[i] = None
         return pressures
 
-    def pressure(self, gauge_number: int):
+    def pressure(self, gauge_number: int, use_previous = True):
         if 1 <= gauge_number <= 2:
             q = 'S1{0:02d}'.format(gauge_number)
-            pressure = self.query(q)
-            if re.match(r"\d{5}", pressure):
+            # pressure = self.query(q)
+            self._serial.write(f"{q}\r".encode('utf-8'))
+            time.sleep(self.__delay)
+            pressure = self._serial.read(7).decode('utf-8').rstrip("\r\n")
+            if self._ppsee_pattern.match(pressure) is not None:
                 pressure = self.ppsee(pressure)
+                self._previous_pressures[gauge_number] = pressure
+            elif use_previous:
+                pressure = self._previous_pressures[gauge_number]
             return pressure
         else:
             msg = "Invalid gauge number ({0:d}). Valid gauges are 1-2.".format(gauge_number)
@@ -158,7 +163,9 @@ class MX200(BaseSerial):
             q = f"W1{value.upper()}"
             self._serial.write(f'{q}\r'.encode('utf-8'))
             time.sleep(2.0)
-            r = self._serial.read(4).decode('utf-8').rstrip("\r\n")
+            # r = self._serial.read(4).decode('utf-8').rstrip('\r\n')
+            # time.sleep(self.__delay)
+            r = self.query('R1')
             if r != value:
                 self._log.warning(f'Units {value} could not be set. Query \'{q}\' returned \'{r}\'')
                 if attempts < 3:
@@ -250,15 +257,12 @@ class MX200(BaseSerial):
             self.__delay = value
 
     def write(self, q: str):
-        # if self.__keep_alive:
         self._serial.write("{0}\r".format(q).encode('utf-8'))
         sleep(self.__delay)
 
-    def query(self, q: str, delay: float = None) -> str:
-        if delay is None:
-            delay = self.__delay
+    def query(self, q: str) -> str:
         self._serial.write("{0}\r".format(q).encode('utf-8'))
-        sleep(delay)
+        sleep(self.__delay)
         line = self._serial.readline()
-        sleep(delay)
+        sleep(self.__delay)
         return line.decode('utf-8').rstrip("\r\n").rstrip(" ")

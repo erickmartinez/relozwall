@@ -730,6 +730,7 @@ class ExtruderReadout(ArduinoTCP):
             # reading = [float(x) for x in res.split(',')]
             result = np.array(list(struct.unpack('<ffflH', res)))
             if np.isnan(result).any():
+                print(f'Value error received in extrusion readout.')
                 attempts += 1
                 if attempts <= 5:
                     return self.get_reading(attempts=attempts)
@@ -745,6 +746,16 @@ class ExtruderReadout(ArduinoTCP):
     @property
     def reading(self):
         return self.get_reading()
+
+    def averaged_reading(self, n=3):
+        if n < 1:
+            return self.reading
+        sum_r = np.zeros(5, dtype=float)
+        for i in range(n):
+            r = self.reading
+            sum_r += r
+        inv_n = 1. / n
+        return inv_n * sum_r
 
     def zero(self):
         # old_delay = self.delay
