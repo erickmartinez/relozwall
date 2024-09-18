@@ -7,8 +7,14 @@ import json
 import numpy as np
 from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
+from scipy.stats.distributions import t
 
 k_b = 8.617333262E-5 # eV/K
+condidence = 0.95
+alpha = 1. - condidence
+
+def get_t(n):
+    return t.ppf(1 - alpha/2., n-1)
 
 def r1(TK, r_m, e_a, T_m):
     x = (TK - T_m) / T_m
@@ -22,6 +28,15 @@ def r2(TK, r_m, e_a, T_m):
     xx = 1. + x
     inv = np.exp(-a*x/xx)+ np.power(xx, 2.)*np.exp(a*x/xx)
     return 4. * np.power(inv, -2.) * r_m
+
+ln_4 = np.log(4.)
+def r2_log(TK, r_m, e_a, T_m):
+    global ln_4
+    x = (TK - T_m) / T_m
+    a = 0.5 * e_a / k_b / T_m
+    xx = 1. + x
+    inv = np.exp(-a*x/xx)+ np.power(xx, 2.)*np.exp(a*x/xx)
+    return ln_4 + np.log(r_m) - 2. * np.log(inv)
 
 
 def u1(TK, r_m, e_a, T_m):
@@ -82,20 +97,20 @@ def jac_1(b, x, y):
     return jm
 
 def jac_r2(b, x, y):
-  rm = b[0]
-  ea = b[1]
-  tm = b[2]
+    rm = b[0]
+    ea = b[1]
+    tm = b[2]
 
-  rm12 = np.sqrt(rm)
+    rm12 = np.sqrt(rm)
 
-  rr = r2(x, rm, ea, tm)
-  r32 = np.power(rr, 3./2.)
+    rr = r2(x, rm, ea, tm)
+    r32 = np.power(rr, 3./2.)
 
-  v_0 = (rr / rm) * np.ones(len(x), dtype=np.float64)
-  v_1 = (r32 / rm12 / ea) * v1(x, rm, ea, tm)
-  v_2 = (r32 / rm12 / tm) * v2(x, rm, ea, tm)
-  jm = np.array([v_0, v_1, v_2]).T
-  return jm
+    v_0 = (rr / rm) * np.ones(len(x), dtype=np.float64)
+    v_1 = (r32 / rm12 / ea) * v1(x, rm, ea, tm)
+    v_2 = (r32 / rm12 / tm) * v2(x, rm, ea, tm)
+    jm = np.array([v_0, v_1, v_2]).T
+    return jm
 
 def model_2(x, b):
     # Use 5 peak shapes to fit the boron pebble rod data
@@ -105,7 +120,7 @@ def model_2(x, b):
     rm_4, ea_4, tm_4 = b[9], b[10], b[11]
     rm_5, ea_5, tm_5 = b[12], b[13], b[14]
     rr1 = r1(x, rm_1, ea_1, tm_1)
-    rr2 = r2(x, rm_2, ea_2, tm_2)
+    rr2 = r1(x, rm_2, ea_2, tm_2)
     rr3 = r1(x, rm_3, ea_3, tm_3)
     rr4 = r1(x, rm_4, ea_4, tm_4)
     rr5 = r1(x, rm_5, ea_5, tm_5)
@@ -119,12 +134,36 @@ def jac_2(b, x, y):
     n = len(b)
     result = np.zeros((m, n), dtype=np.float64)
     result[:, 0:3] = jac_1(b[0:3], x, y)
-    result[:, 3:6] = jac_r2(b[3:6], x, y)
+    result[:, 3:6] = jac_1(b[3:6], x, y)
     result[:, 6:9] = jac_1(b[6:9], x, y)
     result[:, 9:12] = jac_1(b[9:12], x, y)
     result[:, 12:15] = jac_1(b[12:15], x, y)
     return result
 
+def model_3(x, b):
+    # Use 5 peak shapes to fit the boron pebble rod data
+    rm_1, ea_1, tm_1 = b[0], b[1], b[2]
+    rm_2, ea_2, tm_2 = b[3], b[4], b[5]
+    rm_3, ea_3, tm_3 = b[6], b[7], b[8]
+    rm_4, ea_4, tm_4 = b[9], b[10], b[11]
+    rr1 = r1(x, rm_1, ea_1, tm_1)
+    rr2 = r1(x, rm_2, ea_2, tm_2)
+    rr3 = r1(x, rm_3, ea_3, tm_3)
+    rr4 = r1(x, rm_4, ea_4, tm_4)
+    return rr1 + rr2 + rr3 + rr4
+
+def res_3(b, x, y):
+    return model_3(x, b) - y
+
+def jac_3(b, x, y):
+    m = len(x)
+    n = len(b)
+    result = np.zeros((m, n), dtype=np.float64)
+    result[:, 0:3] = jac_1(b[0:3], x, y)
+    result[:, 3:6] = jac_1(b[3:6], x, y)
+    result[:, 6:9] = jac_1(b[6:9], x, y)
+    result[:, 9:12] = jac_1(b[9:12], x, y)
+    return result
 
 
 def load_plot_style():
@@ -163,12 +202,15 @@ def main():
     d2_p_p = d2_p[msk_positive_d2]
 
     # Fit the data for boron rod dh data with single desorption peak of order 1
+    # Tried fitting in log space but too much weight was given for data away from
+    # the peak. All important data is around the peak within the same order of
+    # magnitude of the peak height.
     dh_r_max = dh_r.max() # get rm
     idx_dh_r_max = np.argmin(np.abs(dh_r - dh_r_max)) # find the index of the max
     t_dh_m = temp_r_k[idx_dh_r_max] # explicitly get tm
     # The initial guess for the least_squares
     x0 = np.array([
-        dh_r_max, 1., t_dh_m
+        dh_r_max, 2.5, t_dh_m
     ])
     all_tol = float(np.finfo(np.float64).eps)
     ls_res1: OptimizeResult = least_squares(
@@ -206,7 +248,7 @@ def main():
     t_d2_m = temp_r_k[idx_d2_r_max]  # explicitly get tm
     # The initial guess for the least_squares
     x0 = np.array([
-        d2_r_max, 2., t_d2_m
+        d2_r_max, 2.5, t_d2_m
     ])
     ls_res2: OptimizeResult = least_squares(
         res_1, x0, args=(temp_r_k, d2_r), loss='linear', f_scale=0.1,
@@ -237,14 +279,14 @@ def main():
     d2_r_txt = r'$E_{\mathrm{a}} = ' + f'{popt2[1]:.1f}\pm{popt2_delta[1]:.2f}' + r'~\mathrm{eV}$' + '\n'
     d2_r_txt += r'$T_{\mathrm{p}} = ' + f'{popt2[2]:.0f}\pm{popt2_delta[2]:.0f}' + r'~\mathrm{K}$'
 
-    # Fit the data for boron pebble rod d-h with single desorption peak of order 1
+    # Fit the data for boron pebble rod d-h with multiple desorption peaks
     # The initial guess for the least_squares
     x0 = np.array([
         5E16, 0.5, 370,
         1E16, 0.5, 492,
         5E13, 1., 800,
         5E16, 1., 880,
-        2E17, 2., 1100,
+        2E17, 2.5, 1100,
     ])
     ls_res3: OptimizeResult = least_squares(
         res_2, x0, args=(temp_p_k_p1, dh_p_p), loss='linear', f_scale=0.1,
@@ -275,7 +317,7 @@ def main():
     popt3 = ls_res3.x
     x1_pred = np.linspace(300, 1200, 2000)
     parameters_3_ci = cf.confidence_interval(res=ls_res3, level=0.95)
-    print("**** Fit parameters for boron rod sample ***")
+    print("**** Fit parameters for boron pebble rod sample ***")
     print("**** D-H ***")
     n_popt3 = len(popt3)
     popt3_delta = np.empty(len(popt3), dtype=np.float64)
@@ -293,14 +335,14 @@ def main():
     tms, tms_e = popt3[msk_tm], popt3_delta[msk_tm]
 
     table1_data = []
-    table1 = r'''\begin{tabular}{ | l | c | c | r |} '''
+    table1 = r'''\begin{tabular}{ | l | c | r |} '''
     table1 += r'''\hline'''
-    table1 += r'''$P$ & $n$ & \centering $E_{\mathrm{a}}$ & $T_{\mathrm{p}}$\\\hline'''
+    table1 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\\hline'''
 
     for i in range(len(rms)):
         order = 2 if i == 1 else 1
-        table1 += r'''{0} & {1} & {2:.1f} ± {3:.1f} & {4:.0f} \\ \hline'''.format(
-        i+1, order, eas[i], eas_e[i], tms[i], tms_e[i])
+        table1 += r'''{0} & {1:.1f} ± {2:.2f} & {3:.0f} \\ \hline'''.format(
+        i+1, eas[i], eas_e[i], tms[i], tms_e[i])
         # table1_data.append([f"{i}", f"{order}", f"{eas[i]:.2f} ± {eas_e[i]:.2f}", f"{tms[i]:.0f} ± {tms_e[i]:.0f}"])
 
     # table1 += r'''\hline'''
@@ -311,10 +353,84 @@ def main():
     )
 
     y3_p1 = r1(x1_pred, r_m=popt3[0], e_a=popt3[1], T_m=popt3[2])
-    y3_p2 = r2(x1_pred, r_m=popt3[3], e_a=popt3[4], T_m=popt3[5])
+    y3_p2 = r1(x1_pred, r_m=popt3[3], e_a=popt3[4], T_m=popt3[5])
     y3_p3 = r1(x1_pred, r_m=popt3[6], e_a=popt3[7], T_m=popt3[8])
     y3_p4 = r1(x1_pred, r_m=popt3[9], e_a=popt3[10], T_m=popt3[11])
     y3_p5 = r1(x1_pred, r_m=popt3[12], e_a=popt3[13], T_m=popt3[14])
+
+    # Fit the data for boron pebble rod d2 with multiple desorption peaks
+    # The initial guess for the least_squares
+    x0 = np.array([
+        1E16, 1., 425,
+        5E13, 1., 800,
+        5E16, 1., 890,
+        2E17, 2.5, 1150,
+    ])
+    ls_res4: OptimizeResult = least_squares(
+        res_3, x0, args=(temp_p_k_p2, d2_p_p), loss='linear', f_scale=0.1,
+        bounds=(
+            [
+                0., 0.1, 350,
+                0., 0.1, 650,
+                0., 0.1, 800,
+                1E15, 0.1, 1000,
+            ],
+            [
+                1E17, 10., 600,
+                1E17, 10., 850,
+                1E17, 10., 950,
+                1E18, 10., 2000,
+            ]
+        ),
+        jac=jac_3,
+        xtol=all_tol,
+        ftol=all_tol,
+        gtol=all_tol,
+        verbose=2,
+        max_nfev=10000 * len(temp_p_k_p2)
+    )
+
+    popt4 = ls_res4.x
+    x1_pred = np.linspace(300, 1200, 2000)
+    parameters_4_ci = cf.confidence_interval(res=ls_res4, level=0.95)
+    print("**** Fit parameters for boron pebble rod sample ***")
+    print("**** D2 ***")
+    n_popt4 = len(popt4)
+    popt4_delta = np.empty(len(popt4), dtype=np.float64)
+
+    for i, p, lci, uci in zip(range(n_popt4), popt4, parameters_4_ci[:, 0], parameters_4_ci[:, 1]):
+        print(f'beta[{i}]: {p:>7.3g}, 95% CI: [{lci:>7.3g}, {uci:>7.3g}]')
+        popt4_delta[i] = uci - p
+
+    selector = np.arange(0, len(popt4)) % 3
+    msk_rm = selector == 0
+    msk_ea = selector == 1
+    msk_tm = selector == 2
+    rms, rms_e = popt4[msk_rm], popt4_delta[msk_rm]
+    eas, eas_e = popt4[msk_ea], popt4_delta[msk_ea]
+    tms, tms_e = popt4[msk_tm], popt4_delta[msk_tm]
+
+    table2 = r'''\begin{tabular}{ | l | c | r |} '''
+    table2 += r'''\hline'''
+    table2 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\ \hline'''
+
+    for i in range(len(rms)):
+        order = 2 if i == 0 else 1
+        table2 += r'''{0} & {1:.1f} ± {2:.1f} & {3:.0f} \\ \hline'''.format(
+            i + 1, eas[i], eas_e[i], tms[i], tms_e[i])
+        # table1_data.append([f"{i}", f"{order}", f"{eas[i]:.2f} ± {eas_e[i]:.2f}", f"{tms[i]:.0f} ± {tms_e[i]:.0f}"])
+
+    # table1 += r'''\hline'''
+    table2 += r'''\end{tabular}'''
+
+    y4_pred, delta4 = cf.prediction_intervals(
+        model=model_3, x_pred=x1_pred, ls_res=ls_res4, jac=jac_3
+    )
+
+    y4_p1 = r1(x1_pred, r_m=popt4[0], e_a=popt4[1], T_m=popt4[2])
+    y4_p2 = r1(x1_pred, r_m=popt4[3], e_a=popt4[4], T_m=popt4[5])
+    y4_p3 = r1(x1_pred, r_m=popt4[6], e_a=popt4[7], T_m=popt4[8])
+    y4_p4 = r1(x1_pred, r_m=popt4[9], e_a=popt4[10], T_m=popt4[11])
 
 
 
@@ -351,17 +467,35 @@ def main():
     )
 
     axes[1, 0].plot(temp_p_k_p1, dh_p_p, c='C1', ls='none', marker='^', mfc='none', label='H-D boron pebble rod')
-    axes[1, 1].plot(temp_p_k_p2, d2_p_p, c='C3', ls='-', label='D$_{\mathregular{2}}$ boron pebble rod')
+    axes[1, 1].plot(temp_p_k_p2, d2_p_p, c='C1', ls='none', marker='D', mfc='none', label='D$_{\mathregular{2}}$ boron pebble rod')
 
     axes[1, 0].plot(x1_pred, y3_pred, 'k', ls='-', lw=2, label=f'Fit')
-    axes[1, 0].plot(x1_pred, y3_p1, 'C1', ls='-')
-    axes[1, 0].plot(x1_pred, y3_p2, 'C2', ls='-')
-    axes[1, 0].plot(x1_pred, y3_p3, 'C3', ls='-')
-    axes[1, 0].plot(x1_pred, y3_p4, 'C4', ls='-')
-    axes[1, 0].plot(x1_pred, y3_p5, 'C5', ls='-')
+    axes[1, 0].plot(x1_pred, y3_p1, 'C2', ls='-', alpha=0.75)
+    axes[1, 0].plot(x1_pred, y3_p2, 'C3', ls='-', alpha=0.75)
+    axes[1, 0].plot(x1_pred, y3_p3, 'C4', ls='-', alpha=0.75)
+    axes[1, 0].plot(x1_pred, y3_p4, 'C5', ls='-', alpha=0.75)
+    axes[1, 0].plot(x1_pred, y3_p5, 'C6', ls='-', alpha=0.75)
+
+    # y3_0 = np.zeros_like(x1_pred)
+    # axes[1, 0].fill_between(x1_pred, y3_0, y3_p1, color='C2', alpha=0.5)
+    # axes[1, 0].fill_between(x1_pred, y3_0, y3_p2, color='C3', alpha=0.5)
+    # axes[1, 0].fill_between(x1_pred, y3_0, y3_p3, color='C4', alpha=0.5)
+    # axes[1, 0].fill_between(x1_pred, y3_0, y3_p4, color='C5', alpha=0.5)
+    # axes[1, 0].fill_between(x1_pred, y3_0, y3_p5, color='C6', alpha=0.5)
 
     axes[1, 0].text(
         0.05, 0.95, table1, usetex=True, transform=axes[1, 0].transAxes,
+        fontsize=9, ha='left', va='top'
+    )
+
+    axes[1, 1].plot(x1_pred, y4_pred, 'k', ls='-', lw=2, label=f'Fit')
+    axes[1, 1].plot(x1_pred, y4_p1, 'C2', ls='-', alpha=0.75)
+    axes[1, 1].plot(x1_pred, y4_p2, 'C3', ls='-', alpha=0.75)
+    axes[1, 1].plot(x1_pred, y4_p3, 'C4', ls='-', alpha=0.75)
+    axes[1, 1].plot(x1_pred, y4_p4, 'C5', ls='-', alpha=0.75)
+
+    axes[1, 1].text(
+        0.05, 0.95, table2, usetex=True, transform=axes[1, 1].transAxes,
         fontsize=9, ha='left', va='top'
     )
 
@@ -372,6 +506,16 @@ def main():
     # axes[1].plot(temp_p_k, d_p_total, c='k', ls='-', label='2D$_{\mathregular{2}}$ + HD')
     # axes[1, 0].set_title('Boron pebble rod')
     # axes[1, 1].set_title('Boron pebble rod')
+
+    for ax in axes[0, :]:
+        ax.set_ylim(0, 1.5E20)
+        ax.yaxis.set_major_locator(ticker.MultipleLocator(2.5E19))
+        ax.yaxis.set_minor_locator(ticker.MultipleLocator(5E18))
+
+    for ax in axes[1, :]:
+        ax.set_ylim(-1.75E17, 3.5E17)
+        ax.yaxis.set_major_locator(ticker.MultipleLocator(1E17))
+        ax.yaxis.set_minor_locator(ticker.MultipleLocator(2.5E16))
 
     for i, ax in enumerate(axes.flatten()):
         ax.set_xlim(200, 1200)
@@ -385,7 +529,7 @@ def main():
     fig.supxlabel('T (K)')
     fig.supylabel('Desorption flux (m$^{\mathregular{-2}}$ s$^{\mathregular{-1}}$)')
 
-    # fig.savefig(os.path.join('./figures', '20240909_TDS_boron_pebble_vs_boron_rod.png'), dpi=600)
+    fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.png'), dpi=600)
 
     plt.show()
 
