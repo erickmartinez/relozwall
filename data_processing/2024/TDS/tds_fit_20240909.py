@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from dask.array.random import normal
 from matplotlib import rcParams
 import os
 import json
@@ -8,6 +9,7 @@ import numpy as np
 from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 from scipy.stats.distributions import t
+import matplotlib as mpl
 
 k_b = 8.617333262E-5 # eV/K
 condidence = 0.95
@@ -119,6 +121,7 @@ def model_2(x, b):
     rm_3, ea_3, tm_3 = b[6], b[7], b[8]
     rm_4, ea_4, tm_4 = b[9], b[10], b[11]
     rm_5, ea_5, tm_5 = b[12], b[13], b[14]
+    rm_5, ea_6, tm_5 = b[15], b[16], b[17]
     rr1 = r1(x, rm_1, ea_1, tm_1)
     rr2 = r1(x, rm_2, ea_2, tm_2)
     rr3 = r1(x, rm_3, ea_3, tm_3)
@@ -165,13 +168,48 @@ def jac_3(b, x, y):
     result[:, 9:12] = jac_1(b[9:12], x, y)
     return result
 
+def model_sum1(x, b):
+    nn = len(b)
+    selector = np.arange(0, nn) % 3
+    msk_rm = selector == 0
+    msk_ea = selector == 1
+    msk_tm = selector == 2
+    rms = b[msk_rm]
+    eas = b[msk_ea]
+    tms = b[msk_tm]
+    n = len(rms)
+    result = np.zeros_like(x, dtype=np.float64)
+    for i in range(n):
+        result += r1(x, rms[i], eas[i], tms[i])
+    return result
+
+def res_sum1(b, x, y):
+    return model_sum1(x, b) - y
+
+def jac_sum1(b, x, y):
+    nn = len(b)
+    m = len(x)
+    selector = np.arange(0, nn) % 3
+    msk_rm = selector == 0
+    msk_ea = selector == 1
+    msk_tm = selector == 2
+    rms = b[msk_rm]
+    eas = b[msk_ea]
+    tms = b[msk_tm]
+    n = len(rms)
+    result = np.zeros((m, nn), dtype=np.float64)
+    for i in range(n):
+        cols = 3*i + np.arange(0, 3)
+        result[:, cols] = jac_1(np.array([rms[i], eas[i], tms[i]]), x, y)
+    return result
 
 def load_plot_style():
     with open('plot_style.json', 'r') as file:
         json_file = json.load(file)
         plot_style = json_file['thinLinePlotStyle']
     rcParams.update(plot_style)
-    plt.rcParams['text.latex.preamble'] = r'\usepackage{mathptmx}'
+    plt.rcParams['text.latex.preamble'] = (r'\usepackage{mathptmx}'
+                                           r'\usepackage{xcolor}')
 
 def main():
     # The boron rod
@@ -201,6 +239,8 @@ def main():
     dh_p_p = dh_p[msk_positive_dh]
     d2_p_p = d2_p[msk_positive_d2]
 
+    cmap = mpl.colormaps.get_cmap('rainbow')
+
     # Fit the data for boron rod dh data with single desorption peak of order 1
     # Tried fitting in log space but too much weight was given for data away from
     # the peak. All important data is around the peak within the same order of
@@ -210,13 +250,23 @@ def main():
     t_dh_m = temp_r_k[idx_dh_r_max] # explicitly get tm
     # The initial guess for the least_squares
     x0 = np.array([
-        dh_r_max, 2.5, t_dh_m
+        dh_r_max*0.25, 1.0, t_dh_m*0.9,
+        dh_r_max*0.9, 1.5, t_dh_m,
     ])
     all_tol = float(np.finfo(np.float64).eps)
     ls_res1: OptimizeResult = least_squares(
-        res_1, x0, args=(temp_r_k, dh_r), loss='linear', f_scale=0.1,
-        bounds=([0., -20., temp_r_k.min()], [np.inf, 20., temp_r_k.max()]),
-        jac=jac_1,
+        res_sum1, x0, args=(temp_r_k, dh_r), loss='linear', f_scale=0.1,
+        bounds=(
+            [
+                0., 0.01, temp_r_k.min(),
+                0., 1.0, temp_r_k.min()
+            ],
+            [
+                np.inf, 3., temp_r_k.max(),
+                np.inf, 6., temp_r_k.max()
+            ]
+        ),
+        jac=jac_sum1,
         xtol=all_tol,
         ftol=all_tol,
         gtol=all_tol,
@@ -230,14 +280,44 @@ def main():
     print("**** Fit parameters for boron rod sample ***")
     print("**** D-H ***")
     n_popt1 = len(popt1)
-    popt1_delta = np.empty(3, dtype=np.float64)
+    popt1_delta = np.empty(n_popt1, dtype=np.float64)
     for i, p, lci, uci in zip(range(n_popt1), popt1, parameters_1_ci[:, 0], parameters_1_ci[:, 1]):
         print(f'beta[{i}]: {p:>7.3g}, 95% CI: [{lci:>7.3g}, {uci:>7.3g}]')
         popt1_delta[i] = uci - p
 
+    selector = np.arange(0, len(popt1)) % 3
+    msk_rm = selector == 0
+    msk_ea = selector == 1
+    msk_tm = selector == 2
+    rms, rms_e = popt1[msk_rm], popt1_delta[msk_rm]
+    eas, eas_e = popt1[msk_ea], popt1_delta[msk_ea]
+    tms, tms_e = popt1[msk_tm], popt1_delta[msk_tm]
+
+    n_peaks = len(rms)
+    norm1 = plt.cm.colors.Normalize(vmin=0, vmax=n_peaks - 1)
+    colors1 = [cmap(norm1(i)) for i in range(n_peaks)]
+
+    table1 = r'''\begin{tabular}{ | l | c | r |} ''' + '\n'
+    table1 += r'''\hline''' + '\n'
+    table1 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\\hline''' + '\n'
+
+    for i in range(n_peaks):
+        color_i = mpl.colors.to_rgba(colors1[i])
+        c_txt = r"\textcolor[rgb]{%.3f, %.3f, %.3f}" % (color_i[0], color_i[1], color_i[2])
+        print(c_txt)
+        table1 += r'''{0}{{ {1} }} & {2:.1f} ± {3:.2f} & {4:.0f} '''.format(
+            c_txt, i + 1, eas[i], eas_e[i], tms[i], tms_e[i]) + r"\\ \hline" + '\n'
+    table1 += r'''\end{tabular}'''
+
+    print(table1)
+    table1 = table1.replace("\n", "")
+
     y1_pred, delta1 = cf.prediction_intervals(
-        model=model_1, x_pred=x1_pred, ls_res=ls_res1, jac=jac_1
+        model=model_sum1, x_pred=x1_pred, ls_res=ls_res1, jac=jac_sum1
     )
+
+    y1_p1 = r1(x1_pred, r_m=popt1[0], e_a=popt1[1], T_m=popt1[2])
+    y1_p2 = r1(x1_pred, r_m=popt1[3], e_a=popt1[4], T_m=popt1[5])
 
     dh_r_txt = r'$E_{\mathrm{a}} = ' + f'{popt1[1]:.1f}\pm{popt1_delta[1]:.2f}' + r'~\mathrm{eV}$' + '\n'
     dh_r_txt += r'$T_{\mathrm{p}} = ' + f'{popt1[2]:.0f}\pm{popt1_delta[2]:.0f}' + r'~\mathrm{K}$'
@@ -248,12 +328,22 @@ def main():
     t_d2_m = temp_r_k[idx_d2_r_max]  # explicitly get tm
     # The initial guess for the least_squares
     x0 = np.array([
-        d2_r_max, 2.5, t_d2_m
+        d2_r_max*0.25, 1., t_d2_m*0.9,
+        d2_r_max*0.9, 2., t_d2_m
     ])
     ls_res2: OptimizeResult = least_squares(
-        res_1, x0, args=(temp_r_k, d2_r), loss='linear', f_scale=0.1,
-        bounds=([0., -20., temp_r_k.min()], [np.inf, 20., temp_r_k.max()]),
-        jac=jac_1,
+        res_sum1, x0, args=(temp_r_k, d2_r), loss='linear', f_scale=0.1,
+        bounds=(
+            [
+                0., 0.01, temp_r_k.min(),
+                0., 1.0, temp_r_k.min()
+            ],
+            [
+                np.inf, 3., temp_r_k.max(),
+                np.inf, 6., temp_r_k.max()
+            ]
+        ),
+        jac=jac_sum1,
         xtol=all_tol,
         ftol=all_tol,
         gtol=all_tol,
@@ -265,16 +355,39 @@ def main():
     x1_pred = np.linspace(300, 1200, 2000)
     parameters_2_ci = cf.confidence_interval(res=ls_res2, level=0.95)
     print("**** Fit parameters for boron rod sample ***")
-    print("**** D-H ***")
+    print("**** D2 ***")
     n_popt2 = len(popt2)
-    popt2_delta = np.empty(3, dtype=np.float64)
+
+    popt2_delta = np.empty(n_popt2, dtype=np.float64)
     for i, p, lci, uci in zip(range(n_popt2), popt2, parameters_2_ci[:, 0], parameters_2_ci[:, 1]):
         print(f'beta[{i}]: {p:>7.3g}, 95% CI: [{lci:>7.3g}, {uci:>7.3g}]')
         popt2_delta[i] = uci - p
 
+    selector = np.arange(0, len(popt2)) % 3
+    msk_rm = selector == 0
+    msk_ea = selector == 1
+    msk_tm = selector == 2
+    rms, rms_e = popt2[msk_rm], popt2_delta[msk_rm]
+    eas, eas_e = popt2[msk_ea], popt2_delta[msk_ea]
+    tms, tms_e = popt2[msk_tm], popt2_delta[msk_tm]
+    table2 = r'''\begin{tabular}{ | l | c | r |} '''
+    table2 += r'''\hline'''
+    table2 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\\hline'''
+
+    n_peaks = len(rms)
+    norm2 = plt.cm.colors.Normalize(vmin=0, vmax=n_peaks - 1)
+    colors2 = [cmap(norm2(i)) for i in range(n_peaks)]
+    for i in range(n_peaks):
+        table2 += r'''{0} & {1:.1f} ± {2:.2f} & {3:.0f} \\ \hline'''.format(
+            i + 1, eas[i], eas_e[i], tms[i], tms_e[i])
+    table2 += r'''\end{tabular}'''
+
     y2_pred, delta2 = cf.prediction_intervals(
-        model=model_1, x_pred=x1_pred, ls_res=ls_res2, jac=jac_1
+        model=model_sum1, x_pred=x1_pred, ls_res=ls_res2, jac=jac_sum1
     )
+
+    y2_p1 = r1(x1_pred, r_m=popt2[0], e_a=popt2[1], T_m=popt2[2])
+    y2_p2 = r1(x1_pred, r_m=popt2[3], e_a=popt2[4], T_m=popt2[5])
 
     d2_r_txt = r'$E_{\mathrm{a}} = ' + f'{popt2[1]:.1f}\pm{popt2_delta[1]:.2f}' + r'~\mathrm{eV}$' + '\n'
     d2_r_txt += r'$T_{\mathrm{p}} = ' + f'{popt2[2]:.0f}\pm{popt2_delta[2]:.0f}' + r'~\mathrm{K}$'
@@ -282,31 +395,34 @@ def main():
     # Fit the data for boron pebble rod d-h with multiple desorption peaks
     # The initial guess for the least_squares
     x0 = np.array([
-        5E16, 0.5, 370,
-        1E16, 0.5, 492,
-        5E13, 1., 800,
-        5E16, 1., 880,
-        2E17, 2.5, 1100,
+        5E16, 0.3, 380,
+        4E16, 0.3, 490,
+        1E15, 0.5, 750,
+        4E16, 1.0, 810,
+        2E17, 2.0, 1000,
+        # 2E17, 2.1, 1100,
     ])
     ls_res3: OptimizeResult = least_squares(
-        res_2, x0, args=(temp_p_k_p1, dh_p_p), loss='linear', f_scale=0.1,
+        res_sum1, x0, args=(temp_p_k_p1, dh_p_p), loss='linear', f_scale=0.1,
         bounds=(
             [
                 0, 0.1, 200,
-                0., 0.1, 350,
+                0., 0.1, 420,
                 0., 0.1, 650,
                 0., 0.1, 800,
-                1E15, 0.1, 1000,
+                0., 0.1, 900,
+                # 1E15, 0.1, 1000,
             ],
             [
                 1E17, np.inf, 450,
                 1E17, np.inf, 600,
-                1E17, np.inf, 850,
+                1E17, np.inf, 890,
                 1E17, np.inf, 950,
+                # 1E18, 3., 1095,
                 1E18, np.inf, 2000,
             ]
         ),
-        jac=jac_2,
+        jac=jac_sum1,
         xtol=all_tol,
         ftol=all_tol,
         gtol=all_tol,
@@ -334,22 +450,20 @@ def main():
     eas, eas_e = popt3[msk_ea], popt3_delta[msk_ea]
     tms, tms_e = popt3[msk_tm], popt3_delta[msk_tm]
 
-    table1_data = []
-    table1 = r'''\begin{tabular}{ | l | c | r |} '''
-    table1 += r'''\hline'''
-    table1 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\\hline'''
+    n_peaks = len(rms)
+    norm3 = plt.cm.colors.Normalize(vmin=0, vmax=n_peaks - 1)
+    colors3 = [cmap(norm3(i)) for i in range(n_peaks)]
+    table3 = r'''\begin{tabular}{ | l | c | r |} '''
+    table3 += r'''\hline'''
+    table3 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\\hline'''
 
-    for i in range(len(rms)):
-        order = 2 if i == 1 else 1
-        table1 += r'''{0} & {1:.1f} ± {2:.2f} & {3:.0f} \\ \hline'''.format(
+    for i in range(n_peaks):
+        table3 += r'''{0} & {1:.1f} ± {2:.2f} & {3:.0f} \\ \hline'''.format(
         i+1, eas[i], eas_e[i], tms[i], tms_e[i])
-        # table1_data.append([f"{i}", f"{order}", f"{eas[i]:.2f} ± {eas_e[i]:.2f}", f"{tms[i]:.0f} ± {tms_e[i]:.0f}"])
-
-    # table1 += r'''\hline'''
-    table1 += r'''\end{tabular}'''
+    table3 += r'''\end{tabular}'''
 
     y3_pred, delta3 = cf.prediction_intervals(
-        model=model_2, x_pred=x1_pred, ls_res=ls_res3, jac=jac_2
+        model=model_sum1, x_pred=x1_pred, ls_res=ls_res3, jac=jac_sum1
     )
 
     y3_p1 = r1(x1_pred, r_m=popt3[0], e_a=popt3[1], T_m=popt3[2])
@@ -357,32 +471,36 @@ def main():
     y3_p3 = r1(x1_pred, r_m=popt3[6], e_a=popt3[7], T_m=popt3[8])
     y3_p4 = r1(x1_pred, r_m=popt3[9], e_a=popt3[10], T_m=popt3[11])
     y3_p5 = r1(x1_pred, r_m=popt3[12], e_a=popt3[13], T_m=popt3[14])
+    # y3_p6= r1(x1_pred, r_m=popt3[15], e_a=popt3[16], T_m=popt3[17])
 
     # Fit the data for boron pebble rod d2 with multiple desorption peaks
     # The initial guess for the least_squares
     x0 = np.array([
-        1E16, 1., 425,
-        5E13, 1., 800,
-        5E16, 1., 890,
-        2E17, 2.5, 1150,
+        1E16, 0.3, 430,
+        4E15, 1.1, 760,
+        1E16, 1.5, 882,
+        1E16, 1.5, 1050,
+        # 1E16, 2.0, 1200,
     ])
     ls_res4: OptimizeResult = least_squares(
-        res_3, x0, args=(temp_p_k_p2, d2_p_p), loss='linear', f_scale=0.1,
+        res_sum1, x0, args=(temp_p_k_p2, d2_p_p), loss='linear', f_scale=0.1,
         bounds=(
             [
                 0., 0.1, 350,
                 0., 0.1, 650,
                 0., 0.1, 800,
-                1E15, 0.1, 1000,
+                1E14, 0.1, 1000,
+                # 1E15, 0.1, 1080,
             ],
             [
                 1E17, 10., 600,
                 1E17, 10., 850,
                 1E17, 10., 950,
+                # 1E18, 4., 1150,
                 1E18, 10., 2000,
             ]
         ),
-        jac=jac_3,
+        jac=jac_sum1,
         xtol=all_tol,
         ftol=all_tol,
         gtol=all_tol,
@@ -402,6 +520,7 @@ def main():
         print(f'beta[{i}]: {p:>7.3g}, 95% CI: [{lci:>7.3g}, {uci:>7.3g}]')
         popt4_delta[i] = uci - p
 
+
     selector = np.arange(0, len(popt4)) % 3
     msk_rm = selector == 0
     msk_ea = selector == 1
@@ -410,27 +529,29 @@ def main():
     eas, eas_e = popt4[msk_ea], popt4_delta[msk_ea]
     tms, tms_e = popt4[msk_tm], popt4_delta[msk_tm]
 
-    table2 = r'''\begin{tabular}{ | l | c | r |} '''
-    table2 += r'''\hline'''
-    table2 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\ \hline'''
+    n_peaks = len(rms)
+    norm4 = plt.cm.colors.Normalize(vmin=0, vmax=n_peaks - 1)
+    colors4 = [cmap(norm4(i)) for i in range(n_peaks)]
+
+    table4 = r'''\begin{tabular}{ | l | c | r |} '''
+    table4 += r'''\hline'''
+    table4 += r'''$P$ & \centering $E_{\mathrm{a}}$ (eV)& $T_{\mathrm{p}}$ (K)\\ \hline'''
 
     for i in range(len(rms)):
         order = 2 if i == 0 else 1
-        table2 += r'''{0} & {1:.1f} ± {2:.1f} & {3:.0f} \\ \hline'''.format(
+        table4 += r'''{0} & {1:.1f} ± {2:.1f} & {3:.0f} \\ \hline'''.format(
             i + 1, eas[i], eas_e[i], tms[i], tms_e[i])
-        # table1_data.append([f"{i}", f"{order}", f"{eas[i]:.2f} ± {eas_e[i]:.2f}", f"{tms[i]:.0f} ± {tms_e[i]:.0f}"])
-
-    # table1 += r'''\hline'''
-    table2 += r'''\end{tabular}'''
+    table4 += r'''\end{tabular}'''
 
     y4_pred, delta4 = cf.prediction_intervals(
-        model=model_3, x_pred=x1_pred, ls_res=ls_res4, jac=jac_3
+        model=model_sum1, x_pred=x1_pred, ls_res=ls_res4, jac=jac_sum1
     )
 
     y4_p1 = r1(x1_pred, r_m=popt4[0], e_a=popt4[1], T_m=popt4[2])
     y4_p2 = r1(x1_pred, r_m=popt4[3], e_a=popt4[4], T_m=popt4[5])
     y4_p3 = r1(x1_pred, r_m=popt4[6], e_a=popt4[7], T_m=popt4[8])
     y4_p4 = r1(x1_pred, r_m=popt4[9], e_a=popt4[10], T_m=popt4[11])
+    # y4_p5 = r1(x1_pred, r_m=popt4[12], e_a=popt4[13], T_m=popt4[14])
 
 
 
@@ -439,42 +560,54 @@ def main():
 
     load_plot_style()
     fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
-    fig.set_size_inches(7., 6.)
+    fig.set_size_inches(7.5, 6.)
+
+
 
     axes[0, 0].plot(temp_r_k, dh_r, c='C0', ls='none', marker='o', mfc='none', label='H-D boron rod')
     axes[0, 1].plot(temp_r_k, d2_r, c='C0', ls='none', marker='s', mfc='none', label='D$_{\mathregular{2}}$ boron rod')
 
-    axes[0, 0].plot(x1_pred, y1_pred, 'k', ls='-', label=f'Fit')
+    axes[0, 0].plot(x1_pred, y1_pred, 'k', ls='-', label=f'Fit', lw=2.)
     # axes[0].plot(temp_r_k, d_r_total, c='k', ls='-', label='2D$_{\mathregular{2}}$ + HD')
     # axes[0, 0].set_title('Boron rod')
     # axes[0, 1].set_title('Boron rod')
+
+    axes[0, 0].plot(x1_pred, y1_p1, c=colors1[0], ls='-', alpha=0.8, lw=1.0)
+    axes[0, 0].plot(x1_pred, y1_p2, c=colors1[1], ls='-', alpha=0.8, lw=1.0)
+
     axes[0, 0].text(
-        0.05, 0.1, dh_r_txt,
+        0.01, 0.5, table1,
         transform=axes[0, 0].transAxes,
-        color='k', fontsize=11,
-        ha='left', va='bottom'
+        fontsize=11,
+        ha='left', va='center',
+        usetex=True
     )
 
-    axes[0, 1].plot(x1_pred, y2_pred, 'k', ls='-', label=f'Fit')
+    axes[0, 1].plot(x1_pred, y2_pred, 'k', ls='-', label=f'Fit', lw=2)
+    axes[0, 1].plot(x1_pred, y2_p1, c=colors2[0], ls='-', alpha=1.0, lw=1.0)
+    axes[0, 1].plot(x1_pred, y2_p2, c=colors2[1], ls='-', alpha=1.0, lw=1.0)
+
     # axes[0].plot(temp_r_k, d_r_total, c='k', ls='-', label='2D$_{\mathregular{2}}$ + HD')
     # axes[0, 0].set_title('Boron rod')
     # axes[0, 1].set_title('Boron rod')
     axes[0, 1].text(
-        0.05, 0.1, d2_r_txt,
+        0.025, 0.5, table2,
         transform=axes[0, 1].transAxes,
         color='k', fontsize=11,
-        ha='left', va='bottom'
+        ha='left', va='center',
+        usetex=True
     )
 
-    axes[1, 0].plot(temp_p_k_p1, dh_p_p, c='C1', ls='none', marker='^', mfc='none', label='H-D boron pebble rod')
-    axes[1, 1].plot(temp_p_k_p2, d2_p_p, c='C1', ls='none', marker='D', mfc='none', label='D$_{\mathregular{2}}$ boron pebble rod')
+    axes[1, 0].plot(temp_p_k_p1, dh_p_p, c='C0', ls='none', marker='^', mfc='none', label='H-D boron pebble rod')
+    axes[1, 1].plot(temp_p_k_p2, d2_p_p, c='C0', ls='none', marker='D', mfc='none', label='D$_{\mathregular{2}}$ boron pebble rod')
 
     axes[1, 0].plot(x1_pred, y3_pred, 'k', ls='-', lw=2, label=f'Fit')
-    axes[1, 0].plot(x1_pred, y3_p1, 'C2', ls='-', alpha=0.75)
-    axes[1, 0].plot(x1_pred, y3_p2, 'C3', ls='-', alpha=0.75)
-    axes[1, 0].plot(x1_pred, y3_p3, 'C4', ls='-', alpha=0.75)
-    axes[1, 0].plot(x1_pred, y3_p4, 'C5', ls='-', alpha=0.75)
-    axes[1, 0].plot(x1_pred, y3_p5, 'C6', ls='-', alpha=0.75)
+    axes[1, 0].plot(x1_pred, y3_p1, c=colors3[0], ls='-', alpha=0.8, lw=1.0)
+    axes[1, 0].plot(x1_pred, y3_p2, c=colors3[1], ls='-', alpha=0.8, lw=1.0)
+    axes[1, 0].plot(x1_pred, y3_p3, c=colors3[2], ls='-', alpha=0.8, lw=1.0)
+    axes[1, 0].plot(x1_pred, y3_p4, c=colors3[3], ls='-', alpha=0.8, lw=1.0)
+    axes[1, 0].plot(x1_pred, y3_p5, c=colors3[4], ls='-', alpha=0.8, lw=1.0)
+    # axes[1, 0].plot(x1_pred, y3_p6, c=colors3[5], ls='-', alpha=0.8, lw=1.0)
 
     # y3_0 = np.zeros_like(x1_pred)
     # axes[1, 0].fill_between(x1_pred, y3_0, y3_p1, color='C2', alpha=0.5)
@@ -484,38 +617,41 @@ def main():
     # axes[1, 0].fill_between(x1_pred, y3_0, y3_p5, color='C6', alpha=0.5)
 
     axes[1, 0].text(
-        0.05, 0.95, table1, usetex=True, transform=axes[1, 0].transAxes,
-        fontsize=9, ha='left', va='top'
+        0.01, 0.985, table3, usetex=True, transform=axes[1, 0].transAxes,
+        fontsize=11, ha='left', va='top'
     )
 
     axes[1, 1].plot(x1_pred, y4_pred, 'k', ls='-', lw=2, label=f'Fit')
-    axes[1, 1].plot(x1_pred, y4_p1, 'C2', ls='-', alpha=0.75)
-    axes[1, 1].plot(x1_pred, y4_p2, 'C3', ls='-', alpha=0.75)
-    axes[1, 1].plot(x1_pred, y4_p3, 'C4', ls='-', alpha=0.75)
-    axes[1, 1].plot(x1_pred, y4_p4, 'C5', ls='-', alpha=0.75)
+    axes[1, 1].plot(x1_pred, y4_p1, c=colors4[0], ls='-', alpha=0.8, lw=1.0)
+    axes[1, 1].plot(x1_pred, y4_p2, c=colors4[1], ls='-', alpha=0.8, lw=1.0)
+    axes[1, 1].plot(x1_pred, y4_p3, c=colors4[2], ls='-', alpha=0.8, lw=1.0)
+    axes[1, 1].plot(x1_pred, y4_p4, c=colors4[3], ls='-', alpha=0.8, lw=1.0)
+    # axes[1, 1].plot(x1_pred, y4_p5, c=colors4[4], ls='-', alpha=0.8, lw=1.0)
 
     axes[1, 1].text(
-        0.05, 0.95, table2, usetex=True, transform=axes[1, 1].transAxes,
-        fontsize=9, ha='left', va='top'
+        0.01, 0.985, table4, usetex=True, transform=axes[1, 1].transAxes,
+        fontsize=11, ha='left', va='top'
     )
 
 
 
-    axes[1, 0].plot(temp_p_k[~msk_positive_dh], dh_p[~msk_positive_dh], c='gray', ls=':') #, label='Anomaly')
-    axes[1, 1].plot(temp_p_k[~msk_positive_d2], d2_p[~msk_positive_d2], c='gray', ls=':')#, label='Anomaly')
+    axes[1, 0].plot(temp_p_k[~msk_positive_dh], dh_p[~msk_positive_dh], c='gray', ls=':', lw=1.0) #, label='Anomaly')
+    axes[1, 1].plot(temp_p_k[~msk_positive_d2], d2_p[~msk_positive_d2], c='gray', ls=':', lw=1.0)#, label='Anomaly')
     # axes[1].plot(temp_p_k, d_p_total, c='k', ls='-', label='2D$_{\mathregular{2}}$ + HD')
-    # axes[1, 0].set_title('Boron pebble rod')
-    # axes[1, 1].set_title('Boron pebble rod')
+
 
     for ax in axes[0, :]:
         ax.set_ylim(0, 1.5E20)
         ax.yaxis.set_major_locator(ticker.MultipleLocator(2.5E19))
         ax.yaxis.set_minor_locator(ticker.MultipleLocator(5E18))
 
-    for ax in axes[1, :]:
-        ax.set_ylim(-1.75E17, 3.5E17)
-        ax.yaxis.set_major_locator(ticker.MultipleLocator(1E17))
-        ax.yaxis.set_minor_locator(ticker.MultipleLocator(2.5E16))
+    axes[1,0].set_ylim(-1.5E17, 3.5E17)
+    axes[1,0].yaxis.set_major_locator(ticker.MultipleLocator(1E17))
+    axes[1,0].yaxis.set_minor_locator(ticker.MultipleLocator(2.5E16))
+
+    axes[1, 1].set_ylim(-6E16, 1.5E17)
+    axes[1, 1].yaxis.set_major_locator(ticker.MultipleLocator(5E16))
+    axes[1, 1].yaxis.set_minor_locator(ticker.MultipleLocator(1E16))
 
     for i, ax in enumerate(axes.flatten()):
         ax.set_xlim(200, 1200)
@@ -530,6 +666,7 @@ def main():
     fig.supylabel('Desorption flux (m$^{\mathregular{-2}}$ s$^{\mathregular{-1}}$)')
 
     fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.png'), dpi=600)
+    fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.pdf'), dpi=600)
 
     plt.show()
 
