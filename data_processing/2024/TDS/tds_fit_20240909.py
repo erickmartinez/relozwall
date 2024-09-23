@@ -10,6 +10,7 @@ from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 from scipy.stats.distributions import t
 import matplotlib as mpl
+from scipy.integrate import simps
 
 k_b = 8.617333262E-5 # eV/K
 condidence = 0.95
@@ -208,8 +209,10 @@ def load_plot_style():
         json_file = json.load(file)
         plot_style = json_file['thinLinePlotStyle']
     rcParams.update(plot_style)
-    plt.rcParams['text.latex.preamble'] = (r'\usepackage{mathptmx}'
-                                           r'\usepackage{xcolor}')
+    rcParams['text.latex.preamble'] = (r'\usepackage{mathptmx}'
+                                       r'\usepackage{xcolor}')
+
+
 
 def main():
     # The boron rod
@@ -221,15 +224,21 @@ def main():
         './data/20240909/Bpebble_srs.txt', comment='#', delimiter=r'\s+'
     ).apply(pd.to_numeric)
 
+    time_r_s = boron_rod_df['Time[s]'].values
     temp_r_k = boron_rod_df['Temp[K]'].values
     d_r_total = boron_rod_df['[D/m^2/s]'].values
     dh_r = boron_rod_df['[HD/m^2/s]'].values
     d2_r = boron_rod_df['[D2/m^2/s]'].values
 
+
+    time_p_s = boron_pebble_rod_df['Time[s]'].values
     temp_p_k = boron_pebble_rod_df['Temp[K]'].values
     d_p_total = boron_pebble_rod_df['[D/m^2/s]'].values
     dh_p = boron_pebble_rod_df['[HD/m^2/s]'].values
     d2_p = boron_pebble_rod_df['[D2/m^2/s]'].values
+
+    integrated_boron_rod = simps(y=d_r_total, x=time_r_s)
+    integrated_pebble_boron_rod = simps(y=d_p_total, x=time_p_s)
 
     msk_positive_dh = dh_p >= 0.
     msk_positive_d2 = d2_p >= 0.
@@ -508,6 +517,7 @@ def main():
         max_nfev=10000 * len(temp_p_k_p2)
     )
 
+
     popt4 = ls_res4.x
     x1_pred = np.linspace(300, 1200, 2000)
     parameters_4_ci = cf.confidence_interval(res=ls_res4, level=0.95)
@@ -664,6 +674,11 @@ def main():
 
     fig.supxlabel('T (K)')
     fig.supylabel('Desorption flux (m$^{\mathregular{-2}}$ s$^{\mathregular{-1}}$)')
+
+    # heating_rate_b_rod = np.mean(np.gradient(temp_r_k)) / np.mean(np.gradient(time_r_s))
+    # heating_rate_bp_rod = np.mean(np.gradient(temp_p_k)) / np.mean(np.gradient(time_p_s))
+    print(f'Retained D boron rod:\t{integrated_boron_rod:.2E} 1/m^2')
+    print(f'Retained D boron rod:\t{integrated_pebble_boron_rod:.2E} 1/m^2')
 
     fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.png'), dpi=600)
     fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.pdf'), dpi=600)

@@ -1,0 +1,14 @@
+Relative window transmission in (%) with respect to a calibrated (i.e. clean) window. 
+Thus, it is 100% at the date of absolute intensity calibration.
+Polynomial fit parameters in order of a0, a1, a2, ...
+T (%) = a0 + a1 x lambda + a2 x lambda^2 ..., where lambda is in (nm).
+
+------- put the newest on top --------
+
+20220203 99999999
+2L
+12.783	0.13065	-8.467e-5
+
+20200213 20220202
+0L
+100.0
