@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 
 f_pattern = re.compile(r'(.*)?\:\s+(.*)')
+d_pattern = '%a %b %d %H:%M:%S %Y'
 
 # Function to read
 # last N lines of the file
@@ -124,6 +125,8 @@ def main():
                 except KeyError as ke:
                     print(f'Error reading: {path_to_file}')
                     param_data[col] = 0
+                    if col == 'Number of Accumulations':
+                        param_data[col] = 1
 
             param_data['Folder'] = rpath
             param_data['File'] = file
@@ -134,7 +137,7 @@ def main():
     db_df[numeric_cols] = db_df[numeric_cols].apply(pd.to_numeric)
     db_df.sort_values(by=['Folder', 'File'], ascending=[True,True], inplace=True)
     print(db_df)
-    db_df.to_excel('./data/echelle_db.xlsx', sheet_name='Spectrometer parameters', index=False)
+    db_df.to_excel('./data/echelle_db_(programmatic).xlsx', sheet_name='Spectrometer parameters', index=False)
 
 
 

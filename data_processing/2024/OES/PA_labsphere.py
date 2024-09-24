@@ -46,6 +46,7 @@ def main():
     radiance = labsphere_df['Radiance (W/cm2/ster/nm)']
     n = len(radiance)
     wl = 350. + np.arange(n) * 10.
+    print(f'wl.min: {wl.min():.0f}, wl.max(): {wl.max():.0f}')
 
     radiated_power = simps(y=radiance, x=wl)
 

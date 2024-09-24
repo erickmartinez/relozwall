@@ -3,3 +3,4 @@ instruments/esp32_ndir_co2/arduino_secrets.h
 data_processing/google_db/token.json
 data_processing/google_db/credentials.json
 .DS_Store
+/data_processing/secrets.py
