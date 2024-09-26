@@ -94,7 +94,10 @@ def main():
         wl_i = df['wl (nm)'].values
         # dwl = np.diff(wl_i)
         # print('d_wl.mean:', dwl.mean(), 'd_wl.min():', dwl.min(), 'd_wl.max:', dwl.max(), 'd_wl.std:', dwl.std())
-        counts_ps = df['counts'].values / exposure_s / accumulations
+        counts = df['counts'].values
+        counts[counts < 0.] = 0.
+        counts_ps = counts / exposure_s / accumulations
+
         if  row['Is dark'] == 0:
             if preamp_gain == 1:
                 counts_pa1_3300K.append(counts_ps)
@@ -132,9 +135,10 @@ def main():
     counts_pa4_bgnd = np.array(counts_pa4_bgnd).T
 
     wl_pa1_3300K_mean = wl_pa1_3300K.mean(axis=1)
-    wl_pa4_3300K_mean = wl_pa4_3300K.mean(axis=1)
-    wl_pa1_bgnd_mean = wl_pa1_bgnd.mean(axis=1)
-    wl_pa4_bgnd_mean = wl_pa4_bgnd.mean(axis=1)
+    # It seems that the wavelength vectors is the same in all calibration files
+    # wl_pa4_3300K_mean = wl_pa4_3300K.mean(axis=1)
+    # wl_pa1_bgnd_mean = wl_pa1_bgnd.mean(axis=1)
+    # wl_pa4_bgnd_mean = wl_pa4_bgnd.mean(axis=1)
 
     counts_pa1_3300K_mean = counts_pa1_3300K.mean(axis=1)
     counts_pa4_3300K_mean = counts_pa4_3300K.mean(axis=1)
@@ -156,9 +160,22 @@ def main():
     counts_pa1_bgnd_se = counts_pa1_bgnd_std * se_factor
     counts_pa4_bgnd_se = counts_pa4_bgnd_std * se_factor
 
+
     # print('wl1 3300K equal to wl4 3300K?', np.isclose(wl_pa1_3300K_mean, wl_pa4_3300K_mean).all())
     # print('wl1 3300K equal to wl1 bgnd?', np.isclose(wl_pa1_3300K_mean, wl_pa1_bgnd_mean).all())
     # print('wl1 3300K equal to wl2 bgnd?', np.isclose(wl_pa1_3300K_mean, wl_pa4_bgnd_mean).all())
+
+    delta_counts_pa1 = counts_pa1_3300K_mean - counts_pa1_bgnd_mean
+    delta_counts_pa4 = counts_pa4_3300K_mean - counts_pa4_bgnd_mean
+
+    # If the difference between the counts at pa1/pa4 is less than zero, take the background as the difference
+    delta_counts_pa1 = np.max(np.stack([delta_counts_pa1, counts_pa1_bgnd_mean]).T, axis=1)
+    delta_counts_pa4 = np.max(np.stack([delta_counts_pa4, counts_pa4_bgnd_mean]).T, axis=1)
+
+    delta_counts_pa1_err = np.linalg.norm(np.stack([counts_pa1_3300K_se, counts_pa1_bgnd_se]).T, axis=1)
+    delta_counts_pa4_err = np.linalg.norm(np.stack([counts_pa4_3300K_se, counts_pa4_bgnd_se]).T, axis=1)
+
+    # print(delta_counts_pa1[delta_counts_pa1 <= 0.])
 
 
     calibration_df = pd.DataFrame(data={
@@ -173,29 +190,29 @@ def main():
         'CPS @pregain 4 bgnd SE': counts_pa4_bgnd_se
     })
 
-    trans = transmission_dirty_window(wavelength=wl_pa1_3300K_mean)
+
+    # trans = transmission_dirty_window(wavelength=wl_pa1_3300K_mean)
     # # print(trans.shape)
-    calibration_df['Window transmission'] = trans
+    # calibration_df['Window transmission'] = trans
     flux_at_wl = flux_ls_interp(wl_pa1_3300K_mean)
-    flux_pag_1 = trans * flux_at_wl * np.power(
-        counts_pa1_3300K_mean - counts_pa1_bgnd_mean, -1.
+    flux_pag_1 =  flux_at_wl * np.power(
+        delta_counts_pa1, -1.
     )
 
-    flux_pag_4 = trans * flux_at_wl * np.power(
-        counts_pa4_3300K_mean - counts_pa4_bgnd_mean, -1.
+    flux_pag_4 = flux_at_wl * np.power(
+        delta_counts_pa4, -1.
     )
+
+    flux_pag_1_err = flux_pag_1 * np.abs(delta_counts_pa1_err / delta_counts_pa1)
+    flux_pag_4_err = flux_pag_4 * np.abs(delta_counts_pa4_err / delta_counts_pa4)
+
     calibration_df['Flux @pregain 1 (Photons/s/sr/cm^2/nm)'] = flux_pag_1
 
-    calibration_df['Flux @pregain 1 error (Photons/s/sr/cm^2/nm)'] = flux_pag_1 * np.linalg.norm(
-        np.stack([counts_pa1_3300K_se, counts_pa1_bgnd_se]).T, axis=1
-    )
+    calibration_df['Flux @pregain 1 error (Photons/s/sr/cm^2/nm)'] = flux_pag_1_err
 
     calibration_df['Flux @pregain 4 (Photons/s/sr/cm^2/nm)'] = flux_pag_4
 
-    calibration_df['Flux @pregain 4 error (Photons/s/sr/cm^2/nm)'] = flux_pag_4 * np.linalg.norm(
-        np.stack([counts_pa4_3300K_se, counts_pa4_bgnd_se]).T, axis=1
-    )
-
+    calibration_df['Flux @pregain 4 error (Photons/s/sr/cm^2/nm)'] = flux_pag_4_err
 
     calibration_df.to_csv(r'./data/echelle_calibration_20240910.csv', index=False)
 
@@ -214,6 +231,7 @@ def main():
     axes[0].yaxis.set_major_locator(ticker.MultipleLocator(2E5))
     axes[0].yaxis.set_minor_locator(ticker.MultipleLocator(1E5))
     axes[0].set_ylim(0, 1.05E6)
+
 
     axes[1].yaxis.set_major_locator(ticker.MultipleLocator(5E3))
     axes[1].yaxis.set_minor_locator(ticker.MultipleLocator(1E3))
@@ -294,38 +312,40 @@ def main():
         wl_pa1_3300K_mean, flux_pag_1, color='C0', label='Preamp gain: 1'
     )
 
-    # axes[0].fill_between(
-    #     wl_pa1_3300K_mean, flux_pag_1 - calibration_df['Flux @pregain 1 error (Photons/s/sr/cm^2/nm)'].values,
-    #     wl_pa1_3300K_mean, flux_pag_1 + calibration_df['Flux @pregain 1 error (Photons/s/sr/cm^2/nm)'].values,
-    #     color='C0', alpha=0.25
-    # )
-
-    axes[1].plot(
-        wl_pa1_3300K_mean, flux_pag_4, color='C1', label='Preamp gain: 1'
+    axes[0].fill_between(
+        wl_pa1_3300K_mean, flux_pag_1 - flux_pag_1_err, flux_pag_1 + flux_pag_1_err,
+        color='C0', alpha=0.25
     )
 
-    # axes[1].fill_between(
-    #     wl_pa1_3300K_mean, flux_pag_4 - calibration_df['Flux @pregain 4 error (Photons/s/sr/cm^2/nm)'].values,
-    #     wl_pa1_3300K_mean, flux_pag_4 + calibration_df['Flux @pregain 4 error (Photons/s/sr/cm^2/nm)'].values,
-    #     color='C1', alpha=0.25
-    # )
+    axes[1].plot(
+        wl_pa1_3300K_mean, flux_pag_4, color='C1', label='Preamp gain: 4'
+    )
+
+    axes[1].fill_between(
+        wl_pa1_3300K_mean, flux_pag_4 - flux_pag_4_err, flux_pag_4 + flux_pag_4_err,
+        color='C1', alpha=0.25
+    )
 
     # axes[0].set_title('Preamp gain 1')
     # axes[1].set_title('Preamp gain 4')
 
-    fig_cal.supylabel('(Photons/s/cm^2/nm/ster)/(Counts/s)')
+    fig_cal.supylabel(r'{\sffamily (Photons/s/cm\textsuperscript{2}/nm/ster)/(Counts/s)}', usetex=True)
     axes[1].set_xlabel(r"$\lambda$ {\sffamily (nm)}", usetex=True)
 
     for ax in axes:
         ax.legend(loc='upper left', ncols=1, fontsize=9)
-        ax.xaxis.set_ticks_position('bottom')
+        # ax.xaxis.set_ticks_position('bottom')
         ax.xaxis.set_major_locator(ticker.MultipleLocator(100.))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(50.))
-        mf = ticker.ScalarFormatter(useMathText=True)
-        mf.set_powerlimits((-2, 2))
-        ax.yaxis.set_major_formatter(mf)
+        # mf = ticker.ScalarFormatter(useMathText=True)
+        # mf.set_powerlimits((-2, 2))
+        # ax.yaxis.set_major_formatter(mf)
         ax.ticklabel_format(useMathText=True)
+        ax.set_yscale('log')
         ax.set_xlim(300, 1050)
+
+    fig_cal.suptitle('Spectrometer calibration')
+    fig_cal.savefig('./figures/labsphere_echelle_calibration_cps2radiance_20240910.png', dpi=600)
 
     plt.show()
 
