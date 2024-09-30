@@ -7,7 +7,6 @@ import json
 
 from boltons.timeutils import total_seconds
 from scipy.interpolate import interp1d
-import data_processing.secrets as my_secrets
 import data_processing.echelle as ech
 import os
 from datetime import timedelta, datetime

@@ -9,6 +9,7 @@ import data_processing.secrets as my_secrets
 import data_processing.echelle as ech
 import os
 from scipy.stats.distributions import t
+from scipy.signal import savgol_filter
 
 window_coefficients = np.array([12.783, 0.13065, -8.467e-5])
 
@@ -60,6 +61,7 @@ def main():
     photon_flux_ls = 5.03411656E15 * wl_ls * radiance_ls
     # print(np.isclose(photon_flux_ls, radiance_ls / photon_energy_J, atol=1E-5))
     flux_ls_interp = interp1d(x=wl_ls, y=photon_flux_ls)
+    radiance_ls_interp = interp1d(x=wl_ls, y=radiance_ls)
 
     # print(db_df)
 
@@ -97,6 +99,11 @@ def main():
         counts = df['counts'].values
         counts[counts < 0.] = 0.
         counts_ps = counts / exposure_s / accumulations
+        counts_ps = savgol_filter(
+            counts_ps,
+            window_length=53,
+            polyorder=3
+        )
 
         if  row['Is dark'] == 0:
             if preamp_gain == 1:
@@ -144,6 +151,29 @@ def main():
     counts_pa4_3300K_mean = counts_pa4_3300K.mean(axis=1)
     counts_pa1_bgnd_mean = counts_pa1_bgnd.mean(axis=1)
     counts_pa4_bgnd_mean = counts_pa4_bgnd.mean(axis=1)
+
+    counts_pa1_3300K_mean = savgol_filter(
+        counts_pa1_3300K_mean,
+        window_length=53,
+        polyorder=3
+    )
+    counts_pa4_3300K_mean = savgol_filter(
+        counts_pa4_3300K_mean,
+        window_length=53,
+        polyorder=3
+    )
+
+    counts_pa1_bgnd_mean = savgol_filter(
+        counts_pa1_bgnd_mean,
+        window_length=53,
+        polyorder=3
+    )
+
+    counts_pa4_bgnd_mean = savgol_filter(
+        counts_pa4_bgnd_mean,
+        window_length=53,
+        polyorder=3
+    )
 
     counts_pa1_3300K_std = counts_pa1_3300K.std(ddof=1, axis=1)
     counts_pa4_3300K_std = counts_pa4_3300K.std(ddof=1, axis=1)
@@ -194,25 +224,25 @@ def main():
     # trans = transmission_dirty_window(wavelength=wl_pa1_3300K_mean)
     # # print(trans.shape)
     # calibration_df['Window transmission'] = trans
-    flux_at_wl = flux_ls_interp(wl_pa1_3300K_mean)
-    flux_pag_1 =  flux_at_wl * np.power(
+    radiance_at_wl = radiance_ls_interp(wl_pa1_3300K_mean) # wavelength is the same for all calibration spectra
+    radiance_pag_1 =  radiance_at_wl * np.power(
         delta_counts_pa1, -1.
     )
 
-    flux_pag_4 = flux_at_wl * np.power(
+    radiance_pag_4 = radiance_at_wl * np.power(
         delta_counts_pa4, -1.
     )
 
-    flux_pag_1_err = flux_pag_1 * np.abs(delta_counts_pa1_err / delta_counts_pa1)
-    flux_pag_4_err = flux_pag_4 * np.abs(delta_counts_pa4_err / delta_counts_pa4)
+    radiance_pag_1_err = radiance_pag_1 * np.abs(delta_counts_pa1_err / delta_counts_pa1)
+    radiance_pag_4_err = radiance_pag_4 * np.abs(delta_counts_pa4_err / delta_counts_pa4)
 
-    calibration_df['Flux @pregain 1 (Photons/s/sr/cm^2/nm)'] = flux_pag_1
+    calibration_df['Radiance @pregain 1 (W/sr/cm^2/nm)'] = radiance_pag_1
 
-    calibration_df['Flux @pregain 1 error (Photons/s/sr/cm^2/nm)'] = flux_pag_1_err
+    calibration_df['Radiance @pregain 1 error (W/sr/cm^2/nm)'] = radiance_pag_1_err
 
-    calibration_df['Flux @pregain 4 (Photons/s/sr/cm^2/nm)'] = flux_pag_4
+    calibration_df['Radiance @pregain 4 (W/sr/cm^2/nm)'] = radiance_pag_4
 
-    calibration_df['Flux @pregain 4 error (Photons/s/sr/cm^2/nm)'] = flux_pag_4_err
+    calibration_df['Radiance @pregain 4 error (W/sr/cm^2/nm)'] = radiance_pag_4_err
 
     calibration_df.to_csv(r'./data/echelle_calibration_20240910.csv', index=False)
 
@@ -301,6 +331,7 @@ def main():
 
     axes[0].set_title('Lab sphere 3300 K')
     axes[1].set_title('Background (dark)')
+    fig_mean.supylabel('Counts/s')
 
     fig_mean.savefig(r'./figures/labsphere_echelle_calibration_cps_mean_20240910.png', dpi=600)
 
@@ -309,20 +340,20 @@ def main():
     fig_cal.subplots_adjust(hspace=0, left=0.15, right=0.95, bottom=0.125, top=0.95)
 
     axes[0].plot(
-        wl_pa1_3300K_mean, flux_pag_1, color='C0', label='Preamp gain: 1'
+        wl_pa1_3300K_mean, radiance_pag_1, color='C0', label='Preamp gain: 1'
     )
 
     axes[0].fill_between(
-        wl_pa1_3300K_mean, flux_pag_1 - flux_pag_1_err, flux_pag_1 + flux_pag_1_err,
+        wl_pa1_3300K_mean, radiance_pag_1 - radiance_pag_1_err, radiance_pag_1 + radiance_pag_1_err,
         color='C0', alpha=0.25
     )
 
     axes[1].plot(
-        wl_pa1_3300K_mean, flux_pag_4, color='C1', label='Preamp gain: 4'
+        wl_pa1_3300K_mean, radiance_pag_4, color='C1', label='Preamp gain: 4'
     )
 
     axes[1].fill_between(
-        wl_pa1_3300K_mean, flux_pag_4 - flux_pag_4_err, flux_pag_4 + flux_pag_4_err,
+        wl_pa1_3300K_mean, radiance_pag_4 - radiance_pag_4_err, radiance_pag_4 + radiance_pag_4_err,
         color='C1', alpha=0.25
     )
 

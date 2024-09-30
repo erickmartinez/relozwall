@@ -230,23 +230,28 @@ def main():
     dh_r = boron_rod_df['[HD/m^2/s]'].values
     d2_r = boron_rod_df['[D2/m^2/s]'].values
 
-
     time_p_s = boron_pebble_rod_df['Time[s]'].values
     temp_p_k = boron_pebble_rod_df['Temp[K]'].values
     d_p_total = boron_pebble_rod_df['[D/m^2/s]'].values
     dh_p = boron_pebble_rod_df['[HD/m^2/s]'].values
     d2_p = boron_pebble_rod_df['[D2/m^2/s]'].values
 
-    integrated_boron_rod = simps(y=d_r_total, x=time_r_s)
-    integrated_pebble_boron_rod = simps(y=d_p_total, x=time_p_s)
+    all_tol = float(np.finfo(np.float64).eps)
 
+    d_p_total[d_p_total <= 0.] = d_p_total[d_p_total >= 0.].min()
     msk_positive_dh = dh_p >= 0.
     msk_positive_d2 = d2_p >= 0.
 
-    temp_p_k_p1 = temp_p_k[msk_positive_dh]
-    temp_p_k_p2 = temp_p_k[msk_positive_d2]
-    dh_p_p = dh_p[msk_positive_dh]
-    d2_p_p = d2_p[msk_positive_d2]
+    dh_p[dh_p <= 0.] = dh_p[msk_positive_dh].min()
+    d2_p[d2_p <= 0.] = d2_p[msk_positive_d2].min()
+
+    integrated_boron_rod = simps(y=d_r_total, x=time_r_s)
+    integrated_pebble_boron_rod = simps(y=d_p_total, x=time_p_s)
+
+    # temp_p_k_p1 = temp_p_k[msk_positive_dh]
+    # temp_p_k_p2 = temp_p_k[msk_positive_d2]
+    # dh_p_p = dh_p[msk_positive_dh]
+    # d2_p_p = d2_p[msk_positive_d2]
 
     cmap = mpl.colormaps.get_cmap('rainbow')
 
@@ -262,7 +267,7 @@ def main():
         dh_r_max*0.25, 1.0, t_dh_m*0.9,
         dh_r_max*0.9, 1.5, t_dh_m,
     ])
-    all_tol = float(np.finfo(np.float64).eps)
+
     ls_res1: OptimizeResult = least_squares(
         res_sum1, x0, args=(temp_r_k, dh_r), loss='linear', f_scale=0.1,
         bounds=(
@@ -406,13 +411,13 @@ def main():
     x0 = np.array([
         5E16, 0.3, 380,
         4E16, 0.3, 490,
-        1E15, 0.5, 750,
+        1E14, 0.5, 700,
         4E16, 1.0, 810,
         2E17, 2.0, 1000,
         # 2E17, 2.1, 1100,
     ])
     ls_res3: OptimizeResult = least_squares(
-        res_sum1, x0, args=(temp_p_k_p1, dh_p_p), loss='linear', f_scale=0.1,
+        res_sum1, x0, args=(temp_p_k, dh_p), loss='linear', f_scale=0.1,
         bounds=(
             [
                 0, 0.1, 200,
@@ -425,7 +430,7 @@ def main():
             [
                 1E17, np.inf, 450,
                 1E17, np.inf, 600,
-                1E17, np.inf, 890,
+                1E17, np.inf, 830,
                 1E17, np.inf, 950,
                 # 1E18, 3., 1095,
                 1E18, np.inf, 2000,
@@ -436,7 +441,7 @@ def main():
         ftol=all_tol,
         gtol=all_tol,
         verbose=2,
-        max_nfev=10000 * len(temp_p_k_p1)
+        max_nfev=10000 * len(temp_p_k)
     )
 
     popt3 = ls_res3.x
@@ -492,7 +497,7 @@ def main():
         # 1E16, 2.0, 1200,
     ])
     ls_res4: OptimizeResult = least_squares(
-        res_sum1, x0, args=(temp_p_k_p2, d2_p_p), loss='linear', f_scale=0.1,
+        res_sum1, x0, args=(temp_p_k, d2_p), loss='linear', f_scale=0.1,
         bounds=(
             [
                 0., 0.1, 350,
@@ -514,7 +519,7 @@ def main():
         ftol=all_tol,
         gtol=all_tol,
         verbose=2,
-        max_nfev=10000 * len(temp_p_k_p2)
+        max_nfev=10000 * len(temp_p_k)
     )
 
 
@@ -608,8 +613,8 @@ def main():
         usetex=True
     )
 
-    axes[1, 0].plot(temp_p_k_p1, dh_p_p, c='C0', ls='none', marker='^', mfc='none', label='H-D boron pebble rod')
-    axes[1, 1].plot(temp_p_k_p2, d2_p_p, c='C0', ls='none', marker='D', mfc='none', label='D$_{\mathregular{2}}$ boron pebble rod')
+    axes[1, 0].plot(temp_p_k, dh_p, c='C0', ls='none', marker='^', mfc='none', label='H-D boron pebble rod')
+    axes[1, 1].plot(temp_p_k, d2_p, c='C0', ls='none', marker='D', mfc='none', label='D$_{\mathregular{2}}$ boron pebble rod')
 
     axes[1, 0].plot(x1_pred, y3_pred, 'k', ls='-', lw=2, label=f'Fit')
     axes[1, 0].plot(x1_pred, y3_p1, c=colors3[0], ls='-', alpha=0.8, lw=1.0)
