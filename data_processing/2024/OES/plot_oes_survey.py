@@ -22,7 +22,7 @@ import warnings
 
 
 
-echelle_file = r'./data/Echelle_data/echelle_20240815/MechelleSpect_003.asc'
+echelle_file = r'./data/Echelle_data/echelle_20241003/MechelleSpect_001.asc'
 sample_label = 'Boron rod'
 subtract_background = True
 
@@ -62,17 +62,12 @@ lookup_lines = [
     {'center_wl': 657.80, 'label': r'C II'},
     {'center_wl': 723.64, 'label': r'C II'},
     {'center_wl': 433.2, 'label': r'B-H'},
-    {'center_wl': 616.3, 'label': r'O II$^*$'},
     # {'center_wl': 635.59, 'label': r'B II$^*$'},
     # {'center_wl': 678.17, 'label': r'O IV$^*$'},
-    {'center_wl': 635.50, 'label': r'Fe I'},
     # {'center_wl': 678.17, 'label': r'C II'},
-    {'center_wl': 678.7, 'label': r'~Fe I'},
-    {'center_wl': 794.52, 'label': r'C I'},
-    {'center_wl': 827.6, 'label': r'Fe I'},
 ]
 
-def find_line(wl, intensity, line_center: float, delta_wl:float = 1.) -> tuple:
+def find_line(wl, intensity, line_center: float, delta_wl:float = 0.1) -> tuple:
     # Look into a smaller window:
     msk_window = ((line_center - delta_wl) <= wl) & (wl <= (line_center + delta_wl))
     wl_window = wl[msk_window]
@@ -181,7 +176,8 @@ def main():
 
     f_counts_ps = interp1d(x=wavelength_bgnd, y=counts_ps_bgnd)
 
-    # counts_ps -= f_counts_ps(wavelength)
+    if subtract_background:
+        counts_ps -= f_counts_ps(wavelength)
 
     if preamp_gain == 1:
         cal_factor = cal_pag_1(wavelength)
@@ -210,27 +206,51 @@ def main():
     spectrum = noise_region_uncertainty(spectrum, noise_region)
     # spec1_gsmooth = gaussian_smooth(spectrum, stddev=3)
 
-    lines = find_lines_threshold(spectrum, noise_factor=4)
+    lines = find_lines_threshold(spectrum, noise_factor=0.5)
     # lines = find_lines_derivative(spectrum, flux_threshold=0.02)
-    lines[lines['line_type'] == 'emission']
+    # lines[lines['line_type'] == 'emission']
     print(lines)
     line_centers = np.array(lines['line_center'])
-
-    nist_lines_df = pd.read_csv('./data/NIST/boron_rod_nist_lines.csv')
-    nist_num_cols = ['obs_wl_vac(nm)', 'unc_obs_wl', 'intens', 'Aki(s^-1)', 'Ei(eV)', 'Ek(eV)']
-    nist_lines_df[nist_num_cols] = nist_lines_df[nist_num_cols].apply(pd.to_numeric)
-
     msk_line_center = [False if lc not in line_centers else True for lc in wavelength]
+
+    # nist_lines_df = pd.read_csv('./data/NIST/boron_rod_nist_lines.txt', delimiter=r'\s+')
+    # nist_num_cols = ['obs_wl_vac(nm)', 'unc_obs_wl', 'intens', 'Aki(s^-1)', 'Ei(eV)', 'Ek(eV)']
+    # nist_lines_df[nist_num_cols] = nist_lines_df[nist_num_cols].apply(pd.to_numeric)
+    nist_data: pd.DataFrame = Nist.query(
+        wl_range[0] * u.nm, wl_range[1] * u.nm, linename='D;B;C;N', energy_level_unit='eV',
+        output_order='wavelength', wavelength_type='vacuum'
+    ).to_pandas()
+    # nist_data.dropna(inplace=True)
+    nist_data = nist_data[~nist_data['Observed'].isna()].reset_index(drop=True)
+    # nist_data = nist_data[~nist_data['Rel.'].isna()].reset_index(drop=True)
+    print(nist_data[['Spectrum','Observed', 'Rel.']])
+
     identified_lines = pd.DataFrame(data={
-        'nist_wl_nm': [], 'element': [], 'sp_num': [], 'nist_intensity': [], 'spec_intensity': [], 'spec_wl_nm': []
+        'nist_wl_nm': [], 'line': [], 'nist_intensity': [], 'spec_wl_nm': [], 'spec_intensity': []
     })
-    # for i, row in nist_lines_df.iterrows():
-    #     if 
+    for i, row in nist_data.iterrows():
+        nist_wl = row['Observed']
+        msk_close = np.isclose(nist_wl, line_centers, atol=0.075)
+        if msk_close.any():
+            spec_wl = line_centers[msk_close][0]
+            spec_intensity_idx = np.argmin(np.abs(spec_wl - wavelength))
+            spec_intensity = radiance[spec_intensity_idx]
+            id_df = pd.DataFrame(data={
+                'nist_wl_nm': [nist_wl], 'line': [row['Spectrum']],
+                'nist_intensity': [row['Rel.']],
+                'spec_wl_nm': [spec_wl], 'spec_intensity': [spec_intensity],
+            })
+            identified_lines = pd.concat([identified_lines, id_df], ignore_index=True).reset_index(drop=True)
 
+    folder_name = os.path.basename(relative_path)
+    path_to_lines_folder = os.path.join('./data/identified_echelle_lines', folder_name)
+    if not os.path.exists(path_to_lines_folder):
+        os.makedirs(path_to_lines_folder)
+    path_to_lines_csv = os.path.join(path_to_lines_folder, file_tag + '.csv')
+    identified_lines.to_csv(path_to_lines_csv, index=False)
 
-
-    if subtract_background:
-        radiance -= cal_factor_bgnd * f_counts_ps(wavelength)
+    # if subtract_background:
+    #     radiance -= cal_factor_bgnd * f_counts_ps(wavelength)
     radiance[radiance<0] = radiance[radiance>0].min()
     # nu = 299792458.0 / wavelength
     # hnu = 6.62607015e-34 * nu
@@ -291,7 +311,7 @@ def main():
                 rotation=90
             )
 
-    axes[0].plot(wavelength[msk_line_center], radiance[msk_line_center], marker='x', color='r', ls='none')
+    # axes[0].plot(wavelength[msk_line_center], radiance[msk_line_center], marker='x', color='r', ls='none')
 
     axes[0].set_title(fr"{sample_label} - {file_tag}.asc")
     axes[0].text(

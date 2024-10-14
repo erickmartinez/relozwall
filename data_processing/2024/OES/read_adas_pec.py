@@ -8,8 +8,12 @@ import matplotlib as mpl
 import json
 import numpy as np
 from data_processing.utils import latex_float
+from scipy.interpolate import interp2d, RegularGridInterpolator
 
 path_to_pec = r'./data/ADAS/PEC/B/pec93#b_llu#b0.dat'
+
+plasma_te = 5.3
+plasma_ne = 0.2475E12
 
 
 def get_wavelengths(path_to_file):
@@ -118,10 +122,24 @@ def main():
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
     fig.set_size_inches(4.5, 3.5)
     ax.set_xlabel(r"T$_{\mathregular{e}}$ (eV)")
-    ax.set_ylabel(r"S (1/cm$^{\mathregular{3}}$/s)")
+    ax.set_ylabel(r"S (cm$^{\mathregular{3}}$/s)")
     ax.set_title('Photon Emissivity Coefficients')
     ax.set_yscale('log')
     ax.set_xscale('log')
+
+    bi_pec_ne = pec_df['n_e (1/cm^3)'].unique()
+    bi_pec_te = pec_df['T_e (eV)'].unique()
+    n_te, n_ne = len(bi_pec_te), len(bi_pec_ne)
+    z_pec = np.empty((n_te, n_ne), dtype=np.float64)
+    for i in range(n_te):
+        for j in range(n_ne):
+            dfi = pec_df[(pec_df['T_e (eV)'] == bi_pec_te[i]) & (pec_df['n_e (1/cm^3)'] == bi_pec_ne[j])].reset_index(drop=True)
+            z_pec[i, j] = dfi['PEC (photons/cm^3/s)'][0]
+
+    # interpolate the pec coefficient for b_i
+    # f = interp2d(bi_pec_ne, bi_pec_te, z_pec, kind='cubic')
+    f = RegularGridInterpolator((bi_pec_ne, bi_pec_te), z_pec.T)
+    pec_plasma = f((plasma_ne, plasma_te))
 
     markers = ['o', 's', '^', 'v', 'D', 'h', '<', '>']
 
@@ -137,6 +155,7 @@ def main():
         exponent = int(ne_arr[1])
         ax.plot(T_e, pec, marker=markers[i], mfc='none', ls='-', c=c, label=fr"$n_e = 10^{{{exponent:d}}}~\mathrm{{1/cm^3}}$")
 
+    ax.plot([plasma_te], [pec_plasma], ls='none', marker = 'x', color='k', label=fr"$S = {latex_float(pec_plasma,1)}~\mathrm{{cm^3/s}}$")
     ax.legend(loc='lower right', fontsize=10)
     fig.savefig(r'./figures/pec_814.8nm.png', dpi=600)
     plt.show()

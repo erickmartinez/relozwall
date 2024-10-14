@@ -15,6 +15,10 @@ def load_plot_style():
         json_file = json.load(file)
         plot_style = json_file['thinLinePlotStyle']
     mpl.rcParams.update(plot_style)
+    mpl.rcParams['text.latex.preamble'] = (r'\usepackage{mathptmx}'
+                                           r'\usepackage{xcolor}'
+                                           r'\usepackage{helvet}'
+                                           r'\usepackage{siunitx}')
 
 
 def mean_err(x):
@@ -68,15 +72,15 @@ def main():
     load_plot_style()
 
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
-    fig.set_size_inches(4.5, 3.)
+    fig.set_size_inches(4., 3.)
 
-    ax.set_xlabel(r'$q$ (MW/m$^{\mathregular{2}}$)')
-    ax.set_ylabel(r'$\nu$ (cm/s)')
+    ax.set_xlabel(r'$q$ {\sffamily (MW/m\textsuperscript{2})}', usetex=True)
+    ax.set_ylabel(r'$\nu$ {\sffamily (cm/s)}', usetex=True)
 
     ax.errorbar(
         heat_load*0.95, nu, yerr=nu_err, marker='o', ms=9, mew=1.25, mfc='none',
         capsize=2.75, elinewidth=1.25, lw=1.5, c='C1', ls='none',
-        label='Boron granules'
+        label='Laser heating'
     )
 
     # ax.errorbar(
@@ -90,18 +94,21 @@ def main():
     # )
 
     ax.legend(
-        loc='lower right', frameon=True
+        loc='upper left', frameon=True
     )
 
-    ax.set_xlim(-0.5, 45)
+    ax.set_xlim(-0.5, 40)
     ax.set_ylim(1E-4, 0.5)
+    ax.set_title('Surface recession')
 
     ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(1))
 
+
     # ax.set_yscale('log')
 
     fig.savefig('figures/boron_pebble_rod_recession.png', dpi=600)
+    fig.savefig('figures/boron_pebble_rod_recession.pdf', dpi=600)
 
     plt.show()
 

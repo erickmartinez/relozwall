@@ -110,7 +110,9 @@ def main():
 
 
     for rpath in paths:
-        file_list = [f for f in os.listdir(os.path.join(path_to_runs, rpath)) if f.endswith('.asc')]
+        if rpath == '.DS_Store':
+            continue
+        file_list = [f for f in os.listdir(os.path.join(path_to_runs, rpath)) if (f.endswith('.asc') and not f.startswith('.'))]
         for file in file_list:
             path_to_file = os.path.join(path_to_runs, rpath, file)
             params = get_echelle_params(path_to_file=path_to_file)

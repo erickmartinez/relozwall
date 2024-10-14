@@ -170,7 +170,7 @@ def main():
     # )
 
 
-    fig.savefig('./figures/b_neutral_spectra', dpi=600)
+    fig.savefig('./figures/b_neutral_spectra.png', dpi=600)
     plt.show()
 
 

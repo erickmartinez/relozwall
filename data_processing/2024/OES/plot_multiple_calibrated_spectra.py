@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.ticker as ticker
 import json
-
-from boltons.timeutils import total_seconds
 from scipy.interpolate import interp1d
 import data_processing.echelle as ech
 import os
@@ -13,7 +11,7 @@ from datetime import timedelta, datetime
 from scipy.stats.distributions import t
 
 db_excel = r'./data/echelle_db.xlsx'
-wl_range = (821-3, 821+3)
+wl_range = (433.2-3, 433.2+3)
 
 window_coefficients = np.array([12.783, 0.13065, -8.467e-5])
 
@@ -30,8 +28,8 @@ def load_echelle_calibration(preamp_gain):
         msg = f'Error loading echelle calibration: {preamp_gain} not found in calibration.'
         print(msg)
         raise ValueError(msg)
-    col_cal = fr'Flux @pregain {preamp_gain:d} (Photons/s/sr/cm^2/nm)'
-    col_err = fr'Flux @pregain {preamp_gain:d} error (Photons/s/sr/cm^2/nm)'
+    col_cal = fr'Radiance @pregain {preamp_gain:d} (W/sr/cm^2/nm)'
+    col_err = fr'Radiance @pregain {preamp_gain:d} error (W/sr/cm^2/nm)'
     df = pd.read_csv(csv_file, usecols=[
         'Wavelength (nm)', col_cal, col_err
     ]).apply(pd.to_numeric)
@@ -43,8 +41,8 @@ def get_interpolated_calibration(preamp_gain:int) -> tuple[callable, callable]:
         msg = f'Error loading echelle calibration: {preamp_gain} not found in calibration.'
         print(msg)
         raise ValueError(msg)
-    col_cal = fr'Flux @pregain {preamp_gain:d} (Photons/s/sr/cm^2/nm)'
-    col_err = fr'Flux @pregain {preamp_gain:d} error (Photons/s/sr/cm^2/nm)'
+    col_cal = fr'Radiance @pregain {preamp_gain:d} (W/sr/cm^2/nm)'
+    col_err = fr'Radiance @pregain {preamp_gain:d} error (W/sr/cm^2/nm)'
     wl = cal_df['Wavelength (nm)'].values
     cal_factor = cal_df[col_cal].values
     cal_error = cal_df[col_err].values
@@ -64,6 +62,8 @@ def transmission_dirty_window(wavelength: np.ndarray) -> np.ndarray:
         transmission += window_coefficients[i] * x
         x = x * wavelength
     return transmission
+
+
 
 def load_labsphere_calibration():
     df = pd.read_csv(
@@ -136,7 +136,7 @@ def main():
         fig.set_size_inches(4.5, 3.)
 
         ax.set_xlabel(r"$\lambda$ {\sffamily (nm)}", usetex=True)
-        ax.set_ylabel(r"$\Phi$ {\sffamily(photons/s/cm\textsuperscript{2}/nm)}", usetex=True)
+        ax.set_ylabel(r"$B_{\lambda}$ {\sffamily(W/cm\textsuperscript{2}/sr/nm)}", usetex=True)
 
         ax.plot(wl_i, photon_flux)
 
@@ -148,6 +148,7 @@ def main():
         ax.yaxis.set_major_formatter(mf)
         ax.ticklabel_format(useMathText=True)
         ax.set_xlim(wl_range)
+        ax.set_ylim(bottom=0, top=photon_flux.max()*0.1)
 
         elapsed_total_sec = elapsed_time.total_seconds()
         delta_hours = int(elapsed_total_sec/3600.)

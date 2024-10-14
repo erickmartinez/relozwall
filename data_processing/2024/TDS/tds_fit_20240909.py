@@ -248,6 +248,12 @@ def main():
     integrated_boron_rod = simps(y=d_r_total, x=time_r_s)
     integrated_pebble_boron_rod = simps(y=d_p_total, x=time_p_s)
 
+    integrated_boron_rod_d2 = simps(y=d2_r, x=time_r_s)
+    integrated_pebble_boron_rod_d2 = simps(y=d2_p, x=time_p_s)
+
+    integrated_boron_rod_dh = simps(y=dh_r, x=time_r_s)
+    integrated_pebble_boron_rod_dh = simps(y=dh_p, x=time_p_s)
+
     # temp_p_k_p1 = temp_p_k[msk_positive_dh]
     # temp_p_k_p2 = temp_p_k[msk_positive_d2]
     # dh_p_p = dh_p[msk_positive_dh]
@@ -683,10 +689,17 @@ def main():
     # heating_rate_b_rod = np.mean(np.gradient(temp_r_k)) / np.mean(np.gradient(time_r_s))
     # heating_rate_bp_rod = np.mean(np.gradient(temp_p_k)) / np.mean(np.gradient(time_p_s))
     print(f'Retained D boron rod:\t{integrated_boron_rod:.2E} 1/m^2')
-    print(f'Retained D boron rod:\t{integrated_pebble_boron_rod:.2E} 1/m^2')
+    print(f'Retained D boron pebble rod:\t{integrated_pebble_boron_rod:.2E} 1/m^2')
+
+    print(f'Retained D2 boron rod:\t{integrated_boron_rod_d2:.2E} 1/m^2')
+    print(f'Retained D2 boron pebble rod:\t{integrated_pebble_boron_rod_d2:.2E} 1/m^2')
+
+    print(f'Retained DH boron rod:\t{integrated_boron_rod_dh:.2E} 1/m^2')
+    print(f'Retained DH boron pebble rod:\t{integrated_pebble_boron_rod_dh:.2E} 1/m^2')
 
     fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.png'), dpi=600)
     fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.pdf'), dpi=600)
+    fig.savefig(os.path.join('./figures', '20240909_TDS_FIT_boron_pebble_vs_boron_rod.svg'), dpi=600)
 
     plt.show()
 

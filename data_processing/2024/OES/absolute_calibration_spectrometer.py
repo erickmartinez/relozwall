@@ -5,7 +5,6 @@ import matplotlib as mpl
 import matplotlib.ticker as ticker
 import json
 from scipy.interpolate import interp1d
-import data_processing.secrets as my_secrets
 import data_processing.echelle as ech
 import os
 from scipy.stats.distributions import t
@@ -360,7 +359,7 @@ def main():
     # axes[0].set_title('Preamp gain 1')
     # axes[1].set_title('Preamp gain 4')
 
-    fig_cal.supylabel(r'{\sffamily (Photons/s/cm\textsuperscript{2}/nm/ster)/(Counts/s)}', usetex=True)
+    fig_cal.supylabel(r'{\sffamily (W/cm\textsuperscript{2}/nm/ster)/(Counts/s)}', usetex=True)
     axes[1].set_xlabel(r"$\lambda$ {\sffamily (nm)}", usetex=True)
 
     for ax in axes:

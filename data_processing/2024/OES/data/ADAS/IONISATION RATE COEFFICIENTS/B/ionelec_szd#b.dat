@@ -1,0 +1,125 @@
+    5    /B   IONISATION RATE COEFFICIENTS   /
+B + 0/B + 1/   24/I.P. =            66930.0/ICODE =  1/FCODE =  1/ISEL=   1
+ 1.000D+00 2.000D+00 3.000D+00 4.000D+00 5.000D+00 7.000D+00
+ 1.000D+01 1.500D+01 2.000D+01 3.000D+01 4.000D+01 5.000D+01
+ 7.000D+01 1.000D+02 1.500D+02 2.000D+02 3.000D+02 4.000D+02
+ 5.000D+02 7.000D+02 1.000D+03 2.000D+03 5.000D+03 1.000D+04
+ 2.629D-12 3.189D-10 1.803D-09 4.520D-09 8.059D-09 1.618D-08
+ 2.832D-08 4.526D-08 5.807D-08 7.539D-08 8.620D-08 9.339D-08
+ 1.019D-07 1.079D-07 1.110D-07 1.111D-07 1.088D-07 1.058D-07
+ 1.028D-07 9.758D-08 9.128D-08 7.803D-08 6.079D-08 4.915D-08
+B + 1/B + 2/   24/I.P. =           202895.0/ICODE =  1/FCODE =  1/ISEL=   2
+ 1.000D+00 2.000D+00 3.000D+00 4.000D+00 5.000D+00 7.000D+00
+ 1.000D+01 1.500D+01 2.000D+01 3.000D+01 4.000D+01 5.000D+01
+ 7.000D+01 1.000D+02 1.500D+02 2.000D+02 3.000D+02 4.000D+02
+ 5.000D+02 7.000D+02 1.000D+03 2.000D+03 5.000D+03 1.000D+04
+ 5.310D-20 2.263D-14 1.863D-12 1.761D-11 6.939D-11 3.440D-10
+ 1.188D-09 3.235D-09 5.446D-09 9.345D-09 1.235D-08 1.463D-08
+ 1.777D-08 2.047D-08 2.261D-08 2.352D-08 2.402D-08 2.390D-08
+ 2.358D-08 2.281D-08 2.169D-08 1.900D-08 1.512D-08 1.236D-08
+B + 2/B + 3/   24/I.P. =           305931.1/ICODE =  1/FCODE =  1/ISEL=   3
+ 1.000D+00 2.000D+00 3.000D+00 4.000D+00 5.000D+00 7.000D+00
+ 1.000D+01 1.500D+01 2.000D+01 3.000D+01 4.000D+01 5.000D+01
+ 7.000D+01 1.000D+02 1.500D+02 2.000D+02 3.000D+02 4.000D+02
+ 5.000D+02 7.000D+02 1.000D+03 2.000D+03 5.000D+03 1.000D+04
+ 5.810D-26 1.349D-17 8.877D-15 2.345D-13 1.699D-12 1.671D-11
+ 9.521D-11 3.776D-10 7.614D-10 1.552D-09 2.227D-09 2.767D-09
+ 3.542D-09 4.239D-09 4.819D-09 5.085D-09 5.268D-09 5.281D-09
+ 5.235D-09 5.092D-09 4.865D-09 4.289D-09 3.436D-09 2.819D-09
+B + 3/B + 4/   24/I.P. =          2091960.0/ICODE =  1/FCODE =  1/ISEL=   4
+ 2.000D+00 3.000D+00 4.000D+00 5.000D+00 7.000D+00 1.000D+01
+ 1.500D+01 2.000D+01 3.000D+01 4.000D+01 5.000D+01 7.000D+01
+ 1.000D+02 1.500D+02 2.000D+02 3.000D+02 4.000D+02 5.000D+02
+ 7.000D+02 1.000D+03 2.000D+03 4.000D+03 5.000D+03 1.000D+04
+ 2.515D-67 1.758D-48 4.895D-39 2.347D-33 7.696D-27 6.368D-22
+ 4.655D-18 4.225D-16 4.156D-14 4.352D-13 1.835D-12 9.906D-12
+ 3.672D-11 1.062D-10 1.843D-10 3.255D-10 4.352D-10 5.184D-10
+ 6.312D-10 7.252D-10 8.196D-10 8.143D-10 7.795D-10 7.165D-10
+B + 4/B + 5/   23/I.P. =          2744063.0/ICODE =  1/FCODE =  1/ISEL=   5
+ 3.000D+00 4.000D+00 5.000D+00 7.000D+00 1.000D+01 1.500D+01
+ 2.000D+01 3.000D+01 4.000D+01 5.000D+01 7.000D+01 1.000D+02
+ 1.500D+02 2.000D+02 3.000D+02 4.000D+02 5.000D+02 7.000D+02
+ 1.000D+03 2.000D+03 4.000D+03 5.000D+03 1.000D+04 0.000D+00
+ 2.395D-60 5.567D-48 1.499D-40 4.833D-32 1.220D-25 1.232D-20
+ 4.060D-18 1.403D-15 2.691D-14 1.612D-13 1.278D-12 6.213D-12
+ 2.185D-11 4.156D-11 8.010D-11 1.118D-10 1.367D-10 1.718D-10
+ 2.029D-10 2.391D-10 2.457D-10 2.429D-10 2.241D-10 0.000D+00
+C----------------------------------------------------------------------------
+C
+C  ELECTRON IMPACT IONISATION RATE COEFFICIENT LIST:
+C
+C   ISEL  INITIAL MET.    FINAL  MET.           SOURCE
+C           ION   CODE     ION   CODE
+C   ----  ------- ----   ------- ----     ---------------------------
+C     1   B + 0    1     B + 1    1       *BELL ET AL. (1982) CLM-R216
+C     2   B + 1    1     B + 2    1       *BELL ET AL. (1982) CLM-R216
+C     3   B + 2    1     B + 3    1       *BELL ET AL. (1982) CLM-R216
+C     4   B + 3    1     B + 4    1       *BELL ET AL. (1982) CLM-R216
+C     5   B + 4    1     B + 5    1       *BELL ET AL. (1982) CLM-R216
+C
+C
+C         PREFERRED DATA INDICATED BY *
+C
+C
+C
+C  NOTES.
+C ------
+C
+C   ISEL  INITIAL MET.    DESIG.             FINAL  MET.    DESIG.
+C           ION   CODE                        ION   CODE
+C   ----  ------- ---- ---------------      ------- ---- ---------------
+C     1   B + 0    1     2S2 2P (2P)         B + 1    1     1S2 2S2(1S)
+C     2   B + 1    1     1S2 2S2(1S)         B + 2    1     1S2 2S( 2S)
+C     3   B + 2    1     1S2 2S (2S)         B + 3    1     1S2 (1S)
+C     4   B + 3    1     1S2 (1S)            B + 4    1     1S (2S)
+C     5   B + 4    1     1S  (2S)            B + 5    1     *  (1S)
+C
+C
+C
+C----------------------------------------------------------------------------
+ 
+C---------------------------------------------------------------------------------
+C ADAS ADF07 DATA - SCCS info: @(#)$Header: /home/adascvs/adas/adf07/ionelec/ionelec_szd#b.dat,v 2.1 2004/07/06 22:00:29 whitefor Exp $ Date $Date: 2004/07/06 22:00:29 $
+C---------------------------------------------------------------------------------
+
+C-----------------------------------------------------------------------
+C                               OPEN-ADAS
+C                               +++++++++
+C
+C This file has been downloaded from OPEN-ADAS (http://open.adas.ac.uk)
+C on 30-Sep-2024.
+C
+C TERMS AND CONDITIONS
+C --------------------
+C
+C The user of the OPEN-ADAS system and data (hereinafter "the User")
+C accepts the following terms and conditions:
+C
+C   1. The University of Strathclyde uses all reasonable endeavours to
+C      ensure the accuracy of the data provided and any information
+C      given, but the University makes no warranty, expressed or implied
+C      as to its accuracy, integrity, fitness for purpose and shall not
+C      be responsible for the use to which the data is put by the User
+C      and/or any consequences arising out of any inaccuracies or
+C      omissions.
+C
+C   2. Any downloaded OPEN-ADAS file is made available for the
+C      personal use of the User only.  It must not be used for any
+C      commercial application, incorporated into any web site or in
+C      any form re-distributed without express prior written permission
+C      from the ADAS Project. In particular, but not by way of
+C      limitation, it must not be:
+C        *  inserted into a managed database structure,
+C        *  redistributed along with a modelling or analysis code,
+C        *  made available on a public website.
+C
+C Permission for OPEN-ADAS data incorporation in non-commercial
+C code/system development for scientific advance will not be
+C unreasonably withheld, but will be subject to written agreement
+C on a case by case basis.
+C
+C The User will indemnify the University of Strathclyde and keep it
+C fully and effectively indemnified against each and every claim made
+C against the University as a result of the User's use of the data.
+C
+C-----------------------------------------------------------------------
