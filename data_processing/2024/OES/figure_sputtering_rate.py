@@ -372,7 +372,6 @@ def baselined_spectrum(path_to_echelle, background_df, wl_min=350, wl_max=850):
     h = 6.62607015  # E-34
     c = 2.99792458  # E8
 
-    base_name = os.path.basename(path_to_echelle)
     folder = os.path.basename(os.path.dirname(path_to_echelle))
     # load the data
     e_df, params = ech.load_echelle_file(path_to_file=path_to_echelle)

@@ -2,80 +2,104 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy.optimize import least_squares, OptimizeResult
 import matplotlib.ticker as ticker
 import json
-from boltons.timeutils import total_seconds
-from scipy.interpolate import interp1d
-import data_processing.secrets as my_secrets
-import data_processing.echelle as ech
 import os
 from datetime import timedelta, datetime
-from specutils import Spectrum1D, SpectralRegion
-import astropy.units as u
-from specutils.fitting import find_lines_threshold, find_lines_derivative
-from specutils.manipulation import noise_region_uncertainty
-from specutils.fitting import fit_generic_continuum
-from specutils.manipulation import box_smooth, gaussian_smooth, trapezoid_smooth
-from astroquery.nist import Nist
 import warnings
-from scipy.signal import savgol_filter
+from scipy.integrate import simpson, trapezoid
+import data_processing.confidence as cf
+import re
+from data_processing.utils import latex_float_with_error
 
 
-echelle_file = r'./data/Echelle_data/echelle_20241003/MechelleSpect_001.asc'
-echelle_file_mapping_xls = r'./data/'
+brightness_csv = r'./data/brightness_data/echelle_20240815/MechelleSpect_001.csv'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
-sample_label = 'Boron rod'
+output_folder = r'./figures/Echelle_plots/B-I'
 subtract_background = True
+
+# calibration_line = {'center_wl': 433.93, 'label': r'D$_{\gamma}$'}
+calibration_line = {'center_wl': 821.2, 'label': r'B I'}
 
 wl_range = (818, 824)
 
 d_pattern = '%a %b %d %H:%M:%S %Y'
 window_coefficients = np.array([12.783, 0.13065, -8.467e-5])
 
-def load_echelle_calibration(preamp_gain):
-    csv_file = r'./data/echelle_calibration_20240910.csv'
-    if preamp_gain not in [1, 4]:
-        msg = f'Error loading echelle calibration: {preamp_gain} not found in calibration.'
-        print(msg)
-        raise ValueError(msg)
-    col_cal = fr'Radiance @pregain {preamp_gain:d} (W/sr/cm^2/nm)'
-    col_err = fr'Radiance @pregain {preamp_gain:d} error (W/sr/cm^2/nm)'
-    df = pd.read_csv(csv_file, usecols=[
-        'Wavelength (nm)', col_cal, col_err
-    ]).apply(pd.to_numeric)
-    return df
+f_pattern = re.compile(r'\s*\#\s*(.*)?\:\s+(.*)')
 
-def get_interpolated_calibration(preamp_gain:int) -> tuple[callable, callable]:
-    cal_df = load_echelle_calibration(preamp_gain=preamp_gain)
-    if preamp_gain not in [1, 4]:
-        msg = f'Error loading echelle calibration: {preamp_gain} not found in calibration.'
-        print(msg)
-        raise ValueError(msg)
-    col_cal = fr'Radiance @pregain {preamp_gain:d} (W/sr/cm^2/nm)'
-    col_err = fr'Radiance @pregain {preamp_gain:d} error (W/sr/cm^2/nm)'
-    wl = cal_df['Wavelength (nm)'].values
-    cal_factor = cal_df[col_cal].values
-    cal_error = cal_df[col_err].values
+over_sqrt_pi = 1. / np.sqrt(2. * np.pi)
+def gaussian(x, c, sigma, mu):
+    global over_sqrt_pi
+    p = c * over_sqrt_pi / sigma
+    arg = 0.5 * np.power((x - mu) / sigma, 2)
+    return p * np.exp(-arg)
 
-    fc = interp1d(x=wl, y=cal_factor)
-    fe = interp1d(x=wl, y=cal_error)
-    return fc, fe
+def sum_gaussians(x, b):
+    global over_sqrt_pi
+    m = len(x)
+    nn = len(b)
+    # Assume that the new b contains a list ordered like
+    # (c1, sigma_1, mu1, c_2, sigma_2, mu_2, ..., c_n, sigma_n, mu_n)
+    selector = np.arange(0, nn) % 3
+    msk_c = selector == 0
+    msk_sigma = selector == 1
+    msk_mu = selector == 2
+    cs = b[msk_c]
+    sigmas = b[msk_sigma]
+    mus = b[msk_mu]
+    n = len(mus)
+    u = over_sqrt_pi * np.power(sigmas, -1) * cs
+    u = u.reshape((1, len(u)))
+    v = np.zeros((n, m), dtype=np.float64)
+    for i in range(len(sigmas)):
+        arg = 0.5*np.power((x-mus[i])/sigmas[i], 2.)
+        v[i, :] = np.exp(-arg)
+    res = np.dot(u, v)
+    return res.flatten()
 
-def transmission_dirty_window(wavelength: np.ndarray) -> np.ndarray:
-    global window_coefficients
-    wavelength = np.array(wavelength)
-    n = len(window_coefficients)
-    m = len(wavelength)
-    x = np.ones(m, dtype=np.float64)
-    transmission = np.zeros(m, dtype=np.float64)
-    for i in range(n):
-        transmission += window_coefficients[i] * x
-        x = x * wavelength
-    return transmission
+
+def res_sum_gauss(b, x, y):
+    return sum_gaussians(x, b) - y
+
+def jac_sum_gauss(b, x, y):
+    m, nn  = len(x), len(b)
+    # Assume that the new b contains a list ordered like
+    # (c1, sigma_1, mu1, c_2, sigma_2, mu_2, ..., c_n, sigma_n, mu_n)
+    selector = np.arange(0, nn) % 3
+    msk_c = selector == 0
+    msk_sigma = selector == 1
+    msk_mu = selector == 2
+    c = b[msk_c]
+    s = b[msk_sigma]
+    mu = b[msk_mu]
+    r = np.zeros((m, nn), dtype=np.float64)
+    for i in range(len(s)):
+        k = 3 * i
+        g = gaussian(x, c[i], s[i], mu[i])
+        r[:, k] = g / c[i]
+        r[:, k+1] = np.power(s[i], -1) * ( np.power( (x - mu[i]) / s[i], 2) - 1.) * g
+        r[:, k+2] = np.power(s[i], -2) * ( x - mu[i]) * g
+
+    return r
+
+def load_brightness_file(path_to_file):
+    params = {}
+    with open(path_to_file, 'r') as f:
+        for line in f:
+            matches = f_pattern.match(line)
+            if matches:
+                params[matches.group(1)] = matches.group(2)
+            if not line.startswith('#'):
+                break
+    df: pd.DataFrame = pd.read_csv(path_to_file, comment='#').apply(pd.to_numeric)
+    return df, params
+
 
 def load_folder_mapping():
-    global echelle_file_mapping_xls
-    df = pd.read_excel(echelle_file_mapping_xls, sheet_name=0)
+    global folder_map_xls
+    df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():
         mapping[row['Echelle folder']] = row['Data label']
@@ -89,92 +113,149 @@ def load_plot_style():
     mpl.rcParams['text.latex.preamble'] = (r'\usepackage{mathptmx}'
                                            r'\usepackage{xcolor}'
                                            r'\usepackage{helvet}'
-                                           r'\usepackage{siunitx}')
+                                           r'\usepackage{siunitx}'
+                                           r'\usepackage{amsmath, array, makecell}')
 
 
 
 
 def main():
-    global echelle_file, d_pattern, sample_label, wl_range, echelle_file_mapping_xls
+    global brightness_csv, d_pattern, wl_range, output_folder
     # Get the relative path to the echelle file
-    relative_path = os.path.dirname(echelle_file)
+    relative_path = os.path.dirname(brightness_csv)
     # Define the file tag as the echelle file without the extension
-    file_tag = os.path.splitext(os.path.basename(echelle_file))[0]
-    # Load the spectrometer calibration for preamp gain 1
-    cal_pag_1, cal_pag_1_err = get_interpolated_calibration(preamp_gain=1)
-    # load the spectrometer calibration for preamp gain 4
-    cal_pag_4, cal_pag_4_err = get_interpolated_calibration(preamp_gain=4)
-    # Load the data, and spectrometer conditions in the echelle .asc file
-    df, params = ech.load_echelle_file(path_to_file=echelle_file)
+    file_tag = os.path.splitext(os.path.basename(brightness_csv))[0]
+    df, params = load_brightness_file(path_to_file=brightness_csv)
     # Focus only on the wavelength region defined in wl_rangew
-    df = df[df['wl (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
-    # Get the last file from the folder and subtract it from the spectrum
-    bgnd_asc = [f for f in os.listdir(relative_path) if f.endswith('.asc')][-1]
-    bgnd_df, bgnd_params = ech.load_echelle_file(path_to_file=os.path.join(relative_path, bgnd_asc))
-    bgnd_df = bgnd_df[bgnd_df['wl (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
+    df = df[df['Wavelength (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
+    wavelength = df['Wavelength (nm)'].values
+    photon_flux = df['Brightness (photons/cm^2/s/nm)'].values
 
-    # load the folder to data label mapping
-    folder_label_mapping = load_folder_mapping()
+    timestamp = datetime.strptime(params['Date and Time'], d_pattern)
 
-    # Try to get the number of accumulations in the asc file
-    try:
-        accumulations = int(params['Number of Accumulations'])
-        accumulations_bgnd = int(bgnd_params['Number of Accumulations'])
-    except KeyError as ke:
-        print(f"Number of accumulations not found. Assuming single scan")
-        accumulations = 1
-        accumulations_bgnd = 1
+    # Use folder_map_xls to map the dated folder to the corresponding sample
+    folder_mapping = load_folder_mapping()
+    dated_folder = os.path.basename(relative_path)
+    sample_label = folder_mapping[dated_folder]
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    path_to_figures = os.path.join(output_folder, dated_folder)
+    if not os.path.exists(path_to_figures):
+        os.makedirs(path_to_figures)
 
-    preamp_gain = float(params['Pre-Amplifier Gain'])
-    exposure_s = float(params['Exposure Time (secs)'])
-    time_stamp = datetime.strptime(params['Date and Time'], d_pattern)
+    # Fit a gaussian to the main line
+    n_peaks = 1
+    line_center = calibration_line['center_wl']
+    delta_wl = 0.25
+    msk_window = ((line_center - delta_wl) <= wavelength) & (wavelength <= (line_center + delta_wl))
+    wl_window = wavelength[msk_window]
+    intensity_window = photon_flux[msk_window]
+    peak_height = intensity_window.max()
+    idx_peak = np.argmin(np.abs(peak_height - intensity_window))
+    wl_peak = wl_window[idx_peak]
+    # recalculate the window around the peak from the data
+    msk_window = ((wl_peak - delta_wl) <= wavelength) & (wavelength <= (wl_peak + delta_wl))
+    wl_window = wavelength[msk_window]
+    intensity_window = photon_flux[msk_window]
+    area_window = simpson(y=intensity_window, x=wl_window)
+    c_window = area_window * over_sqrt_pi
 
-
-    preamp_gain_bgnd = float(bgnd_params['Pre-Amplifier Gain'])
-    exposure_bgnd_s = float(bgnd_params['Exposure Time (secs)'])
-
-    wavelength = df['wl (nm)'].values
-    counts = df['counts'].values
-    counts[counts < 0.] = 0.
-    counts_ps = counts / exposure_s / accumulations
-
-    # Add dirty window correction (if not examining calibration spectra)
-    transmission = 1.
-
-    if os.path.basename(relative_path) != 'echelle_20240910':
-        transmission = transmission_dirty_window(wavelength)
-
-    counts_ps /= transmission
-
-    wavelength_bgnd = bgnd_df['wl (nm)'].values
-    counts_bg = bgnd_df['counts'].values
-    # Smooth the background
-    cps_bg = savgol_filter(
-        cps_bg,
-        window_length=5,
-        polyorder=3
+    x0 = [c_window, (wl_window.max() - wl_window.min()), wl_peak]
+    all_tol = float(np.finfo(np.float64).eps)
+    res_lsq = least_squares(
+        res_sum_gauss, x0=x0, args=(wl_window, intensity_window), loss='linear', f_scale=0.1,
+        jac=jac_sum_gauss,
+        bounds=(
+            [0., 1E-5, wl_peak-0.15],
+            [3.*c_window, np.inf, wl_peak+0.15]
+        ),
+        xtol=all_tol,
+        ftol=all_tol,
+        gtol=all_tol,
+        verbose=2,
+        max_nfev=10000 * len(wl_window)
     )
-    cps_bg[cps_bg < 0.] = 0.
-    counts_ps_bgnd = cps_bg / exposure_bgnd_s / accumulations_bgnd
+    popt = res_lsq.x
+    ci = cf.confidence_interval(res=res_lsq)
+    popt_delta = ci[:, 1] - popt
 
+    cmap = mpl.colormaps.get_cmap('rainbow')
+    norm1 = mpl.colors.Normalize(vmin=0, vmax=n_peaks - 1)
+    colors1 = [cmap(norm1(i)) for i in range(n_peaks)]
 
-    f_counts_ps = interp1d(x=wavelength_bgnd, y=counts_ps_bgnd)
-    # Subtract the background
-    counts_ps -= f_counts_ps(wavelength)
+    table1 = r"\setcellgapes{1.5pt}\makegapedcells" # increase vertical padding in cells to avoid superscript overlaps
+    table1 += r'''\begin{tabular}{ | r | c | c | c |} ''' + '\n'
+    table1 += r'''\hline''' + '\n'
+    # table1 += r''' n &  $c$ (photons/cm\textsuperscript{2}/s) & $\sigma$ (nm) & $\mu$ (nm) \\[0.4ex] \hline''' + '\n'
+    table1 += r''' n &  $c$ (photons/cm\textsuperscript{2}/s) & $\sigma$ (nm) & $\mu$ (nm) \\ \hline''' + '\n'
 
-    if preamp_gain == 1:
-        cal_factor = cal_pag_1(wavelength)
-    elif preamp_gain == 4:
-        cal_factor = cal_pag_4(wavelength)
-    else:
-        raise ValueError(f'Calibration not performed for preamplifier gain {preamp_gain:d}.')
+    for i in range(n_peaks):
+        color_i = mpl.colors.to_rgba(colors1[i]) if n_peaks > 1 else  mpl.colors.to_rgba('tab:red')
+        c_txt = r"\textcolor[rgb]{%.3f, %.3f, %.3f}" % (color_i[0], color_i[1], color_i[2])
+        # print(c_txt)
+        table1 += r'''{0}{{ {1} }} & ${2}$ & ${3}$ & ${4}$ '''.format(
+            c_txt, i + 1,
+            latex_float_with_error(popt[i * 3], popt_delta[i * 3], digits_err=2),
+            latex_float_with_error(popt[i * 3 + 1], popt_delta[i * 3 + 1], digits_err=2),
+            latex_float_with_error(popt[i * 3 + 2], popt_delta[i * 3 + 2], digits_err=2),
+        )
+        # table1 += r"\\[0.4ex] \hline" + '\n'
+        table1 += r"\\ \hline" + '\n'
+    table1 += r'''\end{tabular}'''
+    # print(table1)
+    table1 = table1.replace("\n", "")
 
-    # counts_ps /= transmission
-    flux_b = cal_factor * counts_ps * 1E4
+    timestamp_str = timestamp.strftime('%Y/%m/%d %H:%M:%S')
+
+    print(f'FOLDER: {dated_folder}')
+    print(f'FILE:   {file_tag}')
+    print(f'C:      {popt[0]:.3E} ± {popt_delta[0]:.3E} photons/cm^2/s')
+    print(f'SIGMA:  {popt[1]:.3f} ± {popt_delta[1]:.3f} nm')
+    print(f'MU:     {popt[2]:.3f} ± {popt_delta[2]:.3f} nm')
+    print(f'TIME:   {timestamp_str}')
+
 
     load_plot_style()
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
-    fig.set_size_inches(4., 3.5)
+    fig.set_size_inches(4.75, 3.)
 
-    ax.plot(wavelength, flux_b)
+    wl_fit = np.linspace(wl_window.min(), wl_window.max(), num=500)
+
+    ax.plot(wavelength, photon_flux)
+    ax.plot(wl_fit, gaussian(x=wl_fit, c=popt[0], sigma=popt[1], mu=popt[2]), c='tab:red', lw='1.25', ls='-')
+
+    wl_extrapolate = np.linspace(wavelength.min(), wavelength.max(), num=5000)
+    ax.plot(wl_extrapolate, gaussian(x=wl_extrapolate, c=popt[0], sigma=popt[1], mu=popt[2]), c='tab:red', lw='1.25', ls='--')
+
+    ax.set_xlabel(r'$\lambda$ {\sffamily (nm)}', usetex=True)
+    ax.set_ylabel(r"$B_{\lambda}$ {\sffamily (photons/cm\textsuperscript{2}/nm)}", usetex=True)
+
+    ax.set_xlim(wl_range)
+
+    ax.text(
+        0.99, 0.98, table1,
+        transform=ax.transAxes,
+        fontsize=9,
+        ha='right', va='top',
+        usetex=True
+    )
+
+    mf = ticker.ScalarFormatter(useMathText=True)
+    mf.set_powerlimits((-2, 2))
+    ax.yaxis.set_major_formatter(mf)
+    ax.ticklabel_format(useMathText=True)
+
+    ax.set_ylim(top=photon_flux.max()*1.3)
+    plot_title = fr'{sample_label} - {timestamp_str}'
+    ax.set_title(plot_title)
+
+    # ax.axvspan(wl_peak-delta_wl, wl_peak+delta_wl, color='tab:red', alpha=0.15)
+
+    fig.savefig(os.path.join(path_to_figures, file_tag + '.png'), dpi=600)
+
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
 

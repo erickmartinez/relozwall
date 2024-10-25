@@ -10,7 +10,7 @@ from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 from scipy.stats.distributions import t
 import matplotlib as mpl
-from scipy.integrate import simps
+from scipy.integrate import simpson
 
 k_b = 8.617333262E-5 # eV/K
 condidence = 0.95
@@ -245,14 +245,14 @@ def main():
     dh_p[dh_p <= 0.] = dh_p[msk_positive_dh].min()
     d2_p[d2_p <= 0.] = d2_p[msk_positive_d2].min()
 
-    integrated_boron_rod = simps(y=d_r_total, x=time_r_s)
-    integrated_pebble_boron_rod = simps(y=d_p_total, x=time_p_s)
+    integrated_boron_rod = simpson(y=d_r_total, x=time_r_s)
+    integrated_pebble_boron_rod = simpson(y=d_p_total, x=time_p_s)
 
-    integrated_boron_rod_d2 = simps(y=d2_r, x=time_r_s)
-    integrated_pebble_boron_rod_d2 = simps(y=d2_p, x=time_p_s)
+    integrated_boron_rod_d2 = simpson(y=d2_r, x=time_r_s)
+    integrated_pebble_boron_rod_d2 = simpson(y=d2_p, x=time_p_s)
 
-    integrated_boron_rod_dh = simps(y=dh_r, x=time_r_s)
-    integrated_pebble_boron_rod_dh = simps(y=dh_p, x=time_p_s)
+    integrated_boron_rod_dh = simpson(y=dh_r, x=time_r_s)
+    integrated_pebble_boron_rod_dh = simpson(y=dh_p, x=time_p_s)
 
     # temp_p_k_p1 = temp_p_k[msk_positive_dh]
     # temp_p_k_p2 = temp_p_k[msk_positive_d2]

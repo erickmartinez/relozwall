@@ -22,7 +22,7 @@ import warnings
 
 
 
-echelle_file = r'./data/Echelle_data/echelle_20241003/MechelleSpect_001.asc'
+brightness_csv = r'./data/Echelle_data/echelle_20241003/MechelleSpect_001.asc'
 sample_label = 'Boron rod'
 subtract_background = True
 
@@ -130,12 +130,12 @@ def load_plot_style():
 
 
 def main():
-    global echelle_file, lookup_lines, d_pattern, sample_label
-    relative_path = os.path.dirname(echelle_file)
-    file_tag = os.path.splitext(os.path.basename(echelle_file))[0]
+    global brightness_csv, lookup_lines, d_pattern, sample_label
+    relative_path = os.path.dirname(brightness_csv)
+    file_tag = os.path.splitext(os.path.basename(brightness_csv))[0]
     cal_pag_1, cal_pag_1_err = get_interpolated_calibration(preamp_gain=1)
     cal_pag_4, cal_pag_4_err = get_interpolated_calibration(preamp_gain=4)
-    df, params = ech.load_echelle_file(path_to_file=echelle_file)
+    df, params = ech.load_echelle_file(path_to_file=brightness_csv)
     df = df[df['wl (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
     # Get the last file from the folder and subtract it from the spectrum
     bgnd_asc = [f for f in os.listdir(relative_path) if f.endswith('.asc')][-1]

@@ -165,12 +165,18 @@ def main():
             wl_min=wl_min, wl_max=wl_max
         )
 
+        params = ech.get_echelle_params(path_to_echelle)
+
         output_df = pd.DataFrame(data={
             'Wavelength (nm)': wl_i,
             'Brightness (photons/cm^2/s/nm)': brightness_i,
             'Brightness error (photons/cm^2/s/nm)': brightness_i_err,
         })
-        output_df.to_csv(path_or_buf=os.path.join(output_path, os.path.splitext(row['File'])[0] + '.csv'), index=False)
+
+        with open(os.path.join(output_path, os.path.splitext(row['File'])[0] + '.csv'), 'w') as f:
+            for key, val in zip(params.keys(), params.values()):
+                f.write(f'# {key}: {val}\n')
+            output_df.to_csv(f, index=False)
 
 
 
