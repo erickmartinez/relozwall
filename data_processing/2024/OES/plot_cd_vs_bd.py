@@ -83,7 +83,7 @@ def main():
 
     load_plot_style()
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
-    fig.set_size_inches(4.5, 3.5)
+    fig.set_size_inches(3.75, 3.75)
 
     all_tol = float(np.finfo(np.float64).eps)
 
@@ -105,7 +105,7 @@ def main():
         ls_res = least_squares(
             res_poly,
             x0=[1., 1.],
-            args=(x, y),
+            args=(x, y, w),
             # loss='soft_l1', f_scale=0.1,
             jac=jac_poly,
             xtol=all_tol,
@@ -143,7 +143,10 @@ def main():
     ax.xaxis.set_major_formatter(mf)
     ax.yaxis.set_major_formatter(mf)
     ax.ticklabel_format(useMathText=True)
-    ax.legend(loc='upper right', frameon=True, fontsize=10)
+    ax.legend(loc='upper right', frameon=True, fontsize=10, ncols=1)
+    ax.set_xlim(0, 5E11)
+    ax.set_ylim(0, 5E11)
+    ax.set_aspect('equal')
     fig.savefig(r'./figures/CD_vs_BD.png', dpi=600)
 
     plt.show()
