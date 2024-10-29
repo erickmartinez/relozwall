@@ -6,6 +6,7 @@ import os
 from scipy.stats.distributions import t
 from scipy.signal import savgol_filter
 import numpy as np
+from typing import Tuple
 
 
 output_path = r'./data/brightness_data'
@@ -13,7 +14,7 @@ output_path = r'./data/brightness_data'
 window_coefficients = np.array([12.783, 0.13065, -8.467e-5])
 
 
-def load_echelle_calibration(preamp_gain):
+def load_echelle_calibration(preamp_gain) -> pd.DataFrame:
     csv_file = r'./data/echelle_calibration_20240910.csv'
     if preamp_gain not in [1, 4]:
         msg = f'Error loading echelle calibration: {preamp_gain} not found in calibration.'
@@ -26,7 +27,7 @@ def load_echelle_calibration(preamp_gain):
     ]).apply(pd.to_numeric)
     return df
 
-def get_interpolated_calibration(preamp_gain:int) -> tuple[callable, callable]:
+def get_interpolated_calibration(preamp_gain:int) -> Tuple[callable, callable]:
     cal_df = load_echelle_calibration(preamp_gain=preamp_gain)
     if preamp_gain not in [1, 4]:
         msg = f'Error loading echelle calibration: {preamp_gain} not found in calibration.'
@@ -38,8 +39,8 @@ def get_interpolated_calibration(preamp_gain:int) -> tuple[callable, callable]:
     cal_factor = cal_df[col_cal].values
     cal_error = cal_df[col_err].values
 
-    fc = interp1d(x=wl, y=cal_factor)
-    fe = interp1d(x=wl, y=cal_error)
+    fc = interp1d(x=wl, y=cal_factor, fill_value='extrapolate', bounds_error=False)
+    fe = interp1d(x=wl, y=cal_error, fill_value='extrapolate', bounds_error=False)
     return fc, fe
 
 def transmission_dirty_window(wavelength: np.ndarray) -> np.ndarray:
@@ -55,7 +56,7 @@ def transmission_dirty_window(wavelength: np.ndarray) -> np.ndarray:
     return transmission
 
 
-def load_labsphere_calibration():
+def load_labsphere_calibration() -> pd.DataFrame:
     df = pd.read_csv(
         './data/PALabsphere_2014.txt', sep=' ', comment='#',
         usecols=[0], names=['Radiance (W/cm2/ster/nm)']
@@ -66,7 +67,7 @@ def load_labsphere_calibration():
     df['Wavelength (nm)'] = wl
     return df[['Wavelength (nm)', 'Radiance (W/cm2/ster/nm)']]
 
-def load_db():
+def load_db() -> pd.DataFrame:
     df = pd.read_excel(r'./data/echelle_db.xlsx', sheet_name='Spectrometer parameters')
     # df = df[df['Folder'] == 'echelle_20240910'].reset_index(drop=True)
     return df
@@ -151,7 +152,7 @@ def main():
     db_df = db_df[~(db_df['Is dark'] == '1')]
     db_df.reset_index(inplace=True, drop=True)
     # The calibration ranges from 350 to 900 nm
-    wl_min, wl_max = 350, 900
+    wl_min, wl_max = 200, 900
 
     for i, row in db_df.iterrows():
         folder = row['Folder']
@@ -176,7 +177,7 @@ def main():
         with open(os.path.join(output_path, os.path.splitext(row['File'])[0] + '.csv'), 'w') as f:
             for key, val in zip(params.keys(), params.values()):
                 f.write(f'# {key}: {val}\n')
-            output_df.to_csv(f, index=False)
+            output_df.to_csv(f, index=False, line_terminator='\n')
 
 
 

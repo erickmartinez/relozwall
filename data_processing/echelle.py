@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import re
 from datetime import datetime
+from typing import Tuple
 
 f_pattern = re.compile(r'(.*)?\:\s+(.*)')
 
@@ -98,7 +99,7 @@ def get_echelle_params(path_to_file: str) -> dict:
             params[matches.group(1)] = matches.group(2)
     return params
 
-def load_echelle_file(path_to_file: str) -> tuple[pd.DataFrame, dict]:
+def load_echelle_file(path_to_file: str) -> Tuple[pd.DataFrame, dict]:
     """
     Reads the data form the echelle file and the parameters from the footer
 

@@ -55,12 +55,22 @@ def main():
     labsphere_df = load_labsphere_calibration()
     wl_ls = labsphere_df['Wavelength (nm)'].values
     radiance_ls = labsphere_df['Radiance (W/cm2/ster/nm)'].values
+    # For wavelengths below labsphere data, use the extrapolated data from the fit
+    labsphere_extrapolated_csv = r'./data/PALabsphere_2014_extrapolated.txt'
+    labsphere_extrapolated_df = pd.read_csv(labsphere_extrapolated_csv, comment='#').apply(pd.to_numeric)
+    wl_ls_xp = labsphere_extrapolated_df['Wavelength (nm)'].values
+    radiance_ls_xp = labsphere_extrapolated_df['Radiance (W/cm^2/ster/nm)'].values
+    wl_ls = np.hstack([wl_ls_xp, wl_ls])
+    radiance_ls = np.hstack([radiance_ls_xp, radiance_ls])
     # photon_energy_ev = 1239.84198433 * np.power(wl_ls, -1.)
     # photon_energy_J = 19.86445857E-17 * np.power(wl_ls, -1.)
     photon_flux_ls = 5.03411656E15 * wl_ls * radiance_ls
     # print(np.isclose(photon_flux_ls, radiance_ls / photon_energy_J, atol=1E-5))
     flux_ls_interp = interp1d(x=wl_ls, y=photon_flux_ls)
     radiance_ls_interp = interp1d(x=wl_ls, y=radiance_ls)
+
+
+
 
     # print(db_df)
 
@@ -96,13 +106,14 @@ def main():
         # dwl = np.diff(wl_i)
         # print('d_wl.mean:', dwl.mean(), 'd_wl.min():', dwl.min(), 'd_wl.max:', dwl.max(), 'd_wl.std:', dwl.std())
         counts = df['counts'].values
-        counts[counts < 0.] = 0.
+        counts -= counts.min()
+        # counts[counts < 0.] = 0.
         counts_ps = counts / exposure_s / accumulations
-        counts_ps = savgol_filter(
-            counts_ps,
-            window_length=53,
-            polyorder=3
-        )
+        # counts_ps = savgol_filter(
+        #     counts_ps,
+        #     window_length=53,
+        #     polyorder=3
+        # )
 
         if  row['Is dark'] == 0:
             if preamp_gain == 1:
@@ -153,26 +164,31 @@ def main():
 
     counts_pa1_3300K_mean = savgol_filter(
         counts_pa1_3300K_mean,
-        window_length=53,
+        window_length=93,
         polyorder=3
     )
     counts_pa4_3300K_mean = savgol_filter(
         counts_pa4_3300K_mean,
-        window_length=53,
+        window_length=93,
         polyorder=3
     )
 
     counts_pa1_bgnd_mean = savgol_filter(
         counts_pa1_bgnd_mean,
-        window_length=53,
+        window_length=93,
         polyorder=3
     )
 
     counts_pa4_bgnd_mean = savgol_filter(
         counts_pa4_bgnd_mean,
-        window_length=53,
+        window_length=93,
         polyorder=3
     )
+
+    counts_pa1_3300K_mean -= counts_pa1_3300K_mean.min()
+    counts_pa4_3300K_mean -= counts_pa4_3300K_mean.min()
+    counts_pa1_bgnd_mean -= counts_pa1_bgnd_mean.min()
+    counts_pa4_bgnd_mean -= counts_pa4_bgnd_mean.min()
 
     counts_pa1_3300K_std = counts_pa1_3300K.std(ddof=1, axis=1)
     counts_pa4_3300K_std = counts_pa4_3300K.std(ddof=1, axis=1)
@@ -181,8 +197,8 @@ def main():
 
     confidence_level = 0.95
     alpha = 1. - confidence_level
-    tval = t.ppf(1 - 0.5 * alpha, 2)
-    se_factor = tval / np.sqrt(3)
+    tval = t.ppf(1 - 0.5 * alpha, counts_pa1_3300K.shape[1]-1)
+    se_factor = tval / np.sqrt(counts_pa1_3300K.shape[1])
 
     counts_pa1_3300K_se = counts_pa1_3300K_std * se_factor
     counts_pa4_3300K_se = counts_pa4_3300K_std * se_factor
@@ -201,8 +217,15 @@ def main():
     delta_counts_pa1 = np.max(np.stack([delta_counts_pa1, counts_pa1_bgnd_mean]).T, axis=1)
     delta_counts_pa4 = np.max(np.stack([delta_counts_pa4, counts_pa4_bgnd_mean]).T, axis=1)
 
+    # If the difference between the counts at pa1/pa4 is zero then sustitute with the computer eps
+    eps = float(np.finfo(np.float64).eps)
+    delta_counts_pa1[delta_counts_pa1 == 0.] = eps
+    delta_counts_pa4[delta_counts_pa4 == 0.] = eps
+
     delta_counts_pa1_err = np.linalg.norm(np.stack([counts_pa1_3300K_se, counts_pa1_bgnd_se]).T, axis=1)
     delta_counts_pa4_err = np.linalg.norm(np.stack([counts_pa4_3300K_se, counts_pa4_bgnd_se]).T, axis=1)
+
+    # delta_counts_pa1_err[delta_counts_pa1_err == 0] = eps
 
     # print(delta_counts_pa1[delta_counts_pa1 <= 0.])
 
@@ -224,12 +247,25 @@ def main():
     # # print(trans.shape)
     # calibration_df['Window transmission'] = trans
     radiance_at_wl = radiance_ls_interp(wl_pa1_3300K_mean) # wavelength is the same for all calibration spectra
-    radiance_pag_1 =  radiance_at_wl * np.power(
+    radiance_pag_1 = radiance_at_wl * np.power(
         delta_counts_pa1, -1.
     )
 
     radiance_pag_4 = radiance_at_wl * np.power(
         delta_counts_pa4, -1.
+    )
+
+    # Smooth the curve
+    radiance_pag_1 = savgol_filter(
+        radiance_pag_1,
+        window_length=93,
+        polyorder=3
+    )
+
+    radiance_pag_4 = savgol_filter(
+        radiance_pag_4,
+        window_length=93,
+        polyorder=3
     )
 
     radiance_pag_1_err = radiance_pag_1 * np.abs(delta_counts_pa1_err / delta_counts_pa1)

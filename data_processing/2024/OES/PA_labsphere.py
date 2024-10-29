@@ -54,7 +54,7 @@ def main():
     
 
     all_tol = float(np.finfo(np.float64).eps)
-    b0 = np.array([2900., 1E-5])
+    b0 = np.array([5000., 1E-4])
     ls_res = least_squares(
         res_bb,
         b0,
@@ -75,11 +75,23 @@ def main():
     ci = cf.confidence_interval(ls_res)
     popt_err = np.abs(ci[:, 1] - popt)
     print(f"I0: {popt[1]:.3E} ± {popt_err[1]:.3E}, 95% CI: [{ci[1, 0]:.5E}, {ci[1, 1]:.5E}]")
-    nn = wl.max() - wl.min()
-    x_pred = 350. + np.arange(nn)
+    nn = wl.max() - 200.
+    x_pred = 200. + np.arange(nn)
     y_pred, delta = cf.prediction_intervals(
         model=model_bb, x_pred=x_pred, ls_res=ls_res
     )
+
+    msk_extrapolated = x_pred <= 350.
+    extrapolated_df = pd.DataFrame(data={
+        'Wavelength (nm)': x_pred[msk_extrapolated],
+        'Radiance (W/cm^2/ster/nm)': y_pred[msk_extrapolated],
+        'Radiance error (W/cm^2/ster/nm)': delta[msk_extrapolated],
+    })
+
+    with open(r'./data/PALabsphere_2014_extrapolated.txt', 'w') as f:
+        f.write(f'# T_fit {popt[0]:.0f} -/+ {popt_err[0]:.0f} K\n')
+        f.write(f'# I_fit {popt[1]:.3E} -/+ {popt_err[1]:.3E} \n')
+        extrapolated_df.to_csv(f, index=False, line_terminator='\n')
 
 
     load_plot_style()
@@ -91,7 +103,8 @@ def main():
     ax.fill_between(x_pred, y_pred-delta, y_pred+delta, color='tab:red', alpha=0.25)
 
     ax.set_xlabel(r'$\lambda$ {\sffamily (nm)}', usetex=True)
-    ax.set_ylabel(r'Radiance (W/cm$^{\mathregular{2}}$/ster)', usetex=False)
+    ax.set_ylabel(r'Radiance (W/cm$^{\mathregular{2}}$/ster/nm)', usetex=False)
+
     # (W/cm^{2}/ster/nm
     ax.legend(loc='upper right')
     radiated_power_txt = f"$P = {latex_float(radiated_power, significant_digits=3)}~ \mathrm{{(W/cm^2/ster)}}$"
