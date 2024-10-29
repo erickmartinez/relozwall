@@ -7,8 +7,6 @@ import os
 import json
 from scipy.optimize import least_squares, OptimizeResult
 
-from httplib2.auth import params
-
 bd_peak_db = r'./data/b-d_gaussian_peak.xlsx'
 echelle_db = r'./data/echelle_db.xlsx'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'

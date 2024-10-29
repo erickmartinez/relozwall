@@ -1,0 +1,1962 @@
+{
+   "0": {
+      "fname": "D:/ARPA-E/data/OES/brightness_data_fitspy/echelle_20240815/MechelleSpect_007.csv",
+      "range_min": 429.5,
+      "range_max": 433.5,
+      "normalize": false,
+      "normalize_range_min": null,
+      "normalize_range_max": null,
+      "peak_labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+      "fit_params": {
+         "fit_negative": false,
+         "fit_outliers": false,
+         "coef_noise": 1,
+         "max_ite": 200,
+         "method": "leastsq",
+         "xtol": 0.0001
+      },
+      "baseline": {
+         "mode": "Polynomial",
+         "coef": 5,
+         "points": [[429.5069201111821, 429.9864578928342, 430.87243479301026, 431.2090286371819, 431.95959422073713, 432.48576390817794, 433.2711495445785, 433.42590533500226],
+            [337621624820.8771, 597509961477.7312, 599076324092.2886, 403389448033.67993, 405124051697.4557, 27637494863.46869, 109296028314.95508, 235620981378.61572]],
+         "order_max": 5,
+         "sigma": 0,
+         "attached": true,
+         "is_subtracted": true
+      },
+      "peak_models": {
+         "0": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 438397888758.5851,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.17623833781118536,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 433.1884694511838,
+                  "min": 413.1846,
+                  "max": 453.1846,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "1": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 680540356755.3523,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.538941172076246,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 432.7371069670208,
+                  "min": 412.73029,
+                  "max": 452.73029,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "2": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 766700685759.2539,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12151492831926625,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.7040507686783,
+                  "min": 411.71658,
+                  "max": 451.71658,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "3": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 876568092026.839,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.09536434859338527,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.5665567795794,
+                  "min": 411.55676,
+                  "max": 451.55676,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "4": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 823095402409.7646,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.09342927228201958,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.1130063300075,
+                  "min": 411.13083,
+                  "max": 451.13083,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "5": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 942035068302.6887,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12517174874256964,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.97227280950847,
+                  "min": 410.94464,
+                  "max": 450.94464,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "6": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 1233469395131.285,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.1398855847095759,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.682182015976,
+                  "min": 410.67877,
+                  "max": 450.67877,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "7": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 779736906160.4774,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.13239232676994783,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.3660786538722,
+                  "min": 410.35995,
+                  "max": 450.35995,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "8": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 904495187825.6013,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.09677456908681048,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.83934289392124,
+                  "min": 409.82916,
+                  "max": 449.82916,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "9": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 699507899552.394,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10995887833471496,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.73496226021,
+                  "min": 409.7496,
+                  "max": 449.7496,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         }
+      },
+      "result_fit_success": true
+   },
+   "1": {
+      "fname": "D:/ARPA-E/data/OES/brightness_data_fitspy/echelle_20240815/MechelleSpect_010.csv",
+      "range_min": 429.5,
+      "range_max": 433.5,
+      "normalize": false,
+      "normalize_range_min": null,
+      "normalize_range_max": null,
+      "peak_labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+      "fit_params": {
+         "fit_negative": false,
+         "fit_outliers": false,
+         "coef_noise": 1,
+         "max_ite": 200,
+         "method": "leastsq",
+         "xtol": 0.0001
+      },
+      "baseline": {
+         "mode": "Polynomial",
+         "coef": 5,
+         "points": [[429.5069201111821, 429.9864578928342, 430.87243479301026, 431.2090286371819, 431.95959422073713, 432.48576390817794, 433.2711495445785, 433.42590533500226],
+            [337621624820.8771, 597509961477.7312, 599076324092.2886, 403389448033.67993, 405124051697.4557, 27637494863.46869, 109296028314.95508, 235620981378.61572]],
+         "order_max": 5,
+         "sigma": 0,
+         "attached": true,
+         "is_subtracted": true
+      },
+      "peak_models": {
+         "0": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 282596715388.2836,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.18879764363278762,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 433.17597710059755,
+                  "min": 413.1846,
+                  "max": 453.1846,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "1": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 465265466766.7821,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.6317220734926021,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 432.71426952761374,
+                  "min": 412.73029,
+                  "max": 452.73029,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "2": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 573978924042.1045,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12830303743757154,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.69639224565617,
+                  "min": 411.71658,
+                  "max": 451.71658,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "3": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 623530887140.991,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.09300248227258612,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.55939344701824,
+                  "min": 411.55676,
+                  "max": 451.55676,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "4": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 506485707650.56445,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.3573326477645966,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.0990994184225,
+                  "min": 411.13083,
+                  "max": 451.13083,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "5": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 317991139545.63165,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.07417059523556757,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.95260283551676,
+                  "min": 410.94464,
+                  "max": 450.94464,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "6": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 864074649025.7693,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.11774449007561083,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.6753968201766,
+                  "min": 410.67877,
+                  "max": 450.67877,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "7": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 573158155117.2771,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.13911762260769844,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.3592554504026,
+                  "min": 410.35995,
+                  "max": 450.35995,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "8": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 266678372432.25842,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.05854766173944981,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.84001508858654,
+                  "min": 409.82916,
+                  "max": 449.82916,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "9": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 601423859390.1754,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.2220211162710095,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.7624679823509,
+                  "min": 409.7496,
+                  "max": 449.7496,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         }
+      },
+      "result_fit_success": true
+   },
+   "2": {
+      "fname": "D:/ARPA-E/data/OES/brightness_data_fitspy/echelle_20240815/MechelleSpect_012.csv",
+      "range_min": 429.5,
+      "range_max": 433.5,
+      "normalize": false,
+      "normalize_range_min": null,
+      "normalize_range_max": null,
+      "peak_labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+      "fit_params": {
+         "fit_negative": false,
+         "fit_outliers": false,
+         "coef_noise": 1,
+         "max_ite": 200,
+         "method": "leastsq",
+         "xtol": 0.0001
+      },
+      "baseline": {
+         "mode": "Polynomial",
+         "coef": 5,
+         "points": [[429.5069201111821, 429.9864578928342, 430.87243479301026, 431.2090286371819, 431.95959422073713, 432.48576390817794, 433.2711495445785, 433.42590533500226],
+            [337621624820.8771, 597509961477.7312, 599076324092.2886, 403389448033.67993, 405124051697.4557, 27637494863.46869, 109296028314.95508, 235620981378.61572]],
+         "order_max": 5,
+         "sigma": 0,
+         "attached": true,
+         "is_subtracted": true
+      },
+      "peak_models": {
+         "0": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 353380965480.7771,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.23859560605276053,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 433.1589936950396,
+                  "min": 413.1846,
+                  "max": 453.1846,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "1": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 546954424920.33624,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.5221673881222744,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 432.6981237530783,
+                  "min": 412.73029,
+                  "max": 452.73029,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "2": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 530568807188.5231,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.14634189114421936,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.6950553356705,
+                  "min": 411.71658,
+                  "max": 451.71658,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "3": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 624396936268.9375,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10189875592276909,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.5552297217842,
+                  "min": 411.55676,
+                  "max": 451.55676,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "4": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 647366790006.1082,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.09882740659855616,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.1048993438442,
+                  "min": 411.13083,
+                  "max": 451.13083,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "5": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 711221736521.98,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.14640942309225302,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.9683020422774,
+                  "min": 410.94464,
+                  "max": 450.94464,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "6": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 856557913341.1307,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.13307282720164126,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.6734705514181,
+                  "min": 410.67877,
+                  "max": 450.67877,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "7": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 526191834765.8986,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.1508110045725486,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.3553358680367,
+                  "min": 410.35995,
+                  "max": 450.35995,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "8": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 363934161430.5753,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.07479743103936398,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.8444747581499,
+                  "min": 409.82916,
+                  "max": 449.82916,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "9": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 563436184476.059,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.19805226100730877,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.765599992396,
+                  "min": 409.7496,
+                  "max": 449.7496,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         }
+      },
+      "result_fit_success": true
+   },
+   "3": {
+      "fname": "D:/ARPA-E/data/OES/brightness_data_fitspy/echelle_20240815/MechelleSpect_015.csv",
+      "range_min": 429.5,
+      "range_max": 433.5,
+      "normalize": false,
+      "normalize_range_min": null,
+      "normalize_range_max": null,
+      "peak_labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+      "fit_params": {
+         "fit_negative": false,
+         "fit_outliers": false,
+         "coef_noise": 1,
+         "max_ite": 200,
+         "method": "leastsq",
+         "xtol": 0.0001
+      },
+      "baseline": {
+         "mode": "Polynomial",
+         "coef": 5,
+         "points": [[429.5069201111821, 429.9864578928342, 430.87243479301026, 431.2090286371819, 431.95959422073713, 432.48576390817794, 433.2711495445785, 433.42590533500226],
+            [337621624820.8771, 597509961477.7312, 599076324092.2886, 403389448033.67993, 405124051697.4557, 27637494863.46869, 109296028314.95508, 235620981378.61572]],
+         "order_max": 5,
+         "sigma": 0,
+         "attached": true,
+         "is_subtracted": true
+      },
+      "peak_models": {
+         "0": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 364141303551.52606,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.20593258682455318,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 433.1761209899213,
+                  "min": 413.1846,
+                  "max": 453.1846,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "1": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 560005411812.2373,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.5226665991339363,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 432.69653202053354,
+                  "min": 412.73029,
+                  "max": 452.73029,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "2": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 610408862599.2909,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.17662058348338894,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.68718597458894,
+                  "min": 411.71658,
+                  "max": 451.71658,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "3": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 675568201221.7871,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.08815578397494139,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.55080562331324,
+                  "min": 411.55676,
+                  "max": 451.55676,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "4": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 747154868702.1385,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10966002046329804,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.09499905956744,
+                  "min": 411.13083,
+                  "max": 451.13083,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "5": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 759645235646.4685,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12205732973882277,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.9594278377807,
+                  "min": 410.94464,
+                  "max": 450.94464,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "6": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 1190342643995.709,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10283408317806053,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.67475862827706,
+                  "min": 410.67877,
+                  "max": 450.67877,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "7": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 631316922646.4019,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.13396801783376322,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.3546923227872,
+                  "min": 410.35995,
+                  "max": 450.35995,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "8": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 378251202681.96655,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.06893654900711477,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.8363278205569,
+                  "min": 409.82916,
+                  "max": 449.82916,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "9": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 701730501326.915,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.20240693297591816,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.76346817959325,
+                  "min": 409.7496,
+                  "max": 449.7496,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         }
+      },
+      "result_fit_success": true
+   },
+   "4": {
+      "fname": "D:/ARPA-E/data/OES/brightness_data_fitspy/echelle_20240815/MechelleSpect_016.csv",
+      "range_min": 429.5,
+      "range_max": 433.5,
+      "normalize": false,
+      "normalize_range_min": null,
+      "normalize_range_max": null,
+      "peak_labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+      "fit_params": {
+         "fit_negative": false,
+         "fit_outliers": false,
+         "coef_noise": 1,
+         "max_ite": 200,
+         "method": "leastsq",
+         "xtol": 0.0001
+      },
+      "baseline": {
+         "mode": "Polynomial",
+         "coef": 5,
+         "points": [[429.5069201111821, 429.9864578928342, 430.87243479301026, 431.2090286371819, 431.95959422073713, 432.48576390817794, 433.2711495445785, 433.42590533500226],
+            [337621624820.8771, 597509961477.7312, 599076324092.2886, 403389448033.67993, 405124051697.4557, 27637494863.46869, 109296028314.95508, 235620981378.61572]],
+         "order_max": 5,
+         "sigma": 0,
+         "attached": true,
+         "is_subtracted": true
+      },
+      "peak_models": {
+         "0": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 227460863566.03055,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.23423680595832108,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 433.15978847144635,
+                  "min": 413.1846,
+                  "max": 453.1846,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "1": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 349882634015.89905,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.46681690793143327,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 432.710922610688,
+                  "min": 412.73029,
+                  "max": 452.73029,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "2": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 387030913114.2933,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.11401991548901647,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.711591693678,
+                  "min": 411.71658,
+                  "max": 451.71658,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "3": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 432250845341.41187,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10688067188582284,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.5737783666036,
+                  "min": 411.55676,
+                  "max": 451.55676,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "4": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 403402690451.06604,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.11475729054156725,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.11545152437566,
+                  "min": 411.13083,
+                  "max": 451.13083,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "5": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 449414644973.13403,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12879592590575584,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.9750418792572,
+                  "min": 410.94464,
+                  "max": 450.94464,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "6": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 561956829703.6334,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12169907257812973,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.6899438890511,
+                  "min": 410.67877,
+                  "max": 450.67877,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "7": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 369610329767.91614,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12365478798718188,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.36861064659666,
+                  "min": 410.35995,
+                  "max": 450.35995,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "8": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 220539409259.58084,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.06310025753750725,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.8588598266369,
+                  "min": 409.82916,
+                  "max": 449.82916,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "9": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 383620679373.23535,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.2149967783459661,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.7773091319905,
+                  "min": 409.7496,
+                  "max": 449.7496,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         }
+      },
+      "result_fit_success": true
+   },
+   "5": {
+      "fname": "D:/ARPA-E/data/OES/brightness_data_fitspy/echelle_20240815/MechelleSpect_019.csv",
+      "range_min": 429.5,
+      "range_max": 433.5,
+      "normalize": false,
+      "normalize_range_min": null,
+      "normalize_range_max": null,
+      "peak_labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+      "fit_params": {
+         "fit_negative": false,
+         "fit_outliers": false,
+         "coef_noise": 1,
+         "max_ite": 200,
+         "method": "leastsq",
+         "xtol": 0.0001
+      },
+      "baseline": {
+         "mode": "Polynomial",
+         "coef": 5,
+         "points": [[429.5069201111821, 429.9864578928342, 430.87243479301026, 431.2090286371819, 431.95959422073713, 432.48576390817794, 433.2711495445785, 433.42590533500226],
+            [337621624820.8771, 597509961477.7312, 599076324092.2886, 403389448033.67993, 405124051697.4557, 27637494863.46869, 109296028314.95508, 235620981378.61572]],
+         "order_max": 5,
+         "sigma": 0,
+         "attached": true,
+         "is_subtracted": true
+      },
+      "peak_models": {
+         "0": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 315931304523.18787,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.20046522261760735,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 433.1595933854234,
+                  "min": 413.1846,
+                  "max": 453.1846,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "1": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 438260054266.03564,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.48551048444860356,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 432.71529103116404,
+                  "min": 412.73029,
+                  "max": 452.73029,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "2": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 467893856060.1275,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10428603633588773,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.71594988465483,
+                  "min": 411.71658,
+                  "max": 451.71658,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "3": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 467542233464.42847,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10952624492395202,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.5766465198084,
+                  "min": 411.55676,
+                  "max": 451.55676,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "4": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 501034241634.5231,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.2954845649196347,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.08881538820935,
+                  "min": 411.13083,
+                  "max": 451.13083,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "5": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 266449418966.17883,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.0751541265504474,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.96810832007253,
+                  "min": 410.94464,
+                  "max": 450.94464,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "6": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 768553827495.2991,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.11701239901322769,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.68947151280906,
+                  "min": 410.67877,
+                  "max": 450.67877,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "7": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 492637684439.43964,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.13699629510910416,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.3681905617498,
+                  "min": 410.35995,
+                  "max": 450.35995,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "8": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 313528240693.8004,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.06522817366542144,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.8545952045986,
+                  "min": 409.82916,
+                  "max": 449.82916,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "9": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 409009737667.65814,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.2082120212257066,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.76709559378975,
+                  "min": 409.7496,
+                  "max": 449.7496,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         }
+      },
+      "result_fit_success": true
+   },
+   "6": {
+      "fname": "D:/ARPA-E/data/OES/brightness_data_fitspy/echelle_20240815/MechelleSpect_020.csv",
+      "range_min": 429.5,
+      "range_max": 433.5,
+      "normalize": false,
+      "normalize_range_min": null,
+      "normalize_range_max": null,
+      "peak_labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+      "fit_params": {
+         "fit_negative": false,
+         "fit_outliers": false,
+         "coef_noise": 1,
+         "max_ite": 200,
+         "method": "leastsq",
+         "xtol": 0.0001
+      },
+      "baseline": {
+         "mode": "Polynomial",
+         "coef": 5,
+         "points": [[429.5069201111821, 429.9864578928342, 430.87243479301026, 431.2090286371819, 431.95959422073713, 432.48576390817794, 433.2711495445785, 433.42590533500226],
+            [337621624820.8771, 597509961477.7312, 599076324092.2886, 403389448033.67993, 405124051697.4557, 27637494863.46869, 109296028314.95508, 235620981378.61572]],
+         "order_max": 5,
+         "sigma": 0,
+         "attached": true,
+         "is_subtracted": true
+      },
+      "peak_models": {
+         "0": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 248216218915.86456,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.20308753579857397,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 433.1791097767437,
+                  "min": 413.1846,
+                  "max": 453.1846,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "1": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 465170587880.9198,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.5775943255828309,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 432.71542805329784,
+                  "min": 412.73029,
+                  "max": 452.73029,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "2": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 610842631746.5208,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12364866562194488,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.70967638793746,
+                  "min": 411.71658,
+                  "max": 451.71658,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "3": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 582393375050.9008,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10034878453283325,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.5742686774726,
+                  "min": 411.55676,
+                  "max": 451.55676,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "4": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 651839873650.7217,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.10420243719004851,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 431.11327049713105,
+                  "min": 411.13083,
+                  "max": 451.13083,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "5": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 699688745634.6431,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.1248842997063071,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.98197420120124,
+                  "min": 410.94464,
+                  "max": 450.94464,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "6": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 836594523671.3271,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12619269369568142,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.69103729905976,
+                  "min": 410.67877,
+                  "max": 450.67877,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "7": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 546678154819.9455,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.12002790250897899,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 430.368671825838,
+                  "min": 410.35995,
+                  "max": 450.35995,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "8": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 387428909651.3766,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.0665959573360464,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.85767208185666,
+                  "min": 409.82916,
+                  "max": 449.82916,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         },
+         "9": {
+            "Gaussian": {
+               "ampli": {
+                  "value": 495978345164.2431,
+                  "min": 0,
+                  "max": Infinity,
+                  "vary": true,
+                  "expr": null
+               },
+               "fwhm": {
+                  "value": 0.2059284269651518,
+                  "min": 0,
+                  "max": 200,
+                  "vary": true,
+                  "expr": null
+               },
+               "x0": {
+                  "value": 429.77133941954014,
+                  "min": 409.7496,
+                  "max": 449.7496,
+                  "vary": true,
+                  "expr": null
+               }
+            }
+         }
+      },
+      "result_fit_success": true
+   }
+}
