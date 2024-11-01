@@ -177,7 +177,7 @@ def main():
         with open(os.path.join(output_path, os.path.splitext(row['File'])[0] + '.csv'), 'w') as f:
             for key, val in zip(params.keys(), params.values()):
                 f.write(f'# {key}: {val}\n')
-            output_df.to_csv(f, index=False, line_terminator='\n')
+            output_df.to_csv(f, index=False)#, line_terminator='\n')
 
 
 

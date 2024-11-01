@@ -1,5 +1,3 @@
-from string import digits
-
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
@@ -10,7 +8,7 @@ import json
 from scipy.optimize import least_squares, OptimizeResult
 from scipy.interpolate import interp1d
 import data_processing.confidence as cf
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from data_processing.utils import lighten_color, latex_float_with_error, latex_float
 
 
@@ -48,7 +46,7 @@ def main():
     wl = 350. + np.arange(n) * 10.
     print(f'wl.min: {wl.min():.0f}, wl.max(): {wl.max():.0f}')
 
-    radiated_power = simps(y=radiance, x=wl)
+    radiated_power = simpson(y=radiance, x=wl)
 
     radiance_interp = interp1d(x=wl, y=radiance)
     
