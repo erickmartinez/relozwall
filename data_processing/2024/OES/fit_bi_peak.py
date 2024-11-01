@@ -14,7 +14,7 @@ import re
 from data_processing.utils import latex_float_with_error
 
 
-brightness_csv = r'./data/brightness_data/echelle_20240815/MechelleSpect_001.csv'
+brightness_csv = r'./data/brightness_data/echelle_20240815/MechelleSpect_001.csv.bad'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
 output_folder = r'./figures/Echelle_plots/B-I'
 subtract_background = True
