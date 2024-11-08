@@ -14,7 +14,7 @@ import re
 from data_processing.utils import latex_float_with_error
 
 
-brightness_csv = r'./data/brightness_data/echelle_20240815/MechelleSpect_001.csv.bad'
+brightness_csv = r'./data/brightness_data/echelle_20240815/MechelleSpect_003.csv'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
 output_folder = r'./figures/Echelle_plots/B-I'
 subtract_background = True
@@ -251,7 +251,7 @@ def main():
 
     # ax.axvspan(wl_peak-delta_wl, wl_peak+delta_wl, color='tab:red', alpha=0.15)
 
-    fig.savefig(os.path.join(path_to_figures, file_tag + '.png'), dpi=600)
+    # fig.savefig(os.path.join(path_to_figures, file_tag + '.png'), dpi=600)
 
     plt.show()
 

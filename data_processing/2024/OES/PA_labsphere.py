@@ -89,7 +89,7 @@ def main():
     with open(r'./data/PALabsphere_2014_extrapolated.txt', 'w') as f:
         f.write(f'# T_fit {popt[0]:.0f} -/+ {popt_err[0]:.0f} K\n')
         f.write(f'# I_fit {popt[1]:.3E} -/+ {popt_err[1]:.3E} \n')
-        extrapolated_df.to_csv(f, index=False, line_terminator='\n')
+        extrapolated_df.to_csv(f, index=False)#, line_terminator='\n')
 
 
     load_plot_style()

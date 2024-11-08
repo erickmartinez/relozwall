@@ -69,7 +69,7 @@ def main():
             # )
             sr -= sr.min()
             axes[i].plot(wl, sr * 1E-12, color=colors[j], label=lbl, lw=1., alpha=alphas[j])
-        axes[i].set_ylim(0, 6.)
+        axes[i].set_ylim(0, 8.)
         axes[i].axvline(x=335.68, ls='--', color='grey', lw=1.)
         axes[i].set_xlim(wl_range)
         axes[i].xaxis.set_major_locator(ticker.MultipleLocator(1))
@@ -81,7 +81,7 @@ def main():
     axes[0].set_title('N-D Band (335.7 nm)')
     fig.supylabel('Spectral radiance (W/cm$^{\mathregular{2}}$/ster/nm) x10$^{\mathregular{12}}$')
     axes[-1].set_xlabel('$\lambda$ {\sffamily (nm)}', usetex=True)
-    fig.savefig('./figures/n-d_band_plot.png', dpi=600)
+    # fig.savefig('./figures/n-d_band_plot.png', dpi=600)
     plt.show()
 
 

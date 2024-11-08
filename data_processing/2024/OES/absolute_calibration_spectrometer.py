@@ -106,8 +106,8 @@ def main():
         # dwl = np.diff(wl_i)
         # print('d_wl.mean:', dwl.mean(), 'd_wl.min():', dwl.min(), 'd_wl.max:', dwl.max(), 'd_wl.std:', dwl.std())
         counts = df['counts'].values
-        counts -= counts.min()
-        # counts[counts < 0.] = 0.
+        # counts -= counts.min()
+        counts[counts < 0.] = 0.
         counts_ps = counts / exposure_s / accumulations
         # counts_ps = savgol_filter(
         #     counts_ps,
