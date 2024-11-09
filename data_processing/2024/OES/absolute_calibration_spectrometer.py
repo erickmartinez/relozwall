@@ -99,6 +99,7 @@ def main():
         path_to_echelle = os.path.join('./data/Echelle_data', row['Folder'], row['File'])
         df, params = ech.load_echelle_file(path_to_file=path_to_echelle)
         df = df[df['wl (nm)'].between(wl_ls.min(), wl_ls.max())].reset_index(drop=True)
+        df = df[df['wl (nm)'] > 0.].reset_index(drop=True)
         preamp_gain = row['Pre-Amplifier Gain']
         exposure_s = row['Exposure Time (secs)']
         accumulations = row['Number of Accumulations']
@@ -107,13 +108,13 @@ def main():
         # print('d_wl.mean:', dwl.mean(), 'd_wl.min():', dwl.min(), 'd_wl.max:', dwl.max(), 'd_wl.std:', dwl.std())
         counts = df['counts'].values
         # counts -= counts.min()
-        counts[counts < 0.] = 0.
+        # counts[counts < 0.] = np.float64(np.finfo(np.float64).eps)
         counts_ps = counts / exposure_s / accumulations
-        # counts_ps = savgol_filter(
-        #     counts_ps,
-        #     window_length=53,
-        #     polyorder=3
-        # )
+        counts_ps = savgol_filter(
+            counts_ps,
+            window_length=7,
+            polyorder=3
+        )
 
         if  row['Is dark'] == 0:
             if preamp_gain == 1:
@@ -164,24 +165,24 @@ def main():
 
     counts_pa1_3300K_mean = savgol_filter(
         counts_pa1_3300K_mean,
-        window_length=93,
+        window_length=7,
         polyorder=3
     )
     counts_pa4_3300K_mean = savgol_filter(
         counts_pa4_3300K_mean,
-        window_length=93,
+        window_length=7,
         polyorder=3
     )
 
     counts_pa1_bgnd_mean = savgol_filter(
         counts_pa1_bgnd_mean,
-        window_length=93,
+        window_length=7,
         polyorder=3
     )
 
     counts_pa4_bgnd_mean = savgol_filter(
         counts_pa4_bgnd_mean,
-        window_length=93,
+        window_length=7,
         polyorder=3
     )
 

@@ -12,7 +12,7 @@ from matplotlib.lines import Line2D
 import matplotlib as mpl
 from scipy.integrate import simpson
 
-spectrum_csv = r'./data/brightness_data_fitspy/echelle_20240815/MechelleSpect_007.csv'
+spectrum_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20240815/MechelleSpect_007.csv'
 
 
 lookup_lines = [
@@ -139,8 +139,8 @@ def main():
         loss='linear', f_scale=0.1,
         jac=jac_sum_gauss,
         bounds=(
-            [1E-10, 1E-10, wl_peak - 0.3],
-            [100. * c_window, np.inf, wl_peak + 0.3]
+            [1E-10, 1E-10, wl_peak - 0.2],
+            [100. * c_window, np.inf, wl_peak + 0.2]
         ),
         xtol=all_tol,
         ftol=all_tol,

@@ -69,7 +69,7 @@ def main():
             # )
             sr -= sr.min()
             axes[i].plot(wl, sr * 1E-12, color=colors[j], label=lbl, lw=1., alpha=alphas[j])
-        axes[i].set_ylim(0, 8.)
+        axes[i].set_ylim(0, 6.)
         axes[i].axvline(x=335.68, ls='--', color='grey', lw=1.)
         axes[i].set_xlim(wl_range)
         axes[i].xaxis.set_major_locator(ticker.MultipleLocator(1))

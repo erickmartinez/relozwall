@@ -78,6 +78,7 @@ def baselined_spectrum(path_to_echelle, background_df, wl_min=350, wl_max=850):
     # load the data
     e_df, params = ech.load_echelle_file(path_to_file=path_to_echelle)
     e_df = e_df[e_df['wl (nm)'].between(wl_min, wl_max)].reset_index(drop=True)
+    e_df = e_df[e_df['wl (nm)']>=0.].reset_index(drop=True)
 
     preamp_gain = int(params['Pre-Amplifier Gain'])
     exposure_s =float(params['Exposure Time (secs)'])

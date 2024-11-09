@@ -10,7 +10,7 @@ from scipy.optimize import least_squares, OptimizeResult
 from scipy.integrate import simpson
 from scipy.interpolate import interp1d
 
-brightness_folder = r'./data/brightness_data_fitspy'
+brightness_folder = r'./data/brightness_data_fitspy_wl-calibrated'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 echelle_db = r'./data/echelle_db.xlsx'
 
