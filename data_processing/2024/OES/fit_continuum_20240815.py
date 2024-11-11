@@ -232,7 +232,7 @@ def main():
         ha='left', va='top', fontsize=11, color='tab:red', usetex=True
     )
     with open(os.path.join('./data', f'baseline_{base_folder}_{base_filename}.csv'), 'w') as f:
-        intensity_da = sum_gaussians([popt_da[2]], popt_da)
+        intensity_da = sum_gaussians([popt_da[2]], popt_da) * 1E12
         f.write(f"# D_gamma: {popt_da[2]:.3f} -/+ {delta_da[2]:.4f} nm, Intensity: {intensity_da[0]:.3E} (photons/cm^2/s/nm)\n")
         baseline_df.to_csv(f, index=False)
 
