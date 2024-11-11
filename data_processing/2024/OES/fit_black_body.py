@@ -12,8 +12,38 @@ from scipy.integrate import simpson
 from data_processing.utils import lighten_color, latex_float_with_error, latex_float
 from scipy.signal import savgol_filter
 from data_processing.echelle import load_echelle_file
+import re
 
 echelle_spectrum = r'./data/brightness_data_fitspy/echelle_20241031/MechelleSpect_006.csv'
+baseline_fit_csv = r'./data/baseline_echelle_20240815_MechelleSpect_007.csv'
+
+lookup_lines = [
+    {'center_wl': 410.06, 'label': r'D$_{\delta}$'},
+    {'center_wl': 433.93, 'label': r'D$_{\gamma}$'},
+    {'center_wl': 486.00, 'label': r'D$_{\beta}$'},
+    {'center_wl': 656.10, 'label': r'D$_{\alpha}$'}
+]
+
+calibration_wl = lookup_lines[1]
+
+def model_poly(x, b) -> np.ndarray:
+    n = len(b)
+    r = np.zeros(len(x))
+    for i in range(n):
+        r += b[i] * x ** i
+    return r
+
+
+def res_poly(b, x, y, w=1.):
+    return (model_poly(x, b) - y) * w
+
+
+def jac_poly(b, x, y, w=1):
+    n = len(b)
+    r = np.zeros((len(x), n))
+    for i in range(n):
+        r[:, i] = w * x ** i
+    return r
 
 def load_plot_style():
     with open('../plot_style.json', 'r') as file:
@@ -42,18 +72,44 @@ def res_bb(b, x, y):
     return model_bb(wavelength_nm=x, b=b) - y
 
 
+
+
+
 def main():
-    global echelle_spectrum
+    global echelle_spectrum, baseline_fit_csv
     # spectrum_df, params = load_echelle_file('./data/Echelle_data/echelle_20241031/MechelleSpect_012.asc')
     spectrum_df = pd.read_csv(
         echelle_spectrum, comment='#',
     ).apply(pd.to_numeric)
-    spectrum_df = spectrum_df[spectrum_df['Wavelength (nm)']>=400.]
+    spectrum_df = spectrum_df[spectrum_df['Wavelength (nm)']>=600.]
     brightness = spectrum_df['Brightness (photons/cm^2/s/nm)'].values
+
+    baseline_df = pd.read_csv(baseline_fit_csv, comment='#').apply(pd.to_numeric)
+    # Get the coefficients of the polynomial fit to the continuum
+    # Also get the intensity of the calibration wavelength (D_gamma) from the spectrum used to get the continuum
+    # baseline.
+    #
+    # D_gamma: 433.933 -/+ 0.0000 nm, Intensity: 3.308E+01 (photons/cm^2/s/nm)
+    p = re.compile(r"\#\s+D\_gamma\:\s+(\d+\.\d*)\s+.*Intensity\:\s+(\d+\.?\d*[eE][\-\+]\d+).*")
+    reference_wl = 433.93 # nm
+    reference_intenstiy = 3.3E1 # photons/cm^2/s
+    with open(baseline_fit_csv, 'r') as f:
+        for line in f:
+            m = p.match(line)
+            if m:
+                reference_wl = float(m.group(1))
+                reference_intenstiy = float(m.group(2))
+                break
+    print(f"Reference wl:\t{reference_wl:.3f} nm")
+    print(f"Reference intensity:\t{reference_intenstiy:.3E} (photons/cm^2/s/nm)")
+    print(baseline_df)
+    popt =np.array([xi for xi in baseline_df.iloc[0]])
 
 
     wl = spectrum_df['Wavelength (nm)'].values
     radiance = brightness * 1240. / wl * 1.6019E-19 / 4. / np.pi
+    baseline = model_bb(wl, popt)
+    radiance -= baseline
     # wl = spectrum_df['wl (nm)'].values
     # radiance = spectrum_df['counts'].values
 

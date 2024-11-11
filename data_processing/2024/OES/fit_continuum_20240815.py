@@ -117,9 +117,9 @@ def main():
     brightness = spectrum_df['Brightness (photons/cm^2/s/nm)'].values * 1E-12
     n = len(brightness)
     # find the Dalpha peak
-    da_wl = 656.10
+    dg_wl = 433.93
     wl_del = 0.2
-    msk_da = ((da_wl - wl_del) <= wl) & (wl <= (da_wl + wl_del))
+    msk_da = ((dg_wl - wl_del) <= wl) & (wl <= (dg_wl + wl_del))
     wl_win = wl[msk_da]
     y_win = brightness[msk_da]
     y_peak = y_win.max()
@@ -127,7 +127,7 @@ def main():
     wl_peak = wl_win[idx_peak]
 
     wl_del = 0.75
-    msk_da = ((da_wl - wl_del) <= wl) & (wl <= (da_wl + wl_del))
+    msk_da = ((dg_wl - wl_del) <= wl) & (wl <= (dg_wl + wl_del))
     wl_win = wl[msk_da]
     y_win = brightness[msk_da]
     area_window = simpson(y=y_win, x=wl_win)
@@ -199,7 +199,7 @@ def main():
     base_folder = os.path.basename(os.path.dirname(spectrum_csv))
     ax1.set_title(f"{base_folder} - {base_filename}")
 
-    msk_da_plot = ((da_wl - 3.) <= wl) & (wl <= (da_wl + 3.))
+    msk_da_plot = ((dg_wl - 3.) <= wl) & (wl <= (dg_wl + 3.))
     print(brightness[msk_da_plot])
     ax2.plot(wl[msk_da_plot], brightness[msk_da_plot], ms=6, marker='o', mec='C0', mfc='none', label='data', ls='none')
     ax2.plot(x_pred_da, y_pred_da, color='tab:red', label='Fit')
@@ -231,8 +231,11 @@ def main():
         0.05, 0.95, eq_txt, transform=ax1.transAxes,
         ha='left', va='top', fontsize=11, color='tab:red', usetex=True
     )
+    with open(os.path.join('./data', f'baseline_{base_folder}_{base_filename}.csv'), 'w') as f:
+        intensity_da = sum_gaussians([popt_da[2]], popt_da)
+        f.write(f"# D_gamma: {popt_da[2]:.3f} -/+ {delta_da[2]:.4f} nm, Intensity: {intensity_da[0]:.3E} (photons/cm^2/s/nm)\n")
+        baseline_df.to_csv(f, index=False)
 
-    baseline_df.to_csv(os.path.join('./data', f'baseline_{base_folder}_{base_filename}.csv'), index=False)
     fig.savefig(os.path.join('./figures', f'baseline_{base_folder}_{base_filename}.png'), dpi=600)
     plt.show()
 
