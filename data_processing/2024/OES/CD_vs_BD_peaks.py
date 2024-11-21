@@ -8,7 +8,7 @@ import json
 from scipy.optimize import least_squares, OptimizeResult
 
 bd_peak_db = r'./data/b-d_gaussian_peak.xlsx'
-echelle_db = r'./data/echelle_db.xlsx'
+echelle_xlsx = r'./data/echelle_db.xlsx'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
 
 
@@ -23,7 +23,7 @@ plasma_params = pd.DataFrame(data={
 })
 
 def load_db():
-    global echelle_db
+    global echelle_xlsx
     df = pd.read_excel(echelle_db, sheet_name='Spectrometer parameters')
     return df
 

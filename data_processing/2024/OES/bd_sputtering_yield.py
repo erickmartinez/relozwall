@@ -1,0 +1,193 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import matplotlib.ticker as ticker
+import json
+import os
+from scipy.optimize import least_squares, OptimizeResult
+
+bi_lorentzian_xls = r'./data/cd_bd_lorentzian.xlsx'
+folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
+
+
+
+def bh_x_rate(T_e) -> np.ndarray:
+    """
+    Estimates the excitation rate coefficient from the
+    ground state of B-H for the transition:
+
+    .. math::\Chi^1 \Sigma^+ \to \mathrm{A}^1\Pi
+
+    as a function of the electron temperature.
+
+    This relationship corresponds to the modified Arrhenius function
+    .. math:: k = A T_e^n\exp\left(-\frac{E_{\mathrm{act}}{T_e}\right)
+
+    described in Kawate et al. Plasma Sources Sci. Technol. 32, 085006 (2023)
+    doi: 10.1088/1361-6595/acec0c
+
+
+    Parameters
+    ----------
+    T_e: np.ndarray
+        The electron temperature in eV
+
+    Returns
+    -------
+    np.ndarray:
+        The excitation rate coefficient in cm^3/s
+
+    """
+    return 5.62E-8 * np.power(T_e, 0.021) * np.exp(-3.06 / T_e)
+
+# Constants
+k_B = 1.380649e-23  # Boltzmann constant (J/K)
+m_B = 10.811 * 1.66053906660e-27  # Mass of boron atom (kg)
+m_e = 9.10938356e-31  # Mass of electron (kg)
+m_D = 2.014 * 1.66053906660e-27  # Mass of deuterium (kg)
+def thermal_velocity(T, m):
+    """
+    Calculate thermal velocity
+    T: temperature (K)
+    m: mass of particle (kg)
+    """
+    global k_B
+    return np.sqrt(8 * k_B * T / (np.pi * m))
+    # return np.sqrt(2. * k_B * T / m)
+
+
+def pec2flux(vth, intensity, n_e, pec, intensity_error):
+    L = 1. # cm
+    fb = vth * intensity / n_e / L / pec
+    fb_err = np.abs(fb) * np.sqrt(np.power(intensity_error / intensity, 2.) + (0.05/L)**2. + (0.2*vth/vth)**2.)
+    return fb, fb_err
+
+
+sample_diameter = 1.016
+sample_area = 0.25 * np.pi * sample_diameter ** 2.
+flux_d = 0.23E18 # /cm^3/s
+def flux2yield(flux_b):
+    global flux_d
+    return flux_b / flux_d
+
+def yield2flux(x):
+    global flux_d
+    return x * flux_d
+
+
+def model_poly(x, b) -> np.ndarray:
+    n = len(b)
+    r = np.zeros(len(x))
+    for i in range(n):
+        r += b[i] * x ** i
+    return r
+
+
+def res_poly(b, x, y, w=1.):
+    return (model_poly(x, b) - y) * w
+
+
+def jac_poly(b, x, y, w=1):
+    n = len(b)
+    r = np.zeros((len(x), n))
+    for i in range(n):
+        r[:, i] = w * x ** i
+    return r
+
+
+def load_plot_style():
+    with open('../plot_style.json', 'r') as file:
+        json_file = json.load(file)
+        plot_style = json_file['thinLinePlotStyle']
+    mpl.rcParams.update(plot_style)
+    mpl.rcParams['text.latex.preamble'] = (r'\usepackage{mathptmx}'
+                                           r'\usepackage{xcolor}'
+                                           r'\usepackage{helvet}'
+                                           r'\usepackage{siunitx}')
+
+
+def load_folder_mapping():
+    global folder_map_xls
+    df = pd.read_excel(folder_map_xls, sheet_name=0)
+    mapping = {}
+    for i, row in df.iterrows():
+        mapping[row['Echelle folder']] = row['Data label']
+    return mapping
+
+
+def main():
+    global bi_lorentzian_xls, m_B
+    # load the fitted lorentzian peaks
+    bi_df = pd.read_excel(bi_lorentzian_xls, sheet_name=0)
+    folder_mapping = load_folder_mapping()
+    folders = bi_df['Folder'].unique()
+    n_plots = len(folders)
+
+    # fig_cols = max(int(n_plots * 0.5), 1)
+    # fig_rows = max(int(n_plots / fig_cols), 1)
+
+    load_plot_style()
+    fig, axes = plt.subplots(nrows=n_plots, ncols=1, constrained_layout=True, sharex=True)
+    fig.set_size_inches(4.5, 7.5)
+
+    pec_bd = 5.1E-11
+    n_e = 0.212E12  # 1/cm^3
+
+    markers = ['^', 's', 'o', 'v']
+    colors = ['C0', 'C1', 'C2', 'C3']
+    for i, folder in enumerate(folders):
+        ax = axes[i]
+        lbl = folder_mapping[folder]
+        temperature_boron = 500 if folder != 'echelle_20241031' else 1010.
+        vth_B = thermal_velocity(T=temperature_boron, m=m_B)
+        pec_bd = bh_x_rate(T_e=temperature_boron)
+        # Select the areas of the peaks for that folder
+        idx_folder = bi_df['Folder'] == folder
+        folder_df = bi_df[idx_folder].sort_values(by=['Elapsed time (s)'])
+        time_s = folder_df['Elapsed time (s)'].values
+        intensity = folder_df['area_cd (photons/cm^2/s)'].values
+        intensity_err = folder_df['area_err_cd (photons/cm^2/s)'].values
+        fb, fb_err = pec2flux(vth=vth_B, intensity=intensity, n_e=n_e, pec=pec_bd,
+                              intensity_error=intensity_err)
+
+        eps = float(np.finfo(np.float64).eps)
+        # ls_fit = least_squares(
+        #     res_poly, x0=[0.01**i for i in range(5)], args=(time_s, fb),
+        #     loss='soft_l1', f_scale=0.1,
+        #     jac=jac_poly,
+        #     xtol=eps,
+        #     ftol=eps,
+        #     gtol=eps,
+        #     verbose=2,
+        #     x_scale='jac',
+        #     max_nfev=10000 * len(time_s)
+        # )
+
+        markers_b, caps_b, bars_b = ax.errorbar(
+            time_s/60., fb, yerr=fb_err, capsize=2.75, mew=1.25, marker=markers[i], ms=8, elinewidth=1.25,
+            color=colors[i], fillstyle='none',
+            ls='none',# lw=1.25,
+            label=lbl,
+        )
+
+        # ax.plot(time_s/60., model_poly(time_s, ls_fit.x), color=colors[i], ls='--', lw=1)
+        ax.set_yscale('log')
+        ax.legend(loc='upper right', frameon=True, fontsize=10)
+        ax.set_ylim(1E8, 1E12)
+        secax = ax.secondary_yaxis('right', functions=(flux2yield, yield2flux))
+        secax.set_ylabel(r'$Y_{\mathrm{B-H/D^+}}$', usetex=True)
+
+        [bar.set_alpha(0.35) for bar in bars_b]
+    axes[-1].set_xlabel(r'Time (min)', usetex=False)
+    axes[-1].set_xlim(0, 100)
+    fig.supylabel(r"$\Gamma_{\mathrm{B-D}}$ {\sffamily (cm\textsuperscript{-2} s\textsuperscript{-1})}", usetex=True)
+    fig.savefig('./figures/bd_sputtering_yield.png', dpi=600)
+    plt.show()
+
+
+
+if __name__ == '__main__':
+    main()
+
+

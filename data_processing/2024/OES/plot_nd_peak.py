@@ -7,7 +7,7 @@ import json
 import numpy as np
 from scipy.signal import savgol_filter
 
-brightness_folder = r'./data/brightness_data_fitspy'
+brightness_folder = r'./data/brightness_data_fitspy_wl-calibrated'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 
 
@@ -34,7 +34,7 @@ def load_plot_style():
 def main():
     global brightness_folder
     folder_mapping = load_folder_mapping()
-    folders = os.listdir(brightness_folder)
+    folders = [f for f in os.listdir(brightness_folder) if not f.startswith('.')]
     n = len(folders)
     load_plot_style()
     cmap_names = ["Blues", "Oranges", "Greens", "Reds", "Purples"]
@@ -43,7 +43,7 @@ def main():
     tab10_colors = [f'C{i}' for i in range(n)]
 
     fig, axes = plt.subplots(nrows=n, ncols=1, sharex=True, constrained_layout=True)
-    fig.set_size_inches(4.0, 5.5)
+    fig.set_size_inches(5.0, 5.5)
     # fig.subplots_adjust(hspace=0, left=0.15, right=0.98, top=0.95, bottom=0.1)
 
     for i, folder in enumerate(folders):
@@ -70,13 +70,15 @@ def main():
             sr -= sr.min()
             axes[i].plot(wl, sr * 1E-12, color=colors[j], label=lbl, lw=1., alpha=alphas[j])
         axes[i].set_ylim(0, 6.)
-        axes[i].axvline(x=335.68, ls='--', color='grey', lw=1.)
+        axes[i].axvline(x=335.76, ls='--', color='grey', lw=1.)
         axes[i].set_xlim(wl_range)
         axes[i].xaxis.set_major_locator(ticker.MultipleLocator(1))
         axes[i].xaxis.set_minor_locator(ticker.MultipleLocator(0.1))
         axes[i].yaxis.set_major_locator(ticker.MultipleLocator(2))
         axes[i].yaxis.set_minor_locator(ticker.MultipleLocator(0.5))
         axes[i].legend(loc='upper left', fontsize=10, frameon=True)
+
+    axes[-1].set_ylim(-0.1, 10.)
 
     axes[0].set_title('N-D Band (335.7 nm)')
     fig.supylabel('Spectral radiance (W/cm$^{\mathregular{2}}$/ster/nm) x10$^{\mathregular{12}}$')

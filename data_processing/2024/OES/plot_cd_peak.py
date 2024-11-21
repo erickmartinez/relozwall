@@ -12,7 +12,7 @@ from scipy.interpolate import interp1d
 
 brightness_folder = r'./data/brightness_data_fitspy_wl-calibrated'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
-echelle_db = r'./data/echelle_db.xlsx'
+echelle_xlsx = r'./data/echelle_db.xlsx'
 
 calibration_line = {'center_wl': 433.93, 'label': r'D$_{\gamma}$'}
 
@@ -118,8 +118,8 @@ def jac_poly(b, x, y, w=1):
 
 
 def main():
-    global brightness_folder, calibration_line, echelle_db
-    params_df: pd.DataFrame = pd.read_excel(echelle_db, sheet_name=0)
+    global brightness_folder, calibration_line, echelle_xlsx
+    params_df: pd.DataFrame = pd.read_excel(echelle_xlsx, sheet_name=0)
     # Get the elapased time since the first spectrum for each spectrum in the folder
     params_df['Timestamp'] = params_df['Timestamp'].apply(pd.to_datetime)
     params_df['Elapsed time (s)'] = (params_df['Timestamp'] - params_df[

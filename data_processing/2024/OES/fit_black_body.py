@@ -20,7 +20,7 @@ baseline_fit_csv = r'./data/baseline_echelle_20240815_MechelleSpect_007.csv'
 
 lookup_lines = [
     {'center_wl': 410.06, 'label': r'D$_{\delta}$'},
-    {'center_wl': 433.93, 'label': r'D$_{\gamma}$'},
+    {'center_wl': 434.0, 'label': r'D$_{\gamma}$'},
     {'center_wl': 486.00, 'label': r'D$_{\beta}$'},
     {'center_wl': 656.10, 'label': r'D$_{\alpha}$'}
 ]

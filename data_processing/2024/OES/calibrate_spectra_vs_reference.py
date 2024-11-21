@@ -5,6 +5,7 @@ import matplotlib.ticker as ticker
 import os
 import json
 import matplotlib as mpl
+from scipy.optimize import least_squares, OptimizeResult
 
 input_folder = r'./data/brightness_data_fitspy'
 echelle_excel = r'./data/echelle_db.xlsx'
@@ -13,12 +14,51 @@ scaling_excel = r'./data/spectra_scaling_dalpha.xlsx'
 
 d_lines = [
     {'center_wl': 410.06, 'label': r'D$_{\delta}$'},
-    {'center_wl': 433.93, 'label': r'D$_{\gamma}$'},
+    {'center_wl': 434.00, 'label': r'D$_{\gamma}$'},
     {'center_wl': 486.00, 'label': r'D$_{\beta}$'},
     {'center_wl': 656.10, 'label': r'D$_{\alpha}$'}
 ]
 
 use_reference = d_lines[1] # (D_alpha)
+
+def lorentzian(x, h, mu, gamma):
+    return 2.*gamma*h/(np.pi)/(4*(x-mu)**2. + gamma**2.)
+
+def res_sum_lorentzians(b, x, y):
+    return sum_lorentzians(x, b) - y
+
+def sum_lorentzians(x, b):
+    m = len(x)
+    n3 = len(b)
+    selector = np.arange(0, n3) % 3
+    h = b[selector == 0]
+    mu = b[selector == 1]
+    gamma = b[selector == 2]
+    n = len(h)
+    res = np.zeros(m)
+    for i in range(n):
+        res += h[i]*gamma[i] / ( ((x-mu[i])**2.) + (0.25* gamma[i] ** 2.) )
+    return 0.5 * res / np.pi
+
+def jac_sum_lorentzians(b, x, y):
+    m = len(x)
+    n3 = len(b)
+    selector = np.arange(0, n3) % 3
+    h = b[selector == 0]
+    mu = b[selector == 1]
+    gamma = b[selector == 2]
+    n = len(h)
+    res = np.empty((m, n3), dtype=np.float64)
+    for i in range(n):
+        g = gamma[i]
+        g2 = g ** 2.
+        xm = x - mu[i]
+        xm2 = xm ** 2.
+        den = (4. * xm2 + g2) ** 2.
+        res[:, 3*i] = 0.5 * g / (xm2 + 0.25*g2)
+        res[:, 3*i+1] = 16. * g * h[i] * xm / den
+        res[:, 3*i+2] = h[i] * (8. * xm2 - 2. * g2) / den
+    return res / np.pi
 
 
 def main():
@@ -53,6 +93,8 @@ def main():
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
+    print('******** X0 ESTIMATE (nm) ********')
+    print('FROM INDEX   FROM LORENTZIAN')
     for i, row in echelle_df.iterrows():
         folder = row['Folder']
         file = row['File'].replace('.asc', '.csv')
@@ -63,14 +105,39 @@ def main():
             continue
         # Try to locate the reference in a -/+ 0.5 nm window
         ref_wl = use_reference['center_wl']
-        win_df = df[df['Wavelength (nm)'].between(ref_wl-0.5, ref_wl+0.5)].reset_index(drop=True)
+        win_df = df[df['Wavelength (nm)'].between(ref_wl-0.6, ref_wl+0.6)].reset_index(drop=True)
         wl = win_df['Wavelength (nm)'].values
         brightness = win_df['Brightness (photons/cm^2/s/nm)'].values
         b_peak = brightness.max()
         idx_peak = np.argmin(np.abs(brightness - b_peak))
         wl_peak = wl[idx_peak]
+        # fitting the peak to a Lorentzian
+        guess_g = 0.2 # the FWHM
+        guess_h = 0.5 * b_peak * np.pi * guess_g # The area of the peak
+        guess_m = wl_peak
+        b0 = np.array([guess_h, guess_m, guess_g])
+        eps = float(np.finfo(np.float64).eps)
+        res_lsq: OptimizeResult = least_squares(
+            res_sum_lorentzians, x0=b0, args=(wl, brightness),
+            loss='linear', f_scale=0.1,
+            jac=jac_sum_lorentzians,
+            bounds=(
+                [eps, wl_peak-0.5, 1E-5],
+                [1E50, wl_peak+0.5, 1E10]
+            ),
+            xtol=eps,
+            ftol=eps,
+            gtol=eps,
+            x_scale='jac',
+            verbose=0,
+            tr_solver='exact',
+            max_nfev=10000 * len(wl)
+        )
+        popt = res_lsq.x
+        print(f'{wl_peak:<10.2f}\t{popt[1]:>15.2f}')
+
         # Determine the shift
-        wl_shift = ref_wl - wl_peak
+        wl_shift = ref_wl - popt[1]
         df['Wavelength (nm)'] += wl_shift
 
         row_data = pd.DataFrame(data={
@@ -97,7 +164,7 @@ def main():
 
     scaling_df = scaling_df.reset_index(drop=True)
     print(scaling_df)
-    scaling_df.to_excel(excel_writer=scaling_excel, index=False)
+    # scaling_df.to_excel(excel_writer=scaling_excel, index=False)
 
 if __name__ == '__main__':
     main()

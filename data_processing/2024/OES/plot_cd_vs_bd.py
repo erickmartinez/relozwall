@@ -8,7 +8,7 @@ import json
 from scipy.optimize import least_squares, OptimizeResult
 
 cd_bd_excel = r'./data/cd_bd_db.xlsx'
-echelle_db = r'./data/echelle_db.xlsx'
+echelle_xlsx = r'./data/echelle_db.xlsx'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 
 
@@ -53,7 +53,7 @@ def jac_poly(b, x, y, w=1):
 
 
 def main():
-    global cd_bd_excel, echelle_db
+    global cd_bd_excel, echelle_xlsx
     peaks_df: pd.DataFrame = pd.read_excel(cd_bd_excel, sheet_name=0)
     params_df: pd.DataFrame = pd.read_excel(echelle_db, sheet_name=0)
     peaks_df['Fit_file'] = peaks_df['File']
