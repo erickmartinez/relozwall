@@ -7,11 +7,15 @@ import json
 import numpy as np
 import re
 
-path_to_fitspy_results = r'./data/fitspy_results_cd_bd/echelle_20241031/MechelleSpect_006.csv'
-output_xls = r'./data/cd_bd_lorentzian.xlsx'
+from sphinx.addnodes import index
+from torch import dtype
+
+path_to_fitspy_results = r'./data/fitspy_results_cd_bd/echelle_20241031/MechelleSpect_029.csv'
+# output_xls = r'./data/cd_bd_lorentzian.xlsx'
 echelle_xlsx = r'./data/echelle_db.xlsx'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
 output_folder = r'./figures/Echelle_plots/CD-BD'
+output_xls = r'./data/cd_bd_qbranch.xlsx'
 
 
 wl_range = (429., 434.5)
@@ -24,8 +28,11 @@ peaks_of_interest = [
     {'center_wl': 432.6, 'label': 'B-D (Q-branch)'}
 ]
 
-p_branch_ub = 432.2
-q_branch_lb = 432.3
+q_branch_range = (432.2, 433.8)
+mixed_range = (429.6, 432.1)
+
+# p_branch_ub = 432.2
+# q_branch_lb = 432.3
 
 def lorentzian(x, h, mu, gamma):
     return 2.*gamma*h/(np.pi)/(4*(x-mu)**2. + gamma**2.)
@@ -102,7 +109,6 @@ def get_spectrum_timestamp(folder, file, echelle_df):
         selected_folder_df = echelle_df[(echelle_df['Folder'] == folder) & (echelle_df['File'] == file)].reset_index(
             drop=True)
         elapsed_time = selected_folder_df['Elapsed time (s)'][0]
-        timestamp = selected_folder_df['Timestamp'][0]
         print(f"Elapsed time: {elapsed_time}")
     except KeyError:
         print(f"Could not find Folder '{folder}', File '{file}' in the echelle_db")
@@ -121,24 +127,22 @@ def load_echelle_xlsx(xlsx_file):
         echelle_df.loc[row_indexes, 'Elapsed time (s)'] = (echelle_df.loc[row_indexes, 'Timestamp'] - ts[0]).dt.seconds
     return  echelle_df
 
-cd_bd_columns = [
+temp_cols = [
     'Folder', 'File',
     'Model',
-    'x0_cd (nm)', 'ampli_cd (photons/cm^2/s/nm)', 'ampli_err_cd  (photons/cm^2/s/nm)',
-    'fwhm_cd (nm)', 'fwhm_err_cd (nm)', 'area_cd (photons/cm^2/s)', 'area_err_cd (photons/cm^2/s)',
-    'x0_bd (nm)', 'ampli_bd (photons/cm^2/s/nm)', 'ampli_err_bd  (photons/cm^2/s/nm)',
-    'fwhm_bd (nm)', 'fwhm_err_bd (nm)', 'area_bd (photons/cm^2/s)', 'area_err_bd (photons/cm^2/s)',
+    'area (photons/cm^2/s)', 'area_err (photons/cm^2/s)',
     'Elapsed time (s)'
 ]
 
 def load_output_db(xlsx_source):
-    global cd_bd_columns
+    global temp_cols
     try:
         out_df: pd.DataFrame = pd.read_excel(xlsx_source, sheet_name=0)
     except Exception as e:
         out_df = pd.DataFrame(data={
             col: [] for col in cd_bd_columns
         })
+        out_df.to_excel(xlsx_source, index=False)
     return out_df
 
 def update_out_df(db_df:pd.DataFrame, row_data):
@@ -167,7 +171,8 @@ def load_folder_mapping():
 
 def main():
     global path_to_fitspy_results, calibration_line, peaks_of_interest, echelle_xlsx
-    global cd_bd_columns, output_xls
+    global temp_cols, output_xls
+    global q_branch_range, mixed_range
     echelle_df = load_echelle_xlsx(echelle_xlsx)
     file = os.path.basename(path_to_fitspy_results)
     file_tag = os.path.splitext(file)[0]
@@ -212,12 +217,12 @@ def main():
         ampli = row['ampli']
         g = row['fwhm']
         h = 0.5 * ampli * np.pi * g
-        ax.fill_between(
-            wavelength, 0, lorentzian(
-                x=wavelength, h=h, mu=x0, gamma=g
-            ),
-            alpha=0.25
-        )
+        # ax.fill_between(
+        #     wavelength, 0, lorentzian(
+        #         x=wavelength, h=h, mu=x0, gamma=g
+        #     ),
+        #     alpha=0.25
+        # )
         idx_h = 3 * i
         idx_m = idx_h + 1
         idx_g = idx_m + 1
@@ -244,7 +249,7 @@ def main():
     )
     ax.annotate(
             f"{calibration_line['label']} ({calibration_line['center_wl']:.2f}) nm",
-            xy=(calibration_line['center_wl'], yfit.max()*2.75), xycoords='data',  # 'figure pixels', #data',
+            xy=(calibration_line['center_wl'], photon_flux.max()*0.075), xycoords='data',  # 'figure pixels', #data',
             # transform=axes[1].transAxes,
             xytext=(0.75, 0.90), textcoords='axes fraction',
             ha='right', va='top',
@@ -258,7 +263,7 @@ def main():
     peak_data = {}
     peak_data['Folder'] = folder
     peak_data['File'] = file
-    peak_data['Model'] = 'Lorentzian'
+    # peak_data['Model'] = 'Lorentzian'
     path_to_stats_file = os.path.join(os.path.dirname(path_to_fitspy_results), file_tag + '_stats.txt')
     connectionstyle = "angle,angleA=0,angleB=-90,rad=0"
     # connectionstyle = "arc3,rad=0."
@@ -269,33 +274,121 @@ def main():
         patchA=None, patchB=None,
         connectionstyle=connectionstyle
     )
-    for peak in peaks_of_interest:
-        pc = peak['center_wl']
-        idx = np.argmin(np.abs(pc - lorentzians_x0))
-        center_wl = lorentzians_x0[idx]
-        lbl = peak['label']
-        peak_stats = get_peak_stats(idx+1, path_to_stats_file)
-        suffix = 'cd' if lbl == 'C-D' else 'bd'
 
-        peak_data[f'x0_{suffix} (nm)'] = peak_stats['x0']
-        peak_data[f'ampli_{suffix} (photons/cm^2/s/nm)'] = peak_stats['ampli']
-        peak_data[f'ampli_err_{suffix}  (photons/cm^2/s/nm)'] = peak_stats['ampli_error']
-        peak_data[f'fwhm_{suffix} (nm)'] = peak_stats['fwhm']
-        peak_data[f'fwhm_err_{suffix} (nm)'] = peak_stats['fwhm_error']
-        peak_data[f'area_{suffix} (photons/cm^2/s)'] = peak_stats['area']
-        peak_data[f'area_err_{suffix} (photons/cm^2/s)'] = peak_stats['area_error']
 
-        # ax.axvline(x=center_wl, color='0.5', ls='-.', lw=1.)
-        ax.annotate(
-            f"{lbl}\n({center_wl:.2f}) nm",
-            xy=(center_wl, sum_lorentzians(np.array([center_wl]), popt)*1.1), xycoords='data',  # 'figure pixels', #data',
-            # transform=axes[1].transAxes,
-            xytext=(-100, 80), textcoords='offset pixels',
-            ha='center', va='bottom',
-            arrowprops=arrowprops,
-            bbox=bbox,
-            fontsize=10
-        )
+    # Group peaks corresponding to the q-branch of B-D
+    q_branch_peaks = model_df[model_df['x0'].between(q_branch_range[0], q_branch_range[1])].reset_index(drop=True)
+    # Group peaks corresponding to the mixed range where B-D and C-D (and potentially other transitions) mix
+    mixed_range_peaks = model_df[model_df['x0'].between(mixed_range[0], mixed_range[1])].reset_index(drop=True)
+
+    # Plot the Q-branch
+    popt_qb = np.empty(len(q_branch_peaks) * 3, dtype=np.float64)
+    qb_x0_mean = 0.
+    bd_area_err = np.zeros(len(q_branch_peaks), dtype=np.float64)
+    area_sum = 0
+    for i, row in q_branch_peaks.iterrows():
+        x0 = row['x0']
+        qb_x0_mean += x0
+        ampli = row['ampli']
+        idx = np.argmin(np.abs(x0 - lorentzians_x0))
+        peak_stats = get_peak_stats(idx + 1, path_to_stats_file)
+        g = row['fwhm']
+        h = 0.5 * ampli * np.pi * g
+        idx_h = 3 * i
+        idx_m = idx_h + 1
+        idx_g = idx_m + 1
+        popt_qb[idx_h] = h
+        popt_qb[idx_m] = x0
+        popt_qb[idx_g] = g
+        area_sum += h
+        bd_area_err[i] =  peak_stats['ampli_error']
+
+    peak_data['area (photons/cm^2/s)'] = area_sum
+    peak_data['area_err (photons/cm^2/s)'] = np.linalg.norm(bd_area_err)
+    qb_x0_mean /= len(q_branch_peaks)
+    qb_shape = sum_lorentzians(x=wavelength, b=popt_qb)
+    qb_y_max = qb_shape.max()
+
+    ax.fill_between(
+        wavelength, 0, qb_shape,
+        alpha=0.25
+    )
+
+    ax.annotate(
+        f"Q-branch",
+        xy=(qb_x0_mean, qb_y_max), xycoords='data',  # 'figure pixels', #data',
+        # transform=axes[1].transAxes,
+        xytext=(-10, 60), textcoords='offset pixels',
+        ha='center', va='bottom',
+        # arrowprops=arrowprops,
+        # bbox=bbox,
+        fontsize=10
+    )
+
+    # Plot the mixed branch
+    popt_mb = np.empty(len(mixed_range_peaks) * 3, dtype=np.float64)
+    mb_x0_mean = 0.
+    for i, row in mixed_range_peaks.iterrows():
+        x0 = row['x0']
+        mb_x0_mean += x0
+        ampli = row['ampli']
+        g = row['fwhm']
+        h = 0.5 * ampli * np.pi * g
+        idx_h = 3 * i
+        idx_m = idx_h + 1
+        idx_g = idx_m + 1
+        popt_mb[idx_h] = h
+        popt_mb[idx_m] = x0
+        popt_mb[idx_g] = g
+
+    mb_x0_mean /= len(mixed_range_peaks)
+    mb_shape = sum_lorentzians(x=wavelength, b=popt_mb)
+    mb_y_max = sum_lorentzians(x=[430.7], b=popt_mb)
+
+    ax.fill_between(
+        wavelength, 0, mb_shape,
+        alpha=0.25
+    )
+
+    ax.annotate(
+        f"B-D + C-D",
+        xy=(mb_x0_mean, mb_y_max * 1.1), xycoords='data',  # 'figure pixels', #data',
+        # transform=axes[1].transAxes,
+        xytext=(-10, 50), textcoords='offset pixels',
+        ha='center', va='bottom',
+        # arrowprops=arrowprops,
+        # bbox=bbox,
+        fontsize=10
+    )
+
+
+    # for peak in peaks_of_interest:
+    #     pc = peak['center_wl']
+    #     idx = np.argmin(np.abs(pc - lorentzians_x0))
+    #     center_wl = lorentzians_x0[idx]
+    #     lbl = peak['label']
+    #     peak_stats = get_peak_stats(idx+1, path_to_stats_file)
+    #     suffix = 'cd' if lbl == 'C-D' else 'bd'
+    #
+    #     peak_data[f'x0_{suffix} (nm)'] = peak_stats['x0']
+    #     peak_data[f'ampli_{suffix} (photons/cm^2/s/nm)'] = peak_stats['ampli']
+    #     peak_data[f'ampli_err_{suffix}  (photons/cm^2/s/nm)'] = peak_stats['ampli_error']
+    #     peak_data[f'fwhm_{suffix} (nm)'] = peak_stats['fwhm']
+    #     peak_data[f'fwhm_err_{suffix} (nm)'] = peak_stats['fwhm_error']
+    #     peak_data[f'area_{suffix} (photons/cm^2/s)'] = peak_stats['area']
+    #     peak_data[f'area_err_{suffix} (photons/cm^2/s)'] = peak_stats['area_error']
+    #
+    #     # ax.axvline(x=center_wl, color='0.5', ls='-.', lw=1.)
+    #     ax.annotate(
+    #         f"{lbl}\n({center_wl:.2f}) nm",
+    #         xy=(center_wl, sum_lorentzians(np.array([center_wl]), popt)*1.1), xycoords='data',  # 'figure pixels', #data',
+    #         # transform=axes[1].transAxes,
+    #         xytext=(-100, 80), textcoords='offset pixels',
+    #         ha='center', va='bottom',
+    #         arrowprops=arrowprops,
+    #         bbox=bbox,
+    #         fontsize=10
+    #     )
 
     peak_data['Elapsed time (s)'] = elapsed_time
     output_df = load_output_db(xlsx_source=output_xls)
@@ -303,7 +396,7 @@ def main():
     output_df.sort_values(by=['Folder', 'File'], inplace=True)
     output_df.to_excel(excel_writer=output_xls, index=False)
 
-    ax.set_ylim(bottom=0, top=2.E13)
+    ax.set_ylim(bottom=0, top=photon_flux.max()*0.1)
     ax.set_xlim(wl_range)
     mf = ticker.ScalarFormatter(useMathText=True)
     mf.set_powerlimits((-2, 2))
@@ -320,6 +413,7 @@ def main():
     if not os.path.exists(figures_output_folder):
         os.makedirs(figures_output_folder)
     fig.savefig(os.path.join(figures_output_folder, file_tag + '.png'), dpi=600)
+    fig.savefig(os.path.join(figures_output_folder, file_tag + '.svg'), dpi=600)
 
     plt.show()
 

@@ -21,7 +21,9 @@ import warnings
 
 
 
-brightness_csv = r'./data/Echelle_data/echelle_20241003/MechelleSpect_024.asc'
+# brightness_csv = r'./data/Echelle_data/echelle_20241003/MechelleSpect_024.asc'
+brightness_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20240827/MechelleSpect_016.csv'
+echelle_xlsx = r'./data/echelle_db.xlsx'
 sample_label = 'Boron rod'
 subtract_background = True
 
@@ -130,72 +132,99 @@ def load_plot_style():
 
 def main():
     global brightness_csv, lookup_lines, d_pattern, sample_label
+    global echelle_xlsx
     relative_path = os.path.dirname(brightness_csv)
+
     file_tag = os.path.splitext(os.path.basename(brightness_csv))[0]
-    cal_pag_1, cal_pag_1_err = get_interpolated_calibration(preamp_gain=1)
-    cal_pag_4, cal_pag_4_err = get_interpolated_calibration(preamp_gain=4)
-    df, params = ech.load_echelle_file(path_to_file=brightness_csv)
-    df = df[df['wl (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
-    # Get the last file from the folder and subtract it from the spectrum
-    bgnd_asc = [f for f in os.listdir(relative_path) if f.endswith('.asc')][-1]
-    bgnd_df, bgnd_params = ech.load_echelle_file(path_to_file=os.path.join(relative_path, bgnd_asc))
-    bgnd_df = bgnd_df[bgnd_df['wl (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
 
+    params_df: pd.DataFrame = pd.read_excel(echelle_xlsx, sheet_name=0)
+    # Get the elapased time since the first spectrum for each spectrum in the folder
+    params_df['Timestamp'] = params_df['Timestamp'].apply(pd.to_datetime)
+    params_df['Elapsed time (s)'] = (params_df['Timestamp'] - params_df[
+        'Timestamp'].min()).dt.total_seconds()  # Arbitrary value for now, different t0 for every folder
+    unique_folders = params_df['Folder'].unique()
+    for folder in unique_folders:
+        row_indexes = params_df['Folder'] == folder
+        ts = params_df.loc[row_indexes, 'Timestamp'].reset_index(drop=True)
+        params_df.loc[row_indexes, 'Elapsed time (s)'] = (params_df.loc[row_indexes, 'Timestamp'] - ts[0]).dt.seconds
 
+    folder = os.path.basename(relative_path)
     try:
-        accumulations = int(params['Number of Accumulations'])
-        accumulations_bgnd = int(bgnd_params['Number of Accumulations'])
-    except KeyError as ke:
-        print(f"Number of accumulations not found. Assuming single scan")
-        accumulations = 1
-        accumulations_bgnd = 1
+        selected_folder_df = params_df[(params_df['Folder'] == folder) & (params_df['File'] == file_tag+'.asc')].reset_index(drop=True)
+        elapsed_time = selected_folder_df['Elapsed time (s)'][0]
+        timestamp = selected_folder_df['Timestamp'][0]
+        print(f"Elapsed time: {elapsed_time}")
+    except KeyError:
+        print(f"Could not find Folder '{folder}', File '{file_tag}' in the echelle_db")
+        print(params_df[['Folder','File', 'Elapsed time (s)']])
+        exit(-1)
 
-    preamp_gain = float(params['Pre-Amplifier Gain'])
-    exposure_s = float(params['Exposure Time (secs)'])
-    time_stamp = datetime.strptime(params['Date and Time'], d_pattern)
-
-    preamp_gain_bgnd = float(bgnd_params['Pre-Amplifier Gain'])
-    exposure_bgnd_s = float(bgnd_params['Exposure Time (secs)'])
-
-    wavelength = df['wl (nm)'].values
-    counts = df['counts'].values
-    counts[counts < 0.] = 0.
-    counts_ps = counts / exposure_s / accumulations
-    transmission = 1.
-
-    if os.path.basename(relative_path) != 'echelle_20240910':
-        transmission = transmission_dirty_window(wavelength)
-
-    counts_ps /= transmission
-
-    wavelength_bgnd = bgnd_df['wl (nm)'].values
-    counts_bgnd = bgnd_df['counts'].values
-    counts_bgnd[counts_bgnd < 0.] = 0.
-    counts_ps_bgnd = counts_bgnd / exposure_bgnd_s / accumulations_bgnd
-
-    f_counts_ps = interp1d(x=wavelength_bgnd, y=counts_ps_bgnd)
-
-    if subtract_background:
-        counts_ps -= f_counts_ps(wavelength)
-
-    if preamp_gain == 1:
-        cal_factor = cal_pag_1(wavelength)
-    elif preamp_gain == 4:
-        cal_factor = cal_pag_4(wavelength)
-    else:
-        raise ValueError(f'Calibration not performed for preamplifier gain {preamp_gain:d}.')
-
-
-    if preamp_gain_bgnd == 1:
-        cal_factor_bgnd = cal_pag_1(wavelength_bgnd)
-    elif preamp_gain_bgnd == 4:
-        cal_factor_bgnd = cal_pag_4(wavelength_bgnd)
-    else:
-        raise ValueError(f'Calibration not performed for preamplifier gain {preamp_gain:d}.')
+    # cal_pag_1, cal_pag_1_err = get_interpolated_calibration(preamp_gain=1)
+    # cal_pag_4, cal_pag_4_err = get_interpolated_calibration(preamp_gain=4)
+    # df, params = ech.load_echelle_file(path_to_file=brightness_csv)
+    df = pd.read_csv(brightness_csv).apply(pd.to_numeric)
+    df = df[df['Wavelength (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
+    # Get the last file from the folder and subtract it from the spectrum
+    # bgnd_asc = [f for f in os.listdir(relative_path) if f.endswith('.asc')][-1]
+    # bgnd_df, bgnd_params = ech.load_echelle_file(path_to_file=os.path.join(relative_path, bgnd_asc))
+    # bgnd_df = bgnd_df[bgnd_df['wl (nm)'].between(wl_range[0], wl_range[1])].reset_index(drop=True)
+    #
+    #
+    # try:
+    #     accumulations = int(params['Number of Accumulations'])
+    #     accumulations_bgnd = int(bgnd_params['Number of Accumulations'])
+    # except KeyError as ke:
+    #     print(f"Number of accumulations not found. Assuming single scan")
+    #     accumulations = 1
+    #     accumulations_bgnd = 1
+    #
+    # preamp_gain = float(params['Pre-Amplifier Gain'])
+    # exposure_s = float(params['Exposure Time (secs)'])
+    # time_stamp = datetime.strptime(params['Date and Time'], d_pattern)
+    #
+    # preamp_gain_bgnd = float(bgnd_params['Pre-Amplifier Gain'])
+    # exposure_bgnd_s = float(bgnd_params['Exposure Time (secs)'])
+    #
+    # wavelength = df['wl (nm)'].values
+    # counts = df['counts'].values
+    # counts[counts < 0.] = 0.
+    # counts_ps = counts / exposure_s / accumulations
+    # transmission = 1.
+    #
+    # if os.path.basename(relative_path) != 'echelle_20240910':
+    #     transmission = transmission_dirty_window(wavelength)
+    #
+    # counts_ps /= transmission
+    #
+    # wavelength_bgnd = bgnd_df['wl (nm)'].values
+    # counts_bgnd = bgnd_df['counts'].values
+    # counts_bgnd[counts_bgnd < 0.] = 0.
+    # counts_ps_bgnd = counts_bgnd / exposure_bgnd_s / accumulations_bgnd
+    #
+    # f_counts_ps = interp1d(x=wavelength_bgnd, y=counts_ps_bgnd)
+    #
+    # if subtract_background:
+    #     counts_ps -= f_counts_ps(wavelength)
+    #
+    # if preamp_gain == 1:
+    #     cal_factor = cal_pag_1(wavelength)
+    # elif preamp_gain == 4:
+    #     cal_factor = cal_pag_4(wavelength)
+    # else:
+    #     raise ValueError(f'Calibration not performed for preamplifier gain {preamp_gain:d}.')
+    #
+    #
+    # if preamp_gain_bgnd == 1:
+    #     cal_factor_bgnd = cal_pag_1(wavelength_bgnd)
+    # elif preamp_gain_bgnd == 4:
+    #     cal_factor_bgnd = cal_pag_4(wavelength_bgnd)
+    # else:
+    #     raise ValueError(f'Calibration not performed for preamplifier gain {preamp_gain:d}.')
 
     # counts_ps /= transmission
-    radiance = cal_factor * counts_ps * 1E4
-    spectrum = Spectrum1D(flux=radiance*1E10 * u.W / u.cm / u.cm / u.nm / u.sr, spectral_axis=wavelength * u.nm)
+    wavelength = df['Wavelength (nm)'].values
+    brightness = df['Brightness (photons/cm^2/s/nm)'].values
+    spectrum = Spectrum1D(flux=brightness*1E10 * u.W / u.cm / u.cm / u.nm / u.sr, spectral_axis=wavelength * u.nm)
     # with warnings.catch_warnings():  # Ignore warnings
     #     warnings.simplefilter('ignore')
     #     g1_fit = fit_generic_continuum(spectrum)
@@ -233,7 +262,7 @@ def main():
         if msk_close.any():
             spec_wl = line_centers[msk_close][0]
             spec_intensity_idx = np.argmin(np.abs(spec_wl - wavelength))
-            spec_intensity = radiance[spec_intensity_idx]
+            spec_intensity = brightness[spec_intensity_idx]
             id_df = pd.DataFrame(data={
                 'nist_wl_nm': [nist_wl], 'line': [row['Spectrum']],
                 'nist_intensity': [row['Rel.']],
@@ -250,7 +279,7 @@ def main():
 
     # if subtract_background:
     #     radiance -= cal_factor_bgnd * f_counts_ps(wavelength)
-    radiance[radiance<0] = radiance[radiance>0].min()
+    brightness[brightness<0] = brightness[brightness>0].min()
     # nu = 299792458.0 / wavelength
     # hnu = 6.62607015e-34 * nu
     # radiance = radiance * hnu * 1E9
@@ -275,11 +304,11 @@ def main():
     fig.supylabel(r"$B_{\lambda}$ {\sffamily(W/sr/m\textsuperscript{2}/nm)}", usetex=True)
     # ax.set_ylabel(r"$B$ {\sffamily(W/s/cm\textsuperscript{2}/nm)}", usetex=True)
 
-    axes[0].plot(wavelength, radiance)
+    axes[0].plot(wavelength, brightness)
     # axes[0].plot(wavelength[peaks], photon_flux[peaks], "x")
 
-    axes[1].plot(wavelength[msk_bh], radiance[msk_bh])
-    axes[2].plot(wavelength[msk_bi], radiance[msk_bi])
+    axes[1].plot(wavelength[msk_bh], brightness[msk_bh])
+    axes[2].plot(wavelength[msk_bi], brightness[msk_bi])
 
     # axes_bh[0].plot(wavelength[msk_bh], photon_flux[msk_bh])
     # axes_bh[1].plot(wavelength[msk_bh], photon_flux[msk_bh])
@@ -288,18 +317,18 @@ def main():
     # ax.xaxis.set_major_locator(ticker.MultipleLocator(100.))
     # ax.xaxis.set_minor_locator(ticker.MultipleLocator(50.))
     axes[0].set_xlim(wl_range)
-    axes[0].set_ylim(top=radiance.max()*1.25)
+    axes[0].set_ylim(top=brightness.max()*1.25)
 
 
     peak_positions = []
     for i, peak in enumerate(lookup_lines):
-        pc, pi = find_line(wavelength, radiance, peak['center_wl'], delta_wl=0.65)
+        pc, pi = find_line(wavelength, brightness, peak['center_wl'], delta_wl=0.65)
         peak_positions.append({
             'peak_center': pc,
             'intensity': pi,
             'label': peak['label']
         })
-        if (wl_range[0] < pc) & (pc < wl_range[1]) and pi >= radiance.max()*0.045:
+        if (wl_range[0] < pc) & (pc < wl_range[1]) and pi >= brightness.max()*0.045:
             axes[0].text(
                 pc, pi*1.075,
                 r"\qquad \; " + peak['label'],
@@ -314,7 +343,7 @@ def main():
 
     axes[0].set_title(fr"{sample_label} - {file_tag}.asc")
     axes[0].text(
-        0.99, 0.98, time_stamp,
+        0.99, 0.98, timestamp,
         transform=axes[0].transAxes,
         ha='right', va='top',
         fontsize=10
@@ -323,7 +352,7 @@ def main():
     axes[1].set_xlim(bh_range)
     axes[2].set_xlim(bi_range)
 
-    axes[1].set_ylim(bottom=0, top=radiance[msk_bh].max()*0.095)
+    axes[1].set_ylim(bottom=0, top=brightness[msk_bh].max()*0.095)
 
     for ax in axes:
         ax.set_xlabel(r"$\lambda$ {\sffamily (nm)}", usetex=True)

@@ -210,7 +210,7 @@ def update_df(db_df:pd.DataFrame, row_data):
     row_index = db_df.loc[row_index].index[0]
     for col, val in row_data.items():
         db_df.loc[row_index, col] = val
-    db_df.sort_values(by=['Folder', 'File'])
+    db_df.sort_values(by=['Folder', 'File'], ascending=(True, True), inplace=True)
     return db_df
 
 def main():

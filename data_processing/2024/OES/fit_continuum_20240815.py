@@ -4,7 +4,9 @@ import pandas as pd
 import matplotlib.ticker as ticker
 import os
 import json
-from scipy.optimize import least_squares, OptimizeResult
+from scipy.optimize import least_squares, OptimizeResult, minimize
+from scipy import sparse
+from scipy.sparse.linalg import spsolve
 from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
 import data_processing.confidence as cf
@@ -12,7 +14,9 @@ from matplotlib.lines import Line2D
 import matplotlib as mpl
 from scipy.integrate import simpson
 
-spectrum_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20240815/MechelleSpect_007.csv'
+
+spectrum_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20240815/MechelleSpect_010.csv'
+ref_wavelength = 410 # nm
 
 
 lookup_lines = [
@@ -52,74 +56,103 @@ def jac_poly(b, x, y, w=1):
         r[:, i] = w * x ** i
     return r
 
-
-
 over_sqrt_pi = 1. / np.sqrt(2. * np.pi)
-def gaussian(x, c, sigma, mu):
-    global over_sqrt_pi
-    p = c * over_sqrt_pi / sigma
-    arg = 0.5 * np.power((x - mu) / sigma, 2)
-    return p * np.exp(-arg)
-
-def sum_gaussians(x, b):
-    global over_sqrt_pi
-    m = len(x)
-    nn = len(b)
-    # Assume that the new b contains a list ordered like
-    # (c1, sigma_1, mu1, c_2, sigma_2, mu_2, ..., c_n, sigma_n, mu_n)
-    selector = np.arange(0, nn) % 3
-    msk_c = selector == 0
-    msk_sigma = selector == 1
-    msk_mu = selector == 2
-    cs = b[msk_c]
-    sigmas = b[msk_sigma]
-    mus = b[msk_mu]
-    n = len(mus)
-    u = over_sqrt_pi * np.power(sigmas, -1) * cs
-    u = u.reshape((1, len(u)))
-    v = np.zeros((n, m), dtype=np.float64)
-    for i in range(len(sigmas)):
-        arg = 0.5*np.power((x-mus[i])/sigmas[i], 2.)
-        v[i, :] = np.exp(-arg)
-    res = np.dot(u, v)
-    return res.flatten()
 
 
-def res_sum_gauss(b, x, y):
-    return sum_gaussians(x, b) - y
+def gaussian(x, params):
+    """
+    Gaussian function with constant baseline: A * exp(-(x - mu)^2 / (2 * sigma^2)) + baseline
 
-def jac_sum_gauss(b, x, y):
-    m, nn  = len(x), len(b)
-    # Assume that the new b contains a list ordered like
-    # (c1, sigma_1, mu1, c_2, sigma_2, mu_2, ..., c_n, sigma_n, mu_n)
-    selector = np.arange(0, nn) % 3
-    msk_c = selector == 0
-    msk_sigma = selector == 1
-    msk_mu = selector == 2
-    c = b[msk_c]
-    s = b[msk_sigma]
-    mu = b[msk_mu]
-    r = np.zeros((m, nn), dtype=np.float64)
-    for i in range(len(s)):
-        k = 3 * i
-        g = gaussian(x, c[i], s[i], mu[i])
-        r[:, k] = g / c[i]
-        r[:, k+1] = np.power(s[i], -1) * ( np.power( (x - mu[i]) / s[i], 2) - 1.) * g
-        r[:, k+2] = np.power(s[i], -2) * ( x - mu[i]) * g
+    Parameters:
+    x: array-like, independent variable
+    params: array-like (A, mu, sigma, baseline)
+        A: amplitude
+        mu: mean
+        sigma: standard deviation
+        baseline: constant offset
+    """
+    A, mu, sigma, baseline = params
+    return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2)) + baseline
 
-    return r
+
+def residuals_gaussian(params, x, y):
+    """Calculate residuals between observed data and the Gaussian model"""
+    return gaussian(x, params) - y
+
+
+def jacobian_gaussian(params, x, y):
+    """
+    Analytical Jacobian matrix for the Gaussian function with baseline
+    Returns partial derivatives with respect to (A, mu, sigma, baseline)
+    """
+    A, mu, sigma, baseline = params
+    exp_term = np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+
+    # Partial derivatives
+    d_A = exp_term
+    d_mu = A * exp_term * (x - mu) / sigma ** 2
+    d_sigma = A * exp_term * (x - mu) ** 2 / sigma ** 3
+    d_baseline = np.ones_like(x)  # Derivative with respect to baseline
+
+    return np.vstack([d_A, d_mu, d_sigma, d_baseline]).T
+
+
+def fit_gaussian(x, y, p0=None, loss='linear', f_scale=1.0, tol=None) -> OptimizeResult:
+    """
+    Fit Gaussian profile to data using least_squares with analytical Jacobian
+
+    Parameters:
+    x: array-like, independent variable
+    y: array-like, dependent variable
+    p0: initial guess for parameters (A, mu, sigma)
+
+    Returns:
+    OptimizeResult object containing the fitted parameters
+    """
+    if tol is None:
+        tol = float(np.finfo(np.float64).eps)
+    if p0 is None:
+        # Make educated guesses for initial parameters
+        baseline = np.min(y)  # Estimate baseline as minimum y value
+        A = np.max(y) - baseline  # Estimate amplitude above baseline
+        mu = x[np.argmax(y)]
+        sigma = np.std(x) / 2
+        p0 = np.array([A, mu, sigma, baseline])
+
+
+    result = least_squares(
+        residuals_gaussian,
+        x0=p0,
+        jac=jacobian_gaussian,
+        args=(x, y),
+        method='trf',
+        loss = loss,
+        f_scale = f_scale,
+        xtol = tol,
+        ftol = tol,
+        gtol = tol,
+        verbose = 0,
+        x_scale='jac',
+        max_nfev = 10000 * len(x)
+    )
+
+    return result
+
 
 def main():
-    global spectrum_csv
+    global spectrum_csv, ref_wavelength
     all_tol = float(np.finfo(np.float64).eps)
     spectrum_df = pd.read_csv(spectrum_csv).apply(pd.to_numeric)
+    spectrum_df = spectrum_df[spectrum_df['Brightness (photons/cm^2/s/nm)']>0.] # Remove points with zero signal
     wl = spectrum_df['Wavelength (nm)'].values
     brightness = spectrum_df['Brightness (photons/cm^2/s/nm)'].values * 1E-12
+    brightness_err = spectrum_df['Brightness error (photons/cm^2/s/nm)'].values * 1E-12
+
     n = len(brightness)
-    # find the Dalpha peak
-    dg_wl = 433.93
+    # find the D_delta peak
+    dd_wl = 409.992
     wl_del = 0.2
-    msk_da = ((dg_wl - wl_del) <= wl) & (wl <= (dg_wl + wl_del))
+    msk_da = ((dd_wl - wl_del) <= wl) & (wl <= (dd_wl + wl_del))
     wl_win = wl[msk_da]
     y_win = brightness[msk_da]
     y_peak = y_win.max()
@@ -127,47 +160,49 @@ def main():
     wl_peak = wl_win[idx_peak]
 
     wl_del = 0.75
-    msk_da = ((dg_wl - wl_del) <= wl) & (wl <= (dg_wl + wl_del))
+    msk_da = ((dd_wl - wl_del) <= wl) & (wl <= (dd_wl + wl_del))
     wl_win = wl[msk_da]
     y_win = brightness[msk_da]
-    area_window = simpson(y=y_win, x=wl_win)
-    c_window = area_window * over_sqrt_pi
-    x0 = [1.8*c_window, 0.01, wl_peak]
     # Fit Dalpha
-    res_lsq = least_squares(
-        res_sum_gauss, x0=x0, args=(wl_win, y_win),
-        loss='linear', f_scale=0.1,
-        jac=jac_sum_gauss,
-        bounds=(
-            [1E-10, 1E-10, wl_peak - 0.2],
-            [100. * c_window, np.inf, wl_peak + 0.2]
-        ),
-        xtol=all_tol,
-        ftol=all_tol,
-        gtol=all_tol,
-        verbose=2,
-        # x_scale='jac',
-        max_nfev=10000 * len(wl_win)
-    )
+    res_lsq = fit_gaussian(wl_win, y_win, loss='soft_l1', f_scale=10., tol=all_tol)
     popt_da = res_lsq.x
     ci_da = cf.confidence_interval(res=res_lsq)
     popt_delta_da = ci_da[:, 1] - popt_da
     x_pred_da = np.linspace(wl_win.min(), wl_win.max(), num=200)
-    y_pred_da, delta_da = cf.prediction_intervals(sum_gaussians, x_pred=x_pred_da, ls_res=res_lsq, jac=jac_sum_gauss)
+    y_pred_da, delta_da = cf.prediction_intervals(gaussian, x_pred=x_pred_da, ls_res=res_lsq, jac=jacobian_gaussian)
 
 
+    # Try to fit a polynomial to find the baseline
+    percentile_threshold= 20
+    # Normalize wavelength to prevent numerical issues
+    wavelength_norm = (wl - wl.min()) / (wl.max() - wl.min())
+    # Initial baseline points selection using percentile threshold
+    window_size = len(wl) // 100  # 1% of data length
+    rolling_min = pd.Series(brightness).rolling(window=window_size, center=True).quantile(percentile_threshold / 100)
+    baseline_points = ~pd.isna(rolling_min)
+
+    # Set weights (higher weight for lower intensity points)
+    weights = 1 / (brightness**2 + np.median(brightness) / 10) # Add small value to prevent division by zero
+    weights[~baseline_points] = 0  # Zero weight for non-baseline points
+    # weights = weights / (brightness_err + np.median(brightness_err) / 10) # Include measurement uncertainties
+    # weights[wl<260] = 1 / (brightness[wl<260] + np.median(brightness) / 10)
+
+
+    poly_order = 30
     ls_res = least_squares(
         res_poly,
-        x0=[(0.01) ** (i+1) for i in range(6)],
-        args=(wl, brightness),
-        loss='cauchy', f_scale=0.1,
+        x0=[(0.001) ** (i)  for i in range(poly_order)],
+        args=(wl[baseline_points], brightness[baseline_points], weights[baseline_points]),
+        loss='cauchy', f_scale=0.4,
         jac=jac_poly,
-        xtol=all_tol ** 0.5,
-        ftol=all_tol ** 0.5,
-        gtol=all_tol ** 0.5,
+        xtol=all_tol,
+        ftol=all_tol,
+        gtol=all_tol,
         verbose=2,
         x_scale='jac',
-        max_nfev=10000 * n
+        method='trf',
+        tr_solver='exact',
+        max_nfev=10000 * poly_order
     )
     popt = ls_res.x
     ci = cf.confidence_interval(res=ls_res)
@@ -190,7 +225,7 @@ def main():
     line = ax1.plot(
         wl, brightness, ms=2, color='C0', mfc='none',
         # picker=True, pickradius=1,
-        ls='none', marker='o', alpha=0.25,
+        ls='-', marker='o', alpha=0.25, lw=0.5,
         label='Data'
     )
     line_fit, = ax1.plot(xpred, ypred, color='tab:red', label='Baseline fit')
@@ -199,10 +234,14 @@ def main():
     base_folder = os.path.basename(os.path.dirname(spectrum_csv))
     ax1.set_title(f"{base_folder} - {base_filename}")
 
-    msk_da_plot = ((dg_wl - 3.) <= wl) & (wl <= (dg_wl + 3.))
-    print(brightness[msk_da_plot])
+    msk_da_plot = ((dd_wl - 3.) <= wl) & (wl <= (dd_wl + 3.))
+    # print(brightness[msk_da_plot])
     ax2.plot(wl[msk_da_plot], brightness[msk_da_plot], ms=6, marker='o', mec='C0', mfc='none', label='data', ls='none')
     ax2.plot(x_pred_da, y_pred_da, color='tab:red', label='Fit')
+
+    # baseline = baseline_als(brightness, lam=1e9, p=0.1)
+
+    # ax1.plot(wl, baseline, color='tab:green')
 
     eq_txt = fr"$f(x) = "
     n_par = len(popt)
@@ -227,13 +266,23 @@ def main():
 
     print(baseline_df)
 
-    ax1.text(
-        0.05, 0.95, eq_txt, transform=ax1.transAxes,
-        ha='left', va='top', fontsize=11, color='tab:red', usetex=True
-    )
+    # Find the intensity at the selected reference wavelength
+    idx_ref = np.argmin(np.abs(wl - ref_wavelength))
+    ref_intensity = brightness[idx_ref] * 1E12
+    ref_wavelength = wl[idx_ref]
+
+    # ax1.text(
+    #     0.05, 0.95, eq_txt, transform=ax1.transAxes,
+    #     ha='left', va='top', fontsize=11, color='tab:red', usetex=True
+    # )
     with open(os.path.join('./data', f'baseline_{base_folder}_{base_filename}.csv'), 'w') as f:
-        intensity_da = sum_gaussians([popt_da[2]], popt_da) * 1E12
-        f.write(f"# D_gamma: {popt_da[2]:.3f} -/+ {delta_da[2]:.4f} nm, Intensity: {intensity_da[0]:.3E} (photons/cm^2/s/nm)\n")
+        intensity_da = popt_da[0]*1E12
+        txt = f"# REF: {popt_da[1]:.3f} -/+ {delta_da[1]:.4f} nm, Intensity: {intensity_da:.3E} (photons/cm^2/s/nm)\n"
+        f.write(txt)
+        print(txt)
+        txt = f"# Intensity at: {ref_wavelength:.3f} nm: {ref_intensity:.3E} (photons/cm^2/s/nm)\n"
+        f.write(txt)
+        print(txt)
         baseline_df.to_csv(f, index=False)
 
     fig.savefig(os.path.join('./figures', f'baseline_{base_folder}_{base_filename}.png'), dpi=600)

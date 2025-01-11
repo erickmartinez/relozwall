@@ -37,7 +37,7 @@ def confint(n: int, pars: np.ndarray, pcov: np.ndarray, confidence: float = 0.95
     is_log = kwargs.get('is_log', False)
     from scipy.stats.distributions import t
 
-    p = len(pars)  # number of data points
+    p = len(pars)  # number of parameters
     dof = max(0, n - p)  # number of degrees of freedom
 
     if is_log:

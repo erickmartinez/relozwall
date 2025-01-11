@@ -7,10 +7,27 @@ import json
 import os
 from scipy.optimize import least_squares, OptimizeResult
 
-bi_lorentzian_xls = r'./data/cd_bd_lorentzian.xlsx'
+bi_lorentzian_xls = r'./data/cd_bd_qbranch.xlsx'
 folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 
+axes_mapping = {
+    'echelle_20240815': 0, 'echelle_20240827': 1, 'echelle_20241003': 1, 'echelle_20241031': 0
+}
 
+lbl_mapping = {
+    'echelle_20240815': 'Boron rod (~500 °C)',
+    'echelle_20240827': 'Boron pebble rod (amorphous)',
+    'echelle_20241003': 'Boron pebble rod (poly-C)',
+    'echelle_20241031': 'Boron rod (~1000 °C)'
+}
+
+color_maping = {
+    'echelle_20240815': 'C0', 'echelle_20240827': 'C1', 'echelle_20241003': 'C2', 'echelle_20241031': 'tab:red'
+}
+
+marker_mapping = {
+    'echelle_20240815': 's', 'echelle_20240827': 'o', 'echelle_20241003': 'D', 'echelle_20241031': '^'
+}
 
 def bh_x_rate(T_e) -> np.ndarray:
     """
@@ -66,7 +83,7 @@ def pec2flux(vth, intensity, n_e, pec, intensity_error):
 
 sample_diameter = 1.016
 sample_area = 0.25 * np.pi * sample_diameter ** 2.
-flux_d = 0.23E18 # /cm^3/s
+flux_d = 0.23E16 # /cm^3/s
 def flux2yield(flux_b):
     global flux_d
     return flux_b / flux_d
@@ -128,8 +145,8 @@ def main():
     # fig_rows = max(int(n_plots / fig_cols), 1)
 
     load_plot_style()
-    fig, axes = plt.subplots(nrows=n_plots, ncols=1, constrained_layout=True, sharex=True)
-    fig.set_size_inches(4.5, 7.5)
+    fig, axes = plt.subplots(nrows=2, ncols=1, constrained_layout=True, sharex=True)
+    fig.set_size_inches(4.5, 5.)
 
     pec_bd = 5.1E-11
     n_e = 0.212E12  # 1/cm^3
@@ -137,8 +154,9 @@ def main():
     markers = ['^', 's', 'o', 'v']
     colors = ['C0', 'C1', 'C2', 'C3']
     for i, folder in enumerate(folders):
-        ax = axes[i]
-        lbl = folder_mapping[folder]
+        ax = axes[axes_mapping[folder]]
+        lbl = lbl_mapping[folder]
+        marker = marker_mapping[folder]
         temperature_boron = 500 if folder != 'echelle_20241031' else 1010.
         vth_B = thermal_velocity(T=temperature_boron, m=m_B)
         pec_bd = bh_x_rate(T_e=temperature_boron)
@@ -146,8 +164,8 @@ def main():
         idx_folder = bi_df['Folder'] == folder
         folder_df = bi_df[idx_folder].sort_values(by=['Elapsed time (s)'])
         time_s = folder_df['Elapsed time (s)'].values
-        intensity = folder_df['area_cd (photons/cm^2/s)'].values
-        intensity_err = folder_df['area_err_cd (photons/cm^2/s)'].values
+        intensity = folder_df['area (photons/cm^2/s)'].values
+        intensity_err = folder_df['area_err (photons/cm^2/s)'].values
         fb, fb_err = pec2flux(vth=vth_B, intensity=intensity, n_e=n_e, pec=pec_bd,
                               intensity_error=intensity_err)
 
@@ -165,8 +183,8 @@ def main():
         # )
 
         markers_b, caps_b, bars_b = ax.errorbar(
-            time_s/60., fb, yerr=fb_err, capsize=2.75, mew=1.25, marker=markers[i], ms=8, elinewidth=1.25,
-            color=colors[i], fillstyle='none',
+            time_s/60., fb, yerr=fb_err, capsize=2.75, mew=1.25, marker=marker, ms=8, elinewidth=1.25,
+            color=color_maping[folder], fillstyle='none',
             ls='none',# lw=1.25,
             label=lbl,
         )
@@ -174,15 +192,17 @@ def main():
         # ax.plot(time_s/60., model_poly(time_s, ls_fit.x), color=colors[i], ls='--', lw=1)
         ax.set_yscale('log')
         ax.legend(loc='upper right', frameon=True, fontsize=10)
-        ax.set_ylim(1E8, 1E12)
+        ax.set_ylim(1E10, 1E12)
         secax = ax.secondary_yaxis('right', functions=(flux2yield, yield2flux))
         secax.set_ylabel(r'$Y_{\mathrm{B-H/D^+}}$', usetex=True)
 
         [bar.set_alpha(0.35) for bar in bars_b]
     axes[-1].set_xlabel(r'Time (min)', usetex=False)
     axes[-1].set_xlim(0, 100)
+    axes[0].set_title('B-D sputtering')
     fig.supylabel(r"$\Gamma_{\mathrm{B-D}}$ {\sffamily (cm\textsuperscript{-2} s\textsuperscript{-1})}", usetex=True)
     fig.savefig('./figures/bd_sputtering_yield.png', dpi=600)
+    fig.savefig('./figures/bd_sputtering_yield.svg', dpi=600)
     plt.show()
 
 
