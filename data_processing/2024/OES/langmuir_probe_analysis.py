@@ -13,7 +13,7 @@ from matplotlib.lines import Line2D
 import data_processing.confidence as cf
 from scipy.stats.distributions import t
 
-data_file = "./data/PA_probe/20241031/gamma_ivdata0007.raw"
+data_file = "./data/PA_probe/20241031/gamma_ivdata0010.raw"
 
 # https://webbook.nist.gov/cgi/cbook.cgi?ID=C14464472&Units=SI
 m_d1 = 2.0135531979
@@ -42,6 +42,7 @@ xScale = 1.53 # probe plunge position conversion [cm/V] that Daisuke is using (1
 Amag = 0.61 # Use Amag = 0.5 for magnetized plasma (rci^2 << Ap) ; 0.61 for unmagnetized plasma
 # mi = 1.9995 # mi is ion mass in units of hydrogen mass. Typically use 4 for He+ and 2 for D+
 mi = w_d1 * m_d1 + w_d2 * m_d2 + w_d3 * m_d3
+mi /= 1.00727647 # Divide by the mass of the proton to match the units
 Zion = 1. # ion charge state
 Tescale = 0.67 # scale factor on Te for estimating correct plasma potential on manual fits
 
@@ -389,7 +390,7 @@ def fit_te_range_man(vp_fit, y_j_probe, vrange):
     tol = eps# ** (2./3.)
     ls_res = least_squares(
         res_poly,
-        loss='soft_l1', f_scale=0.1,
+        loss='soft_l1', f_scale=1.0,
         x0=[vp_t_fit[0], 10],
         args=(vp_t_fit, yj_t_fit),
         xtol=tol,
