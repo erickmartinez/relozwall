@@ -9,11 +9,11 @@ from scipy.optimize import least_squares, OptimizeResult
 
 cd_bd_excel = r'./data/cd_bd_db.xlsx'
 echelle_xlsx = r'./data/echelle_db.xlsx'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():

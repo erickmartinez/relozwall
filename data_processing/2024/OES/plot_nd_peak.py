@@ -8,11 +8,11 @@ import numpy as np
 from scipy.signal import savgol_filter
 
 brightness_folder = r'./data/brightness_data_fitspy_wl-calibrated'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():
@@ -39,7 +39,7 @@ def main():
     load_plot_style()
     cmap_names = ["Blues", "Oranges", "Greens", "Reds", "Purples"]
     cmaps = [mpl.colormaps.get_cmap(cmapi) for cmapi in cmap_names]
-    wl_range = (333., 337.)
+    wl_range = (333., 338.)
     tab10_colors = [f'C{i}' for i in range(n)]
 
     fig, axes = plt.subplots(nrows=n, ncols=1, sharex=True, constrained_layout=True)

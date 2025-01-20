@@ -13,7 +13,7 @@ from data_processing.utils import latex_float_with_error
 
 
 brightness_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20241031/MechelleSpect_029.csv'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'
 output_folder = r'./figures/Echelle_plots/B-I'
 echelle_xlsx = r'./data/echelle_db.xlsx'
 output_xls = r'./data/bi_lorentzian.xlsx'
@@ -152,7 +152,7 @@ def model_poly(x, b) -> np.ndarray:
 
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():
@@ -183,7 +183,8 @@ bi_df_columns = [
     'BI gamma (nm)',
     'BI gamma lb (nm)',
     'BI gamma ub (nm)',
-    'Elapsed time (s)'
+    'Elapsed time (s)',
+    'Timestamp'
 ]
 
 def load_output_db(xlsx_source):
@@ -352,7 +353,8 @@ def main():
         'BI gamma (nm)': popt[2],
         'BI gamma lb (nm)': ci[2, 0],
         'BI gamma ub (nm)': ci[2, 1],
-        'Elapsed time (s)': elapsed_time
+        'Elapsed time (s)': elapsed_time,
+        'Timestamp': timestamp
     }
     out_df = load_output_db(output_xls)
     out_df = update_df(out_df, row_data)

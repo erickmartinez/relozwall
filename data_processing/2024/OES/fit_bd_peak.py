@@ -16,7 +16,7 @@ from data_processing.utils import latex_float_with_error
 
 
 brightness_csv = r'./data/brightness_data/echelle_20240827/MechelleSpect_032.csv'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'
 output_folder = r'./figures/Echelle_plots/B-D'
 ouput_xls = r'./data/b-d_gaussian_peak.xlsx'
 subtract_background = True
@@ -111,7 +111,7 @@ def load_brightness_file(path_to_file):
 
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():

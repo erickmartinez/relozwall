@@ -12,7 +12,7 @@ from data_processing.utils import lighten_color
 from typing import List, Dict
 
 
-echelle_spectrum = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20241031/MechelleSpect_029.csv'
+echelle_spectrum = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20241031/MechelleSpect_006.csv'
 baseline_fit_csv = r'./data/baseline_echelle_20240815_MechelleSpect_010.csv'
 temperature_excel = r'./data/20241031_bb_temp.xlsx'
 echelle_xlsx = r'./data/echelle_db.xlsx'
@@ -21,7 +21,8 @@ echelle_xlsx = r'./data/echelle_db.xlsx'
 save_data_for_figure = True
 fit_local_minima = True
 f_scale = 0.1
-lm_window_size = 250
+loss = 'soft_l1'
+lm_window_size = 150
 
 lookup_lines = [
     {'center_wl': 410.06, 'label': r'D$_{\delta}$'},
@@ -71,7 +72,7 @@ def radiance_at_temperature(temperature: float, wavelength_nm: float, A=1.) -> f
 
 def model_bb(wavelength_nm: np.ndarray, b):
     temperature, factor = b[0], b[1]
-    return factor * radiance_at_temperature(temperature=temperature, wavelength_nm=wavelength_nm)
+    return radiance_at_temperature(temperature=temperature, wavelength_nm=wavelength_nm, A=factor)
 
 
 def res_bb(b, x, y, w=1):
@@ -82,7 +83,7 @@ all_tol = float(np.finfo(np.float64).eps)
 
 def fit_black_body(
     wavelength: np.ndarray, radiance:np.ndarray, temperature_guess:float, scaling_factor_guess:float, tol=all_tol,
-    f_scale=0.1, loss='cauchy', fit_local_minima=False
+    f_scale=1., loss='soft_l1', fit_local_minima=False
 ) -> OptimizeResult:
     """
     Tries to fit the spectrum to a black body spectrum
@@ -454,6 +455,7 @@ def main():
             f.write(f"# Scaling factor: {popt[1]:.2E} -/+ {popt_err[1]:.2E}\n")
             f.write(f"# Fit local minima: {fit_local_minima}\n")
             f.write(f"# f_scale: {f_scale}\n")
+            f.write(f"# lm_window_size: {lm_window_size}\n")
             save_df.to_csv(f, index=False)
 
 

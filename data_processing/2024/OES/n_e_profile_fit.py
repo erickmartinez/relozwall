@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import json
 import os
-
-from scipy.constants import golden
+from scipy.stats.distributions import t
 from scipy.optimize import least_squares, OptimizeResult
 import data_processing.confidence as cf
 from scipy.integrate import simpson, trapezoid
@@ -18,10 +17,10 @@ path_to_data_csv = r'./data/PA_probe/20241031/langprobe_results/symmetrized/lang
 parent_path_figures = r'./figures/langmuir_probe_results'
 mean_values_xlsx = r'./data/PA_probe_surface_mean.xlsx'
 
-n_e_gaussian = False
-T_e_gaussian = False
-symmetric_gaussian = False
-poly_order = 10
+n_e_lorentzian = True
+T_e_gaussian = True
+symmetric_gaussian = True
+poly_order = 8
 area_err_pct = 25.
 
 # https://webbook.nist.gov/cgi/cbook.cgi?ID=C14464472&Units=SI
@@ -197,6 +196,124 @@ def fit_gaussian(x, y, dy=None, p0=None, symmetric=False, loss='linear', f_scale
     return result
 
 
+def lorentzian(x, params):
+    """
+    Lorentzian function centered at x=0
+    Parameters:
+    - x: x values
+    - params: [amplitude, gamma]
+        - amplitude: peak height
+        - gamma: half-width at half-maximum (HWHM)
+    """
+    amplitude, gamma, offset = params
+    return amplitude * (gamma ** 2 / (x ** 2 + gamma ** 2)) + offset
+
+
+def lorentzian_jacobian(x, params):
+    """
+    Analytical Jacobian matrix for the Lorentzian function
+    Parameters:
+    - x: x values
+    - params: [amplitude, gamma]
+    Returns:
+    - J: Jacobian matrix with derivatives [dF/dA, dF/dγ]
+    """
+    amplitude, gamma, offset = params
+    denominator = (x ** 2 + gamma ** 2)
+
+    # Derivative with respect to amplitude
+    dF_dA = gamma ** 2 / denominator
+
+    # Derivative with respect to gamma
+    dF_dg = amplitude * (2 * gamma / denominator - 2 * gamma ** 3 / denominator ** 2)
+
+    # Derivative with respect to offset
+    dF_doffset = np.ones_like(x)
+
+    return np.vstack([dF_dA, dF_dg, dF_doffset]).T
+
+
+def lorentzian_residuals(params, x_data, y_data, weights):
+    """
+    Calculate residuals between data and model
+    """
+    model = lorentzian(x_data, params)
+    return weights *  (model - y_data)
+
+
+def lorentzian_residuals_jacobian(params, x_data, y_data, weights=None):
+    """
+    Jacobian of the residuals
+    """
+    if weights is None:
+        return lorentzian_jacobian(x_data, params)
+    else:
+        return weights[:, np.newaxis] * lorentzian_jacobian(x_data, params)
+
+
+def fit_lorentzian_peak(x_data, y_data, y_uncertainties=None, initial_guess=None, loss='soft_l1', f_scale=0.1, tol=EPS):
+    """
+    Fit a symmetric Lorentzian function to data using least_squares with soft_l1 loss
+    and analytical Jacobian
+
+    Parameters
+    ----------
+    x_data: np.ndarray
+        The x data to fit
+    y_data: np.ndarray
+        The y data to fit
+    y_uncertainties: np.ndarray
+        The uncertainties in y_data
+    initial_guess: list
+        The initial guess for the parameters of the Lorentzian
+    loss: str
+        The loss to be used by the `least_squares` optimizer
+    f_scale:
+        The scaling factor for the outliers in the `least_squares` optimizer
+
+    Returns
+    -------
+    OptimizeResult
+        The result of the fit
+    """
+
+    # Estimate weights if uncertainties are provided, else use uniform weights
+    if y_uncertainties is not None:
+        weights = weights = np.abs(1. / (y_uncertainties + np.median(y_uncertainties)/10))
+    else:
+        weights = np.ones_like(y_data)
+
+    if initial_guess is None:
+        # Make educated guesses for initial parameters
+        background = np.median(y_data[:10] + y_data[-10:]) / 2  # Estimate background from edges
+        amplitude = np.max(y_data) - background
+        # Estimate gamma from the width at half maximum
+        half_max = amplitude / 2 + background
+        indices = np.where(y_data >= half_max)[0]
+        if len(indices) >= 2:
+            gamma = abs(x_data[indices[-1]] - x_data[indices[0]]) / 2
+        else:
+            gamma = np.std(x_data)
+        initial_guess = [amplitude, gamma, background]
+
+    # Use least_squares with soft_l1 loss and analytical Jacobian
+    result = least_squares(
+        lorentzian_residuals,
+        initial_guess,
+        jac=lorentzian_residuals_jacobian,  # Analytical Jacobian
+        loss=loss,
+        f_scale=f_scale,
+        args=(x_data, y_data, weights),
+        method='trf',
+        verbose=2, # Show optimization progress
+        xtol=tol,
+        ftol=tol,
+        gtol=tol,
+        max_nfev=10000*len(initial_guess)
+    )
+
+    return result
+
 def model_poly(x, b) -> np.ndarray:
     n = len(b)
     r = np.zeros(len(x))
@@ -217,7 +334,7 @@ def jac_poly(b, x, y, w=1):
     return r
 
 def fit_poly(x, y, dy=None, poly_order=poly_order, loss='soft_l1', f_scale=1.0, tol=EPS) -> OptimizeResult:
-    x0 = np.array([0.1 ** i for i in range(poly_order+1)])
+    x0 = np.array([0.5 ** i for i in range(poly_order+1)])
     if dy is None:
         weights = 1
     else:
@@ -272,7 +389,7 @@ def calculate_ion_flux(n_e, T_e, T_i=Ti, ion_mass=mi, dn_e=None, dT_e=None, B_fi
     Returns:
     float : Ion flux in m^-2s^-1
     """
-    global cs_factor, mi
+    global cs_factor, mi, Zion
     # Constants
     # e_charge = 1.602e-19  # Elementary charge in Coulombs
 
@@ -295,7 +412,10 @@ def calculate_ion_flux(n_e, T_e, T_i=Ti, ion_mass=mi, dn_e=None, dT_e=None, B_fi
         ion_flux_delta = np.zeros_like(ion_flux)
     else:
         delta_cs = 0.5 * cs_factor * np.power((Zion * T_i + T_e) / mi, -0.5) * dT_e / mi
-        ion_flux_delta = ion_flux * np.linalg.norm(np.stack([delta_cs/c_s, dn_e / n_e]), axis=0)
+        if type(T_e) == np.ndarray:
+            ion_flux_delta = ion_flux * np.linalg.norm(np.stack([delta_cs/c_s, dn_e / n_e]), axis=0)
+        else:
+            ion_flux_delta = ion_flux * np.linalg.norm(np.stack([delta_cs / c_s * np.ones_like(n_e), dn_e / n_e]), axis=0)
     # If magnetic field is present, consider magnetic pre-sheath effects
     if B_field is not None:
         # Approximate correction for magnetic pre-sheath
@@ -417,6 +537,7 @@ def load_output_db(xlsx_source):
 
 def update_df(db_df:pd.DataFrame, row_data):
     row = pd.DataFrame(data={key: [val] for key, val in row_data.items()})
+    print(row_data)
     if len(db_df) == 0:
         return row
     folder = row_data['Folder']
@@ -429,12 +550,17 @@ def update_df(db_df:pd.DataFrame, row_data):
     row_index = db_df.loc[row_index].index[0]
     for col, val in row_data.items():
         db_df.loc[row_index, col] = val
+        # try:
+        #     db_df.loc[row_index, col] = val
+        # except Exception as e:
+        #     print(e)
+        #     print(row_index, col, val)
     db_df.sort_values(by=['Folder', 'File'], ascending=(True, True), inplace=True)
     return db_df
 
 def main():
     global path_to_data_csv, parent_path_figures, sample_diameter_in, EPS, poly_order
-    global symmetric_gaussian, n_e_gaussian, T_e_gaussian, mean_values_xlsx
+    global symmetric_gaussian, n_e_lorentzian, T_e_gaussian, mean_values_xlsx
     parent_folder = os.path.dirname(path_to_data_csv)
     folder = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(path_to_data_csv))))
     file_tag = os.path.splitext(os.path.basename(path_to_data_csv))[0]
@@ -467,22 +593,28 @@ def main():
         jac_te:callable = jacobian_gaussian
 
     if T_e_gaussian:
-        lsq_result_Te: OptimizeResult = fit_gaussian(x=x, y=T_e, dy=T_e_error, symmetric=symmetric_gaussian,
+        lsq_result_Te: OptimizeResult = fit_gaussian(x=x, y=T_e, dy=None, symmetric=symmetric_gaussian,
                                                      loss='soft_l1', f_scale=1.)
     else:
-        lsq_result_Te: OptimizeResult = fit_poly(x=x, y=T_e, dy=T_e_error, poly_order=poly_order,
-                                                     loss='soft_l1', f_scale=0.5)
+        lsq_result_Te: OptimizeResult = fit_poly(x=x, y=T_e, dy=None, poly_order=poly_order,
+                                                     loss='soft_l1', f_scale=1.0)
         model_te: callable = model_poly
         jac_te: callable = jac_poly
 
-    if n_e_gaussian:
-        lsq_result_ne: OptimizeResult = fit_gaussian(x=x, y=n_e, dy=n_e_error, symmetric=True, loss='soft_l1',
-                                                 f_scale=0.1)
-        model_ne: callable = gaussian_symmetric
-        jac_ne: callable = jacobian_gaussian_symmetric
+    if n_e_lorentzian:
+        # lsq_result_ne: OptimizeResult = fit_gaussian(x=x, y=n_e, dy=n_e_error, symmetric=True, loss='soft_l1',
+        #                                          f_scale=1.0)
+        # model_ne: callable = gaussian_symmetric
+        # jac_ne: callable = jacobian_gaussian_symmetric
+        lsq_result_ne: OptimizeResult = fit_lorentzian_peak(
+            x_data=x, y_data=n_e, y_uncertainties=None, loss='linear', f_scale=0.1
+        )
+        model_ne: callable = lorentzian
+        jac_ne: callable = lorentzian_residuals_jacobian
+
     else:
         lsq_result_ne: OptimizeResult = fit_poly(x=x, y=n_e, dy=n_e_error, poly_order=poly_order, loss='soft_l1',
-                                                 f_scale=0.1)
+                                                 f_scale=1.0)
         model_ne: callable = model_poly
         jac_ne: callable = jac_poly
 
@@ -508,6 +640,7 @@ def main():
     r_sample = sample_diameter_in * 2.54 * 0.5
     a_sample = np.pi * (r_sample ** 2.)
     r_flux = np.linspace(0., r_sample, num=1000)
+
     n_e_r, n_e_r_delta = cf.prediction_intervals(
         model=model_ne, ls_res=lsq_result_ne, x_pred=r_flux, jac=jac_ne,
         new_observation=True
@@ -526,7 +659,16 @@ def main():
         new_observation=True
     )
 
+    # If T_e is greater than 6, then the probe analysis is unreliable. Previous estimates put T_e at ~5 eV
+    # if np.mean(T_e_r) > 6.:
+    #     T_e_r = np.ones_like(T_e_r) * 5.0
+    #     T_e_r_delta = np.ones_like(T_e_r) * 5.0 * 0.15
+    #     T_e_x = np.ones_like(T_e_x) * 5.0
+    #     T_e_x_delta = np.ones_like(T_e_x) * 5.0 * 0.15
+
     gamma_d, gamma_d_error = calculate_ion_flux(n_e=n_e_r, T_e=T_e_r, dn_e=n_e_r_delta, dT_e=T_e_r_delta)
+    # gamma_d, gamma_d_error = calculate_ion_flux(n_e=n_e_r, T_e=5.0 * np.ones_like(n_e_r), dn_e=n_e_r_delta,
+    #                                             dT_e=0.75 * np.ones_like(n_e_r))
     # Integrate over the area of the sample
     gamma_mean, gamma_mean_error = trapezoid_with_uncertainty(x=r_flux, y=gamma_d*r_flux*2.*np.pi, dy=gamma_d_error*r_flux*2.*np.pi)
 
@@ -548,6 +690,15 @@ def main():
     t_e_mean, t_e_mean_err = trapezoid_with_uncertainty(x=r_flux, y=T_e_r*r_flux*2.*np.pi, dy=T_e_r_delta*r_flux*2.*np.pi)
     t_e_mean /= a_sample
     t_e_mean_err = t_e_mean * np.linalg.norm([t_e_mean_err/t_e_mean, area_err_pct/100.])
+    # t_e_mean, t_e_mean_err = np.mean(T_e), np.linalg.norm(T_e_error)
+    # t_e_std = np.std(T_e, ddof=1)
+    # num_t_e = len(T_e)
+    # conf_level = 0.95
+    # alpha = 1 - conf_level
+    # tval_te = t.ppf(1 - alpha/2, num_t_e-1)
+    # t_e_se = tval_te * t_e_std / np.sqrt(num_t_e)
+    # t_e_mean_err = t_e_se # np.linalg.norm([t_e_se, t_e_mean_err])
+
 
     te_mean_txt = rf"$T_{{e}} = {t_e_mean:.1f} \pm {t_e_mean_err:.1f}$ "
     te_mean_txt += r" {\sffamily eV}"
@@ -600,10 +751,10 @@ def main():
     [bar.set_alpha(0.3) for bar in bars]
 
 
-    axes[1].fill_between(
-        x_pred_1, (y_pred_2 - delta_2), (y_pred_2 + delta_2), color='C1', alpha=0.2,
-        # label='Prediction interval'
-    )
+    # axes[1].fill_between(
+    #     x_pred_1, (y_pred_2 - delta_2), (y_pred_2 + delta_2), color='C1', alpha=0.2,
+    #     # label='Prediction interval'
+    # )
     axes[1].plot(x_pred_1, y_pred_2 , color='tab:red', label='Fit')
 
     axes[1].set_xlabel(r"Position (cm)")
@@ -613,6 +764,7 @@ def main():
     axes[1].legend(loc='upper left', frameon=True, fontsize=10)
 
     gamma_x, gamma_x_error = calculate_ion_flux(n_e=n_e_x, T_e=T_e_x, dn_e=n_e_x_delta, dT_e=T_e_x_delta)
+    # gamma_x, gamma_x_error = calculate_ion_flux(n_e=n_e_x, T_e=5.0, dn_e=n_e_x_delta, dT_e=0.1)
     #
     axes[2].fill_between(
         x_flux,
@@ -657,11 +809,11 @@ def main():
     axes[0].yaxis.set_major_locator(ticker.MultipleLocator(2.))
     axes[0].yaxis.set_minor_locator(ticker.MultipleLocator(1.))
     axes[1].set_ylim(0, 20)
-    axes[1].yaxis.set_major_locator(ticker.MultipleLocator(5.))
-    axes[1].yaxis.set_minor_locator(ticker.MultipleLocator(2.5))
-    axes[2].set_ylim(0, 24)
-    axes[2].yaxis.set_major_locator(ticker.MultipleLocator(6.))
-    axes[2].yaxis.set_minor_locator(ticker.MultipleLocator(2.))
+    axes[1].yaxis.set_major_locator(ticker.MultipleLocator(4.))
+    axes[1].yaxis.set_minor_locator(ticker.MultipleLocator(2.0))
+    axes[2].set_ylim(0, 50)
+    axes[2].yaxis.set_major_locator(ticker.MultipleLocator(10.))
+    axes[2].yaxis.set_minor_locator(ticker.MultipleLocator(5.))
 
     connectionstyle = "angle,angleA=-90,angleB=180,rad=0"
     # connectionstyle = "arc3,rad=0."
@@ -713,12 +865,12 @@ def main():
         f.write(f"# Gamma_D_mean: {gamma_mean:.3E} -/+ {gamma_mean_error:.3E} 1/cm^2/s\n")
         f.write(f"# ******** Mean T_e on the sample **********\n")
         f.write(f"# T_e_mean: {t_e_mean:.3E} -/+ {t_e_mean_err:.3E} eV\n")
-        if n_e_gaussian:
-            f.write(f"# ************ Gaussian fit to n_e ************\n")
-            f.write(f"# A:          {popt_ne[0]:.3E} -/+ {popt_ne_delta[0]:.3E} (1/cm^3)\n")
-            f.write(f"# sigma:      {popt_ne[1]:.3f} -/+ {popt_ne_delta[1]:.3f} (cm)\n")
-            f.write(f"# mu:         0.00 (cm)\n")
-            f.write(f"# baseline:   {popt_ne[2]:.3E} -/+ {popt_ne_delta[2]:.3E} (1/cm^3)\n")
+        if n_e_lorentzian:
+            f.write(f"# ************ Lorentzian fit to n_e ************\n")
+            f.write(f"# amplitude:  {popt_ne[0]:.3E} -/+ {popt_ne_delta[0]:.3E} (1/cm^3)\n")
+            f.write(f"# gamma:      {popt_ne[1]:.3f} -/+ {popt_ne_delta[1]:.3f} (cm)\n")
+            f.write(f"# center:     0.00 (cm)\n")
+            f.write(f"# yoffset:     {popt_ne[2]:.3E} -/+ {popt_ne_delta[2]:.3E} (1/cm^3)\n")
         else:
             f.write(f"# *********** Polynomial fit to n_e ***********\n")
             f.write(f"# Order:      {poly_order:<2d}\n")
@@ -738,7 +890,7 @@ def main():
             f.write(f"# *********** Polynomial fit to T_e ***********\n")
             f.write(f"# Order:      {poly_order:<2d}\n")
             for i in range(len(popt_Te)):
-                f.write(f"# a_{i:>2d}: {popt_Te[i]:>4.3E} -/+ {popt_Te_delta[i]:>4.3E}\n")
+                f.write(f"# a_{i:2d}: {popt_Te[i]:>4.3E} -/+ {popt_Te_delta[i]:>4.3E}\n")
 
         symmetrized_fit_df.to_csv(f, index=False)
 
@@ -747,7 +899,6 @@ def main():
     fig.savefig(os.path.join(path_to_figures, file_tag + '_ion_flux.svg'), dpi=600)
     fig.savefig(os.path.join(path_to_figures, file_tag + '_ion_flux.pdf'), dpi=600)
     plt.show()
-    exit()
 
 
 if __name__ == '__main__':

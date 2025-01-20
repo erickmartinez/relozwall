@@ -1,9 +1,10 @@
 # Results from black body fit 
 # =========================== 
-# Temperature [K]: 779.0 -/+ 67.1
-# Scaling factor: 1.56E+01 -/+ 3.00E+01
+# Temperature [K]: 774.1 -/+ 48.9
+# Scaling factor: 2.02E+01 -/+ 2.87E+01
 # Fit local minima: True
 # f_scale: 0.1
+# lm_window_size: 350
 Wavelength (nm),Radiance (W/cm^2/ster/nm)
 400.15734694841194,-7.52540067377981e-09
 401.3819269484119,-1.5630166328659072e-09

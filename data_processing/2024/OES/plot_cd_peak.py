@@ -11,14 +11,14 @@ from scipy.integrate import simpson
 from scipy.interpolate import interp1d
 
 brightness_folder = r'./data/brightness_data_fitspy_wl-calibrated'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 echelle_xlsx = r'./data/echelle_db.xlsx'
 
 calibration_line = {'center_wl': 433.93, 'label': r'D$_{\gamma}$'}
 
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():

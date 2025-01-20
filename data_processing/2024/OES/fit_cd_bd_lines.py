@@ -16,7 +16,7 @@ from data_processing.utils import lighten_color
 
 
 brightness_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20240815/MechelleSpect_007.csv'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'
 output_folder = r'./figures/Echelle_plots/B-I'
 echelle_xlsx = r'./data/echelle_db.xlsx'
 output_xls = r'./data/cd_bd_lorentzian.xlsx'
@@ -68,7 +68,7 @@ def jac_sum_lorentzians(b, x, y):
     return res / np.pi
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():

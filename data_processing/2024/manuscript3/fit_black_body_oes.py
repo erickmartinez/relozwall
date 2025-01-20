@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import List, Dict
 
 
-spectrum_csv = r"./data/oes_black_body/echelle_20241031/MechelleSpect_029_data.csv"
+spectrum_csv = r"./data/oes_black_body/echelle_20241031/MechelleSpect_006_data.csv"
 
 
 def load_plot_style():
@@ -45,7 +45,7 @@ all_tol = float(np.finfo(np.float64).eps)
 
 def fit_black_body(
     wavelength: np.ndarray, radiance:np.ndarray, temperature_guess:float, scaling_factor_guess:float, tol=all_tol,
-    f_scale=0.1, loss='cauchy'
+    f_scale=1., loss='soft_l1', lm_window_size=150
 ) -> OptimizeResult:
     """
     Tries to fit the spectrum to a black body spectrum
@@ -75,7 +75,7 @@ def fit_black_body(
     b0 = np.array([temperature_guess, scaling_factor_guess])
 
     # Find minima
-    window_size = len(wavelength) // 250
+    window_size = len(wavelength) // lm_window_size
     if window_size % 2 == 0:
         window_size += 1
     minima_data = find_local_minima(radiance.tolist(), window_size=window_size)
@@ -221,6 +221,7 @@ def read_initial_params_from_comments(csv_file:str):
     p_t = re.compile(r"\#\s+Temperature\s+\[K\]\:\s(\d+\.?\d*)")
     p_s = re.compile(r"\#\s+Scaling.factor\:\s+(\d+\.?\d*[eE][\-\+]\d+)")
     p_fs = re.compile(r"\#\s+f.scale\:\s+(\d+\.?\d*)")
+    p_ws = re.compile(r"\#\s+lm_window_size\:\s+(\d+\.?\d*)")
     matches = {}
     with open(csv_file, 'r') as f:
         for line in f:
@@ -236,7 +237,11 @@ def read_initial_params_from_comments(csv_file:str):
                 m_fs = p_fs.match(line)
                 if m_fs:
                     matches['f_scale'] = float(m_fs.group(1))
-            if len(matches) >= 3:
+            if not 'lm_window_size' in matches:
+                m_ws = p_ws.match(line)
+                if m_ws:
+                    matches['lm_window_size'] = int(m_ws.group(1))
+            if len(matches) >= 4:
                 break
     return matches
 
@@ -255,7 +260,7 @@ def main():
     fit_result: OptimizeResult = fit_black_body(
         wavelength=wavelength, radiance=radiance,
         temperature_guess=initial_values['temperature'], scaling_factor_guess=initial_values['scaling_factor'],
-        f_scale=initial_values['f_scale']
+        f_scale=initial_values['f_scale'], lm_window_size=initial_values['lm_window_size']
     )
     popt = fit_result.x
     ci = cf.confidence_interval(fit_result)
@@ -273,11 +278,11 @@ def main():
 
     ax.plot(
         wavelength, radiance,
-        marker='+', ms='4', mew=0.5, mfc='none',
-        ls='none', color='0.5', alpha=1., label='OES data'
+        marker='none', ms='4', mew=0.5, mfc='none',
+        ls='-', color='0.5', alpha=1., label='OES data', lw=0.5
     )
 
-    window_size = len(wavelength) // 150
+    window_size = len(wavelength) // initial_values['lm_window_size']
     if window_size % 2 == 0:
         window_size += 1
     minima_data = find_local_minima(radiance.tolist(), window_size=window_size)
@@ -294,10 +299,11 @@ def main():
 
 
     ax.ticklabel_format(axis='y', useMathText=True)
-    ax.set_xlim(wavelength.min(), wavelength.max())
-    ax.set_ylim(0, 4E-7)
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(1E-7))
-    ax.yaxis.set_minor_locator(ticker.MultipleLocator(5E-8))
+    # ax.set_xlim(wavelength.min(), wavelength.max())
+    ax.set_xlim(400, 860)
+    ax.set_ylim(0, 2E-6)
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(5E-7))
+    ax.yaxis.set_minor_locator(ticker.MultipleLocator(1E-7))
 
     ax.legend(loc='upper left', fontsize=11)
 
@@ -305,9 +311,12 @@ def main():
     fitted_temp_err = popt_err[0]
     results_txt = f'T = {fitted_temp:.0f} °C\n'
     ax.text(
-        0.05, 0.5, results_txt, transform=ax.transAxes, va='bottom', ha='left', c='r',
+        0.85, 0.95, results_txt, transform=ax.transAxes, va='top', ha='right', c='r',
         fontsize=12
     )
+
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
+    ax.xaxis.set_minor_locator(ticker.MultipleLocator(20))
 
     fig.savefig(r'./figures/fig_black_body_oes.pdf', dpi=600)
     fig.savefig(r'./figures/fig_black_body_oes.svg', dpi=600)

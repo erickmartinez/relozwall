@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from n_e_profile_fit import load_plot_style
 from matplotlib.patches import Circle
 import h5py
+import re
 
 
 class GridEmissivityCalculator:
@@ -13,6 +14,56 @@ class GridEmissivityCalculator:
         Initialize calculator with photoemission coefficient
         """
         self.photoemission_coeff = photoemission_coeff
+
+    @staticmethod
+    def extract_ne_lorentzian_coefficients(filename):
+        """
+        Read Lorentzian parameters from the file header after the Lorentzian fit section.
+
+        Args:
+            filename (str): Path to the input file
+
+        Returns:
+            list: [amplitude, gamma, offset] parameters for the Lorentzian function
+        """
+        header = ''
+        with open(filename, 'r') as file:
+            # Find the Lorentzian fit header
+            for line in file:
+                if '************ Lorentzian fit to n_e ************' in line:
+                    # Read the next 4 lines containing parameters
+                    for _ in range(4):
+                        header += next(file)
+                    break
+
+        # Extract Lorentzian parameters using regular expressions
+        amplitude_match = re.search(r'amplitude:\s*([0-9.E+-]+)', header)
+        gamma_match = re.search(r'gamma:\s*([0-9.E+-]+)', header)
+        center_match = re.search(r'center:\s*([0-9.E+-]+)', header)
+        yoffset_match = re.search(r'yoffset:\s*([0-9.E+-]+)', header)
+
+        if not all([amplitude_match, gamma_match, center_match, yoffset_match]):
+            raise ValueError("Could not find all required Lorentzian parameters in file header")
+
+        # Convert to float
+        amplitude = float(amplitude_match.group(1))
+        gamma = float(gamma_match.group(1))
+        offset = float(yoffset_match.group(1))
+
+        return [amplitude, gamma, offset]
+
+    def evaluate_lorentzian(self, x):
+        """
+        Lorentzian function centered at x=0
+        Parameters:
+        - x: x values
+        - params: [amplitude, gamma, offset]
+            - amplitude: peak height
+            - gamma: half-width at half-maximum (HWHM)
+            - offset: y-offset (baseline)
+        """
+        amplitude, gamma, offset = self.ne_coefficients
+        return amplitude * (gamma ** 2 / (x ** 2 + gamma ** 2)) + offset
 
     @staticmethod
     def extract_ne_coefficients(filename):
@@ -65,13 +116,13 @@ class GridEmissivityCalculator:
         """
         Load electron density from polynomial coefficients file
         """
-        self.ne_coefficients = self.extract_ne_coefficients(filename)
-        self.ne_interpolator = self.evaluate_ne_polynomial
+        self.ne_coefficients = self.extract_ne_lorentzian_coefficients(filename)
+        self.ne_interpolator = self.evaluate_lorentzian
         self.max_radius = 4.0  # Set a reasonable maximum radius
 
         # Generate sample points for visualization
         r = np.linspace(0, self.max_radius, 100)
-        ne = self.evaluate_ne_polynomial(r)
+        ne = self.evaluate_lorentzian(r)
 
         return r, ne
 
@@ -331,9 +382,26 @@ def main(angle_distribution_file, electron_density_file, particle_density_file,
             None, bounds, grid_spacing, density_file=particle_density_file
         )
 
+    x, y, z = X[:, 0, 0], Y[0, :, 0], Z[0, 0, :]
+
+    DZ = z[1] - z[0]
+    # New z grid for extension
+    z_ext = np.arange(-1.0, z.min()-DZ, DZ)
+    # Calculate number of points in extension
+    nz_ext = len(z_ext)
+    # Create zero-valued extension
+    e_extension = np.zeros((len(x), len(y), nz_ext))
+    # Concatenate original and extension along z-axis
+    emissivity_full = np.concatenate((e_extension, emissivity), axis=2)
+
+    # Create full z grid
+    z_full = np.concatenate((z_ext, z))
+    # Create meshgrid for visualization
+    X_full, Y_full, Z_full = np.meshgrid(x, y, z_full, indexing='ij')
+
     # Calculate integrated intensity
     intensity = calculator.integrate_cylinder(
-        X, Y, Z, emissivity,
+        X_full, Y_full, Z_full, emissivity_full,
         cylinder_diameter,
         cylinder_axis[0], cylinder_axis[1]
     )
@@ -343,16 +411,16 @@ def main(angle_distribution_file, electron_density_file, particle_density_file,
 
     # XZ slice at Y=0
     ax1 = fig.add_subplot(131)
-    mid_y = emissivity.shape[1] // 2
-    im1 = ax1.pcolormesh(X[:, mid_y, :], Z[:, mid_y, :],
-                         emissivity[:, mid_y, :], shading='auto')
+    mid_y = emissivity_full.shape[1] // 2
+    im1 = ax1.pcolormesh(X_full[:, mid_y, :], Z_full[:, mid_y, :],
+                         emissivity_full[:, mid_y, :], shading='auto')
     ax1.set_title('Emissivity XZ Slice (Y=0)')
     ax1.set_xlabel('X (cm)')
     ax1.set_ylabel('Z (cm)')
     ax1.set_aspect('equal')
     plt.colorbar(im1, ax=ax1, label='Emissivity (photons/cm³/s)')
 
-    circle = Circle((0., 0.25), 0.5, fill=False, color='red')
+    circle = Circle((0., 0.), 1.0, fill=False, color='red')
     ax1.add_patch(circle)
 
     # XY slice at Z=0
@@ -388,7 +456,7 @@ def main(angle_distribution_file, electron_density_file, particle_density_file,
 if __name__ == "__main__":
     # Example usage
     ANGLE_DIST_FILE = r'trimsp_simulations/d_on_b_40keV_polar_angle_dist.csv'
-    ELECTRON_DENSITY_FILE = r"./data/PA_probe/20240815/langprobe_results/symmetrized/lang_results_gamma_ivdata0004_symmetrized_fit.csv"
+    ELECTRON_DENSITY_FILE = r"./data/PA_probe/20240815/langprobe_results/symmetrized/lang_results_gamma_ivdata0002_symmetrized_fit.csv"
     THERMAL_VELOCITY = 1e4  # cm/s
     PARTICLE_DENS_FILE = r"./data/emissivity_simulations/20241224_particle_density.hd5"
 
@@ -397,8 +465,8 @@ if __name__ == "__main__":
     BOUNDS = ((-1.0, 1.0), (-1.0, 1.0), (-0.25, 1.5))  # cm
 
     # Cylinder parameters
-    CYLINDER_DIAMETER = 1.0  # cm
-    CYLINDER_AXIS = [(0, 1.0, 0.25), (0, -1.0, 0.25)]  # Points defining cylinder axis
+    CYLINDER_DIAMETER = 2.0  # cm
+    CYLINDER_AXIS = [(0, 1.0, 0.0), (0, -1.0, 0.0)]  # Points defining cylinder axis
 
     load_plot_style()
 

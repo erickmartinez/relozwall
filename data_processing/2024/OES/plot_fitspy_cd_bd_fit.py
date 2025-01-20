@@ -13,7 +13,7 @@ from torch import dtype
 path_to_fitspy_results = r'./data/fitspy_results_cd_bd/echelle_20241031/MechelleSpect_029.csv'
 # output_xls = r'./data/cd_bd_lorentzian.xlsx'
 echelle_xlsx = r'./data/echelle_db.xlsx'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'
 output_folder = r'./figures/Echelle_plots/CD-BD'
 output_xls = r'./data/cd_bd_qbranch.xlsx'
 
@@ -162,7 +162,7 @@ def update_out_df(db_df:pd.DataFrame, row_data):
     return db_df
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():

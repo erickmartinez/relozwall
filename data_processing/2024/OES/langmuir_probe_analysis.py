@@ -13,7 +13,7 @@ from matplotlib.lines import Line2D
 import data_processing.confidence as cf
 from scipy.stats.distributions import t
 
-data_file = "./data/PA_probe/20241031/gamma_ivdata0010.raw"
+data_file = "./data/PA_probe/20241031/gamma_ivdata0011.raw"
 
 # https://webbook.nist.gov/cgi/cbook.cgi?ID=C14464472&Units=SI
 m_d1 = 2.0135531979
@@ -34,7 +34,7 @@ w_d3 = 0.37 # The concentration of the d3+ ions relative to n_e
 # AreaP = .025 # probe tip area [cm^2], corresponds to 2*R*L, single direction projected area for probe near target
 AreaP = .049 # probe tip area [cm^2] that Daisuke is using at present (10/2024) for gamma probe
 Vscale = 100. # voltage division done in Langmuir probe box :  Vprobe = dataV(:,1)*Vscale
-Rc = 20. # current resistor [Ohms] in Langmuir probe box : Iprobe = dataV(:,2)/Rc. Usually 2 Ohm or 5 Ohm
+Rc = 10. # current resistor [Ohms] in Langmuir probe box : Iprobe = dataV(:,2)/Rc. Usually 2 Ohm or 5 Ohm
 # xScale = 1.56 # probe plunge position conversion [cm/V]
 xScale = 1.53 # probe plunge position conversion [cm/V] that Daisuke is using (10/2024)
 
@@ -59,7 +59,7 @@ Jfac = np.sqrt(rpe*mi/(2.*np.pi))/(2.*Amag)
 
 
 loss = 'soft_l1'
-f_scale = 1.0 # The scaling factor for the outliers in the optimizer for the fit
+f_scale = 0.1 # The scaling factor for the outliers in the optimizer for the fit
 """
 x0 = np.array([JsatFit[iramp], TeFit[iramp], VsFit[iramp], eslopeFit[iramp], VesatFit[iramp], JslopeFit[iramp]])
 """
@@ -390,9 +390,10 @@ def fit_te_range_man(vp_fit, y_j_probe, vrange):
     tol = eps# ** (2./3.)
     ls_res = least_squares(
         res_poly,
-        loss='soft_l1', f_scale=1.0,
+        loss='soft_l1', f_scale=0.5,
         x0=[vp_t_fit[0], 10],
         args=(vp_t_fit, yj_t_fit),
+        bounds=([-np.inf, 0.], [np.inf, np.inf]),
         xtol=tol,
         ftol=tol,
         gtol=tol,
@@ -452,7 +453,7 @@ def fit_characeteristic_manually(
                 fig.canvas.draw()
                 fig.canvas.flush_events()
         fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
-        fig.set_size_inches(4.5, 3.5)
+        fig.set_size_inches(7.5, 4.5)
         line, = ax.plot(Vpfit, yjprobe, 'o', ms=4, color='C0', mfc='none', label='Data', picker=True, pickradius=3)
         ax.set_xlabel(r"V$_{\mathregular{probe}}$")
         ax.set_ylabel(r"log J$_{\mathregular{probe}}$")
@@ -460,6 +461,7 @@ def fit_characeteristic_manually(
             fr'Mouse select range for T$_{{\mathregular{{e}}}}$ slope finder ({iramp + 1}/{fit_end_idx + 1})',
             color='red'
         )
+        ax.set_ylim(-5,1.5)
         # fig.canvas.mpl_connect(
         #     'pick_event',
         #     lambda event: on_pick(event, Vpfit, yjprobe, Jmin0, iramp, fig, ax)
@@ -513,16 +515,17 @@ def res_jfit(b, v_probe, Jp):
     JslopeFit = b[5]
     chi = Jfit - Jp
 
-    # turn up error a lot for unphysical solutions
-    if (Te <= 0.1) or (abs(Jsat) <= 1E-10) or (np.abs(Vs) > 100) or (eslope < 10) or (JslopeFit < 0) or (Vesat > 1E3):
-        chi *= 100
-
     if iFitEsat == 1:
         return chi
     Jsort = Jp.copy()
     Jsort.sort()
     Jsatguess = Jsort[0:10].mean()
     msk_guess = Jp <= Jsatguess
+
+    # turn up error a lot for unphysical solutions
+    if (Te <= 0.1) or (abs(Jsat) <= 1E-10) or (np.abs(Vs) > 100) or (eslope < 10) or (JslopeFit < 0) or (Vesat > 1E3):
+        chi *= 1000
+
     return chi[msk_guess]
 
 def res_jfit_scalar(b, Vpv, Jp):
@@ -665,6 +668,7 @@ def main():
     # Assume that the point i_ramps_man[0] is in the range i_ramps_fit_start:ii_ramps_fit_end
     # First, scan down in iramp from i_ramps_man[1] to i_ramps_fit_start
     tol = eps ** (2/3)
+    # tol = eps ** 0.5
     # f_scale = 0.01
     for iramp in range(i_ramps_man[0]-1, i_ramps_fit_start-1, -1):
         if JsatMan[iramp] != 0: # an initial guess exists for this point

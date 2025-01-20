@@ -4,6 +4,7 @@
 # Scaling factor: 2.04E+00 -/+ 1.51E+00
 # Fit local minima: True
 # f_scale: 0.1
+# lm_window_size: 250
 Wavelength (nm),Radiance (W/cm^2/ster/nm)
 400.1153503545256,-1.8493072383862036e-08
 400.1403203545256,-1.2700912725958216e-08

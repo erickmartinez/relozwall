@@ -373,8 +373,8 @@ def main(angle_dist_file, particle_dens_file):
     rho = np.zeros(n_rho)
     accepted = 0
     while accepted < n_samples:
-        x = np.abs(np.random.normal(loc=0, scale=4, size=40*(n_rho - accepted)))
-        mask = x <= 1.
+        x = np.abs(np.random.normal(loc=0, scale=1.5, size=40*(n_rho - accepted)))
+        mask = x <= 0.5
         remaining = n_rho - accepted
         rho[accepted:accepted+min(remaining, np.sum(mask))] = x[mask][:remaining]
         accepted += min(remaining, np.sum(mask))
@@ -412,7 +412,7 @@ def main(angle_dist_file, particle_dens_file):
     # Use ScalarFormatter to format the y-axis in scientific notation
     formatter = ticker.ScalarFormatter(useMathText=True, useOffset=3.2E-2)
     formatter.set_powerlimits((-2, 2))  # Use scientific notation for numbers outside 10^-2 to 10^2
-    axes[1,0].plot(bin_centers_rho, counts_rho/n_rho, marker='D', ls='none', color='C3', mfc='none', label='Sampled dats')
+    axes[1,0].plot(bin_centers_rho, counts_rho/n_rho, marker='D', ls='none', color='C3', mfc='none', label='Sampled data')
     axes[1,0].plot(x_pred_g, y_pred_g, ls='--', lw=1.25, color='C3', label='Normal distribution')
     axes[1,0].set_xlabel(r"$\sqrt{x^2 + y^2}$ {\sffamily (cm)}", usetex=True)
     axes[1,0].set_ylabel('Probability density')

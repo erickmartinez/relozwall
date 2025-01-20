@@ -7,8 +7,8 @@ import json
 import os
 from scipy.optimize import least_squares, OptimizeResult
 
-bi_lorentzian_xls = r'./data/cd_bd_qbranch.xlsx'
-folder_map_xls = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
+SPUTTERING_RATES_CSV = r'./data/cd_bd_qbranch.xlsx'
+FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 
 axes_mapping = {
     'echelle_20240815': 0, 'echelle_20240827': 1, 'echelle_20241003': 1, 'echelle_20241031': 0
@@ -125,7 +125,7 @@ def load_plot_style():
 
 
 def load_folder_mapping():
-    global folder_map_xls
+    global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
     for i, row in df.iterrows():
@@ -134,9 +134,9 @@ def load_folder_mapping():
 
 
 def main():
-    global bi_lorentzian_xls, m_B
+    global SPUTTERING_RATES_CSV, m_B
     # load the fitted lorentzian peaks
-    bi_df = pd.read_excel(bi_lorentzian_xls, sheet_name=0)
+    bi_df = pd.read_excel(bd_lorentzian_xls, sheet_name=0)
     folder_mapping = load_folder_mapping()
     folders = bi_df['Folder'].unique()
     n_plots = len(folders)
