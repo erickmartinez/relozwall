@@ -5,33 +5,39 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import os
 import json
-from scipy.optimize import least_squares, OptimizeResult
+from scipy.optimize import least_squares, OptimizeResult, differential_evolution, Bounds
+
 import data_processing.confidence as cf
 import re
 from data_processing.utils import lighten_color
 from typing import List, Dict
 
 
-echelle_spectrum = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20241031/MechelleSpect_006.csv'
-baseline_fit_csv = r'./data/baseline_echelle_20240815_MechelleSpect_010.csv'
-temperature_excel = r'./data/20241031_bb_temp.xlsx'
-echelle_xlsx = r'./data/echelle_db.xlsx'
+ECHELLE_SPECTRUM = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20241003/MechelleSpect_025.csv'
+BASELINE_FIT_CSV = r'./data/baseline_echelle_20240815_MechelleSpect_010.csv'
+TEMPERATURE_EXCEL = r'./data/20241003_bb_temp.xlsx'
+ECHELLE_XLSX = r'./data/echelle_db.xlsx'
 
 
-save_data_for_figure = True
-fit_local_minima = True
-f_scale = 0.1
-loss = 'soft_l1'
-lm_window_size = 150
+SAVE_DATA_FOR_FIGURE = True
+FIT_LOCAL_MINIMA = True
+TEMP_GUESS = 700
+F_SCALE = 0.1
+LOSS = 'cauchy'
+LM_WINDOW_SIZE = 150
+SUBTRACT_COLD_BASELINE = False
+FIT_RANGE = [600, 885]
 
-lookup_lines = [
+
+
+LOOKUP_LINES = [
     {'center_wl': 410.06, 'label': r'D$_{\delta}$'},
     {'center_wl': 434.0, 'label': r'D$_{\gamma}$'},
     {'center_wl': 486.00, 'label': r'D$_{\beta}$'},
     {'center_wl': 656.10, 'label': r'D$_{\alpha}$'}
 ]
 
-calibration_wl = lookup_lines[1]
+CALIBRATION_WL = LOOKUP_LINES[1]
 
 def model_poly(x, b) -> np.ndarray:
     n = len(b)
@@ -78,12 +84,18 @@ def model_bb(wavelength_nm: np.ndarray, b):
 def res_bb(b, x, y, w=1):
     return (model_bb(wavelength_nm=x, b=b) - y)*w
 
+def res_bb_de(b, x, y):
+    res = res_bb(b, x, y)
+    result = 0.5 * np.linalg.norm([res, res])
+    return result
+
 all_tol = float(np.finfo(np.float64).eps)
 
 
+
 def fit_black_body(
-    wavelength: np.ndarray, radiance:np.ndarray, temperature_guess:float, scaling_factor_guess:float, tol=all_tol,
-    f_scale=1., loss='soft_l1', fit_local_minima=False
+    wavelength: np.ndarray, radiance:np.ndarray, temperature_guess:float, scaling_factor_guess:float,
+    lm_window_size, tol=all_tol,  f_scale=1., loss='soft_l1', fit_local_minima=False
 ) -> OptimizeResult:
     """
     Tries to fit the spectrum to a black body spectrum
@@ -97,6 +109,8 @@ def fit_black_body(
         The initial guess for the temperature in K
     scaling_factor_guess: float
         The initial guess of the scaling factor for the black body spectrum
+    lm_window_size: int
+        The size of the window for estimating the spectrum baseline
     tol: float
         The tolerance used for the convergence of the least_squares
     f_scale: float
@@ -113,7 +127,6 @@ def fit_black_body(
     """
 
     b0 = np.array([temperature_guess, scaling_factor_guess])
-    global lm_window_size
 
     if fit_local_minima:
         # Find minima
@@ -125,18 +138,39 @@ def fit_black_body(
         wavelength = np.array([wavelength[i] for i in indices])
         radiance = np.array(minima_data['minima_values'])
         n = len(wavelength)
+        result_de: OptimizeResult = differential_evolution(
+            func=res_bb_de,
+            args=(wavelength, radiance),
+            x0=b0,
+            bounds=[(all_tol, 2000.), (all_tol, 1E20)],
+            maxiter=10000 * len(b0),
+            tol=tol,
+            atol=tol,
+            workers=-1,
+            updating='deferred',
+            recombination=0.1,
+            strategy='best1bin',
+            mutation=(0.5, 1.5),
+            init='sobol',
+            polish=False,
+            disp=True
+        )
+
+        popt = result_de.x
         result: OptimizeResult = least_squares(
             res_bb,
-            b0,
+            popt,
+            jac='3-point',
             loss=loss,
             f_scale=f_scale,
             args=(wavelength, radiance),
             bounds=([all_tol, all_tol], [np.inf, np.inf]),
+            # bounds=([max(popt[0]-5,0.), max(popt[1]-10,0)], [popt[0]+5, popt[1]+10]),
             xtol=tol,
             ftol=tol,
             gtol=tol,
             max_nfev=10000 * n,
-            x_scale='jac',
+            # x_scale='jac',
             verbose=2
         )
 
@@ -177,7 +211,7 @@ temp_cols = [
 ]
 
 def load_output_db(xlsx_source):
-    global temp_cols
+    global cd_bd_cols
     try:
         out_df: pd.DataFrame = pd.read_excel(xlsx_source, sheet_name=0)
     except Exception as e:
@@ -284,9 +318,11 @@ def find_local_minima(signal: List[float], window_size: int = 3) -> Dict[str, Li
         'minima_pairs': list(zip(minima_indices, minima_values))
     }
 
-def main():
-    global echelle_spectrum, baseline_fit_csv, temperature_excel, fit_local_minima
-    global f_scale, lm_window_size
+def main(
+    echelle_spectrum, fit_range, subtract_cold_baseline, baseline_fit_csv, temperature_excel, fit_local_minima,
+    temperature_guess, f_scale, loss,
+    lm_window_size, echelle_xlsx, save_data_for_figure
+):
     echelle_df: pd.DataFrame = load_echelle_xlsx(echelle_xlsx)
     file = os.path.basename(echelle_spectrum)
     file_tag = os.path.splitext(file)[0]
@@ -340,13 +376,17 @@ def main():
     print(f"Intensity @ ref peak:\t{rad_peak:.3E} (photons/cm^2/s/nm)")
     scaling_factor = rad_peak / reference_intenstiy
 
-    spectrum_df = spectrum_df[spectrum_df['Wavelength (nm)'].between(400, 850, inclusive='both')].reset_index(drop=True)
+    spectrum_df = spectrum_df[spectrum_df['Wavelength (nm)'].between(fit_range[0], fit_range[1], inclusive='both')].reset_index(drop=True)
     brightness = spectrum_df['Brightness (photons/cm^2/s/nm)'].values
     wl = spectrum_df['Wavelength (nm)'].values
     baseline = model_poly(wl, popt_bl) * 1E12 # The polynomial was fitted in units of x1E12 photons/s/cm^2
     baseline *= scaling_factor
-    brightness_baselined = brightness - baseline
-    brightness_complete_baselined = brightness_complete - scaling_factor * model_poly(wl_complete, popt_bl) * 1E12
+    if subtract_cold_baseline:
+        brightness_baselined = brightness - baseline
+        brightness_complete_baselined = brightness_complete - scaling_factor * model_poly(wl_complete, popt_bl) * 1E12
+    else:
+        brightness_baselined = brightness
+        brightness_complete_baselined = brightness_complete
 
     # radiance = brightness * 1240. / wl * 1.6019E-19 / 4. / np.pi
     xhc_by_lambda = h * c / wl * 1E-17
@@ -360,8 +400,8 @@ def main():
 
 
     ls_res = fit_black_body(
-        wavelength=wl[msk_fit], radiance=radiance[msk_fit], temperature_guess=800, scaling_factor_guess=1.2,
-        f_scale=f_scale, loss='cauchy', fit_local_minima=fit_local_minima
+        wavelength=wl[msk_fit], radiance=radiance[msk_fit], temperature_guess=temperature_guess, scaling_factor_guess=1.2,
+        lm_window_size=lm_window_size, f_scale=f_scale, loss=loss, fit_local_minima=fit_local_minima
     )
 
     popt = ls_res.x
@@ -424,7 +464,7 @@ def main():
     ax2.set_title(os.path.basename(echelle_spectrum))
     # ax.set_xlim(350, wl.max())
     ax1.set_ylim(bottom=0.)#, top=rad_peak * 5.)
-    ax2.set_ylim(0, radiance_complete.max()*0.25)
+    ax2.set_ylim(0, y_pred.max()*1.5)
     for ax in (ax1, ax2):
         mf = ticker.ScalarFormatter(useMathText=True)
         mf.set_powerlimits((-2, 2))
@@ -468,4 +508,17 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(
+        echelle_spectrum=ECHELLE_SPECTRUM,
+        fit_range=FIT_RANGE,
+        subtract_cold_baseline=SUBTRACT_COLD_BASELINE,
+        baseline_fit_csv=BASELINE_FIT_CSV,
+        temperature_excel=TEMPERATURE_EXCEL,
+        fit_local_minima=FIT_LOCAL_MINIMA,
+        temperature_guess=TEMP_GUESS,
+        loss=LOSS,
+        f_scale=F_SCALE,
+        lm_window_size=LM_WINDOW_SIZE,
+        echelle_xlsx=ECHELLE_XLSX,
+        save_data_for_figure=SAVE_DATA_FOR_FIGURE
+    )

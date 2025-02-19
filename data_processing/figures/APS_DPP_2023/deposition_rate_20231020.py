@@ -1,3 +1,5 @@
+from unittest.mock import right
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,15 +7,22 @@ import matplotlib as mpl
 import matplotlib.ticker as ticker
 import os
 import json
+
+from data_processing.camera.process_thermal_images import deposition_rate
 from data_processing.utils import get_experiment_params
+import platform
 
-base_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\DPP 2023\figures'
-database_csv = 'Transmission measurements - 20231020.csv'
+DRIVE_PATH = r"/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal"
+if platform.system() == 'Windows':
+    drive_path = r"C:\Users\erick\OneDrive"
 
-csv_soot_deposition = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests' \
-                      r'\surface_temperature\equilibrium_redone\slide_transmission_smausz.csv'
+BASE_DIR = r'Documents/ucsd/Postdoc/research/conferences/DPP 2023/figures'
+DATABASE_CSV = 'Transmission measurements - thicknesses - 20250124.csv'
 
-laser_power_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\MATERIAL_SCAN\laser_output'
+CSV_SOOT_DEPOSITION = r'Documents/ucsd/Postdoc/research/data/firing_tests' \
+                      r'/surface_temperature/equilibrium_redone/slide_transmission_smausz_error.csv'
+
+LASER_POWER_CSV = r'Documents/ucsd/Postdoc/research/data/firing_tests/LASER_POWER_MAPPING/laser_power_mapping.csv'
 
 samples = [
     {'sample_id': 'R4N64', 'label': 'GC,  7.5% binder', 'material': 'Glassy carbon', 'marker': 'o', 'size': '850 um',
@@ -36,11 +45,19 @@ matrix_samples = [
 ]
 
 beam_radius = 0.5 * 0.8165  # * 1.5 # 0.707
-n_cos, dn_cos = 7., 2.
-h_0 = 10.5 * 2.54
+n_cos, dn_cos = 6.5, 0.3
+h_0, h_0_err = 10.5 * 2.54, 0.5 * 2.54
 
 graphite_sample_diameter = 0.92
 film_density = 2.2  # g / cm^3
+
+def process_absolute_path(relative_path, drive_path):
+    if platform.system() == 'Windows':
+        relative_path = relative_path.replace("/", "\\")
+    else:
+        relative_path = relative_path.replace("\\", "/")
+    abs_path = os.path.join(drive_path, relative_path)
+    return abs_path
 
 
 def gaussian_beam_aperture_factor(beam_radius, sample_radius):
@@ -61,13 +78,14 @@ def cps2nmps(deposit_rate):
 
 def nmps2tlpspm2(deposit_rate):
     global film_density, h_0, n_cos, sample_area
-    return 21.388E-4 * (h_0 ** 2.) * deposit_rate / n_cos /sample_area # Torr-L/s/m^2
+    return 2.1388E-03 * (h_0 ** 2.) * deposit_rate / n_cos /sample_area # Torr-L/s/m^2
 
 def tlpspm22nmps(deposit_rate):
     global film_density, h_0, n_cos, sample_area
-    return n_cos * sample_area * deposit_rate / 21.388E-4 / (h_0 ** 2.)  # Torr-L/s/m^2
+    return n_cos * sample_area * deposit_rate / 2.1388E-03 / (h_0 ** 2.)  # Torr-L/s/m^2
 
-def map_laser_power_settings():
+
+def map_laser_power_settings_from_files(base_dir, laser_power_dir):
     rdir = os.path.join(base_dir, laser_power_dir)
     file_list = os.listdir(rdir)
     mapping = {}
@@ -84,8 +102,52 @@ def map_laser_power_settings():
     keys.sort()
     return {i: mapping[i] for i in keys}
 
+def map_laser_power_settings(laser_power_csv):
+    df = pd.read_csv(laser_power_csv).apply(pd.to_numeric).sort_values(by=['Laser power setting (%)'], ascending=True)
+    setpoint = df['Laser power setting (%)'].values
+    laser_power = df['Laser power (W)'].values
+    return {key: val for key, val in zip(setpoint, laser_power)}
 
-def main():
+def estimate_deposition_rate(
+    film_thickness: np.ndarray, deposition_time: np.ndarray,
+    film_thickness_error: np.ndarray, deposition_time_pct_error=0.1
+):
+    # Avoid division by zero by treating values of film thickness differently
+    msk_zero = film_thickness == 0.
+    deposition_rate = film_thickness / deposition_time
+    deposition_rate[msk_zero] = film_thickness_error[msk_zero] / deposition_time[msk_zero] # minimum value based on uncertainty
+    dt_by_t = np.ones_like(film_thickness) * deposition_time_pct_error
+    dD_by_D = np.zeros_like(deposition_rate)
+    dD_by_D[msk_zero] = 1. # Assume D = dD
+    dD_by_D[~msk_zero] = film_thickness_error[~msk_zero] / film_thickness[~msk_zero]
+    deposition_rate_error = deposition_rate * np.linalg.norm(
+        np.column_stack([dt_by_t, dD_by_D]),
+        axis=1
+    )
+    return deposition_rate, deposition_rate_error
+
+
+def deposition_rate_to_sublimation_rate(
+    deposition_rate, deposition_rate_error, h0, n, dh0, dn, area
+):
+    rs = deposition_rate * 2.1388E-03 * (h0 ** 2.) / n / area # x10^4  Torr-L/s/m^2
+    # Treat values with deposition_rate = 0 differently to avoid division by zero
+    msk_zero = deposition_rate == 0
+    rs[msk_zero] = deposition_rate_error[msk_zero] * 2.1388E-03 * (h0 ** 2.) / n / area # x10^4 Torr-L/s/m^2
+    dn_by_n = dn / n * np.ones_like(deposition_rate)
+    darea_by_area = 0.1 * np.ones_like(deposition_rate)
+    drd_by_rd = np.zeros_like(deposition_rate)
+    drd_by_rd[msk_zero] = 1 # If deposition rate (rd) = 0, assume rd=depostion_rate_error (drd)
+    drd_by_rd[~msk_zero] = deposition_rate_error[~msk_zero] / deposition_rate[~msk_zero]
+    dh0_by_h0 = 2. * (dh0 / h0) * np.ones_like(deposition_rate)
+    drs = rs * np.linalg.norm(np.column_stack([drd_by_rd, dh0_by_h0, dn_by_n, darea_by_area]), axis=1)
+    return rs, drs
+
+def main(base_dir, database_csv, laser_power_csv, csv_soot_deposition, drive_path, h0, h0_err, ncos, dncos):
+    base_dir = process_absolute_path(base_dir, drive_path)
+    database_csv = os.path.join(base_dir, database_csv)
+    laser_power_csv = process_absolute_path(laser_power_csv, drive_path)
+    csv_soot_deposition = process_absolute_path(csv_soot_deposition, drive_path)
     df_main = pd.read_csv(
         os.path.join(base_dir, database_csv),
         # usecols=['Sample ID', 'Laser power setting (%)', 'Film thickness (nm)', 'Deposition rate (nm/s)']
@@ -97,7 +159,7 @@ def main():
     df = df_main[df_main['Sample ID'].isin(sample_id_list)]
     sample_ids = df['Sample ID'].unique()
 
-    laser_power_mapping = map_laser_power_settings()
+    laser_power_mapping = map_laser_power_settings(laser_power_csv)
 
 
     with open('../plot_style.json', 'r') as file:
@@ -105,17 +167,25 @@ def main():
         plot_style = json_file['thinLinePlotStyle']
     mpl.rcParams.update(plot_style)
 
-    fig, axes = plt.subplots(ncols=1, nrows=2, gridspec_kw=dict(hspace=0, height_ratios=[2, 1]), sharex=True)
+    fig, axes = plt.subplots(ncols=1, nrows=2, gridspec_kw=dict(hspace=0, height_ratios=[2, 1.5]), sharex=True)
     ax, ax2 = axes[0], axes[1]
-    fig.set_size_inches(4.0, 4.5)
+    fig.set_size_inches(4.0, 5.5)
+    fig.subplots_adjust(left=0.15, top=0.95, right=0.95, bottom=0.09)
 
     # markers = ['o', 's', '^', 'v', 'd', '<', '>', 'p', 'h']
     # colors = ['C0', 'C1', 'C2', 'C5', 'C4', 'C6', 'C7', 'C8']
+
+    graphite_sample_diameter = 0.92
+    graphite_area = 0.25 * np.pi * (graphite_sample_diameter ** 2.)
+
+    pebble_sample_diameter = 1.025
+    pebble_area = 0.25 * np.pi * (pebble_sample_diameter ** 2.)
 
     soot_deposition_df = pd.read_csv(csv_soot_deposition)
     soot_deposition_columns = soot_deposition_df.columns
     soot_deposition_df[soot_deposition_columns[1:]] = soot_deposition_df[soot_deposition_columns[1:]].apply(
         pd.to_numeric)
+    soot_deposition_df = soot_deposition_df[soot_deposition_df['Flat top time (s)'] > 0]
     soot_deposition_pebble_df = soot_deposition_df[soot_deposition_df['Sample'] != 'GT001688']
     soot_deposition_graphite_df = soot_deposition_df[soot_deposition_df['Sample'] == 'GT001688']
     soot_deposition_pebble_df.sort_values(by=['Laser Power (%)'], ascending=True)
@@ -128,29 +198,31 @@ def main():
     laser_power_pebble = np.array([laser_power_mapping[v] for v in laser_power_setting_sublimation_pebble])
 
     film_thickness_pebble = soot_deposition_pebble_df['Thickness (nm)'].values
-    film_thickness_pebble_err = film_thickness_pebble * soot_deposition_pebble_df['Error %'].values
+    film_thickness_pebble_err = soot_deposition_pebble_df['Thickness error (nm)'].values
     flattop_time_pebble = soot_deposition_pebble_df['Flat top time (s)'].values
-    sublimation_rate_pebble = film_thickness_pebble / flattop_time_pebble
-    de_by_de_pebble = np.zeros_like(sublimation_rate_pebble, dtype=np.float64)
-    msk_pebble = film_thickness_pebble > 0.0
-    de_by_de_pebble[msk_pebble] = film_thickness_pebble_err[msk_pebble] / film_thickness_pebble[msk_pebble]
-    sublimation_rate_pebble_err = sublimation_rate_pebble * np.sqrt(
-        de_by_de_pebble ** 2.0 + 0.1 ** 2.0
+    depositon_rate_pebble, deposition_rate_pebble_err = estimate_deposition_rate(
+        film_thickness=film_thickness_pebble, film_thickness_error=film_thickness_pebble_err,
+        deposition_time=flattop_time_pebble
+    )
+    sublimation_rate_pebble, sublimation_rate_pebble_err = deposition_rate_to_sublimation_rate(
+        deposition_rate=depositon_rate_pebble, deposition_rate_error=deposition_rate_pebble_err,
+        h0=h0, dh0=h0_err, n=ncos, dn=dn_cos, area=pebble_area
     )
 
+
     film_thickness_graphite = soot_deposition_graphite_df['Thickness (nm)'].values
-    film_thickness_graphite_err = film_thickness_graphite * 0.12  # soot_deposition_graphite_df['Error %'].values
+    film_thickness_graphite_err = soot_deposition_graphite_df['Thickness error (nm)'].values
     flattop_time_graphite = soot_deposition_graphite_df['Flat top time (s)'].values
-    msk_graphite = (film_thickness_graphite > 0.0) & (flattop_time_graphite > 0.0)
-    sublimation_rate_graphite = np.zeros_like(flattop_time_graphite)
-    sublimation_rate_graphite[msk_graphite] = film_thickness_graphite[msk_graphite] / flattop_time_graphite[
-        msk_graphite]
-    de_by_de_graphite = np.zeros_like(sublimation_rate_graphite, dtype=np.float64)
-    de_by_de_graphite[msk_graphite] = film_thickness_graphite_err[msk_graphite] / film_thickness_graphite[msk_graphite]
-    # sublimation_rate_graphite_err = sublimation_rate_graphite * np.sqrt(
-    #     de_by_de_graphite ** 2.0 + 0.1 ** 2.0
-    # )
-    sublimation_rate_graphite_err = 0.12 * sublimation_rate_graphite
+    # msk_graphite = (film_thickness_graphite > 0.0) & (flattop_time_graphite > 0.0)
+    msk_graphite = flattop_time_graphite > 0.0 # Avoid division by zero
+    deposition_rate_graphite, deposition_rate_graphite_err = estimate_deposition_rate(
+        film_thickness=film_thickness_graphite, film_thickness_error=film_thickness_graphite_err,
+        deposition_time=flattop_time_graphite
+    )
+    sublimation_rate_graphite, sublimation_rate_graphite_err = deposition_rate_to_sublimation_rate(
+        deposition_rate=deposition_rate_graphite, deposition_rate_error=deposition_rate_graphite_err,
+        h0=h0, dh0=h0_err, n=ncos, dn=dn_cos, area=pebble_area
+    )
 
     sample_area_graphite = 0.25 * np.pi * graphite_sample_diameter ** 2.0
     aperture_factor_graphite = gaussian_beam_aperture_factor(beam_radius=beam_radius,
@@ -160,11 +232,19 @@ def main():
 
     evaporation_rate_graphite = 21.388E3 * (h_0 ** 2. / n_cos) * sublimation_rate_graphite
 
-    ax.errorbar(
-        incident_heat_load_pebble, nmps2tlpspm2(sublimation_rate_pebble),  # yerr=sublimation_rate_graphite_err,
+    # ax.errorbar(
+    #     incident_heat_load_pebble, nmps2tlpspm2(sublimation_rate_pebble),  yerr=sublimation_rate_graphite_err,
+    #     marker='^', ms=9, mew=1.25, mfc='none', label='GC, 10.0% binder',
+    #     capsize=2.75, elinewidth=1.25, lw=1.5, c='navy'
+    # )
+    markers_p, caps_p, bars_p = ax.errorbar(
+        incident_heat_load_pebble, sublimation_rate_pebble,  yerr=sublimation_rate_pebble_err,
         marker='^', ms=9, mew=1.25, mfc='none', label='GC, 10.0% binder',
         capsize=2.75, elinewidth=1.25, lw=1.5, c='navy'
     )
+    [bar.set_alpha(0.35) for bar in bars_p]
+    [cap.set_alpha(0.35) for cap in caps_p]
+
 
     for i, id in enumerate(sample_id_list):
         df2 = df[df['Sample ID'] == id]
@@ -172,6 +252,7 @@ def main():
             'Deposition rate (nm/s)': ['mean', 'std'],
             'Deposition rate lb (nm/s)': ['mean', 'std'],
             'Deposition rate ub (nm/s)': ['mean', 'std'],
+            'Deposition rate error (nm/s)': ['mean', 'std'],
             'Evaporation rate (Torr-L/s)': ['mean', 'std'],
             'Evaporation rate lb (Torr-L/s)': ['mean', 'std'],
             'Evaporation rate ub (Torr-L/s)': ['mean', 'std'],
@@ -190,6 +271,13 @@ def main():
         deposition_rate = df2['Deposition rate (nm/s)']['mean']
         deposition_rate_lb = df2['Deposition rate lb (nm/s)']['mean']
         deposition_rate_ub = df2['Deposition rate ub (nm/s)']['mean']
+        deposition_rate_err = df2['Deposition rate error (nm/s)']['mean']
+
+        sublimation_rate, sublimation_rate_err = deposition_rate_to_sublimation_rate(
+            deposition_rate=deposition_rate, deposition_rate_error=deposition_rate_err,
+            h0=h0, dh0=h0_err, n=ncos, dn=dn_cos, area=pebble_area
+        )
+
 
         yerr_deposition = (nmps2tlpspm2(deposition_rate) - nmps2tlpspm2(deposition_rate_lb),
                            nmps2tlpspm2(deposition_rate_ub) - nmps2tlpspm2(deposition_rate))
@@ -206,11 +294,20 @@ def main():
         yerr_evaporation = (evaporation_rate - evaporation_rate_lb, evaporation_rate_ub - evaporation_rate_lb)
         # evaporation_rate_lb = deposition_rate_lb *
 
-        ax.errorbar(
-            incident_heat_load, nmps2tlpspm2(deposition_rate), yerr=yerr_deposition,
+        # ax.errorbar(
+        #     incident_heat_load, nmps2tlpspm2(deposition_rate), yerr=yerr_deposition,
+        #     marker=marker, ms=9, mew=1.25, mfc='none', label=f'{lbl}',
+        #     capsize=2.75, elinewidth=1.25, lw=1.5, c=c, ls='none'
+        # )
+
+        markers_p, caps_p, bars_p = ax.errorbar(
+            incident_heat_load, sublimation_rate, yerr=sublimation_rate_err,
             marker=marker, ms=9, mew=1.25, mfc='none', label=f'{lbl}',
             capsize=2.75, elinewidth=1.25, lw=1.5, c=c, ls='none'
         )
+
+        [bar.set_alpha(0.35) for bar in bars_p]
+        [cap.set_alpha(0.35) for cap in caps_p]
 
     # secax = ax.secondary_yaxis('right', functions=(nmps2tlpspm2, tlpspm22nmps))
     # secax.set_ylabel(r'C/s/cm$^{\mathregular{2}}$')
@@ -237,6 +334,7 @@ def main():
             'Deposition rate (nm/s)': ['mean', 'std'],
             'Deposition rate lb (nm/s)': ['mean', 'std'],
             'Deposition rate ub (nm/s)': ['mean', 'std'],
+            'Deposition rate error (nm/s)': ['mean', 'std'],
             'Evaporation rate (Torr-L/s)': ['mean', 'std'],
             'Evaporation rate lb (Torr-L/s)': ['mean', 'std'],
             'Evaporation rate ub (Torr-L/s)': ['mean', 'std'],
@@ -258,6 +356,12 @@ def main():
         deposition_rate = df2['Deposition rate (nm/s)']['mean']
         deposition_rate_lb = df2['Deposition rate lb (nm/s)']['mean']
         deposition_rate_ub = df2['Deposition rate ub (nm/s)']['mean']
+        deposition_rate_err = df2['Deposition rate error (nm/s)']['mean']
+
+        sublimation_rate, sublimation_rate_err = deposition_rate_to_sublimation_rate(
+            deposition_rate=deposition_rate, deposition_rate_error=deposition_rate_err,
+            h0=h0, dh0=h0_err, n=ncos, dn=dn_cos, area=pebble_area
+        )
 
         yerr_deposition = (deposition_rate - deposition_rate_lb, deposition_rate_ub - deposition_rate)
         laser_power_setting = list(df2.index.values)
@@ -268,29 +372,55 @@ def main():
                                                         sample_radius=0.5 * sample_diameter)
         incident_heat_load = aperture_factor * laser_power / sample_area / 100.0
 
-        ax2.errorbar(
-            incident_heat_load, nmps2tlpspm2(deposition_rate), yerr=yerr_deposition,
+        # markers_p, caps_p, bars_p =  ax2.errorbar(
+        #     incident_heat_load, nmps2tlpspm2(deposition_rate), yerr=yerr_deposition,
+        #     marker=marker, ms=9, mew=1.25, mfc='none', label=f'{lbl}',
+        #     capsize=2.75, elinewidth=1.25, lw=1.5, c=c, ls=ls
+        # )
+        markers_p, caps_p, bars_p = ax2.errorbar(
+            incident_heat_load, sublimation_rate, yerr=sublimation_rate_err,
             marker=marker, ms=9, mew=1.25, mfc='none', label=f'{lbl}',
             capsize=2.75, elinewidth=1.25, lw=1.5, c=c, ls=ls
         )
 
+        [bar.set_alpha(0.35) for bar in bars_p]
+        [cap.set_alpha(0.35) for cap in caps_p]
 
-    ax.errorbar(
-        incident_heat_load_graphite, nmps2tlpspm2(sublimation_rate_graphite),  # yerr=recession_rate_err,
+
+    # ax.errorbar(
+    #     incident_heat_load_graphite, nmps2tlpspm2(sublimation_rate_graphite),  # yerr=recession_rate_err,
+    #     marker='D', ms=9, mew=1.25, mfc='none', label='Graphite rod',
+    #     capsize=2.75, elinewidth=1.25, lw=1.5, c='tab:red'
+    # )
+    markers_p, caps_p, bars_p = ax.errorbar(
+        incident_heat_load_graphite, sublimation_rate_graphite,  yerr=sublimation_rate_graphite_err,
         marker='D', ms=9, mew=1.25, mfc='none', label='Graphite rod',
         capsize=2.75, elinewidth=1.25, lw=1.5, c='tab:red'
     )
 
+    hl_boron = 5 * np.arange(1,8)
+    print(f"Mean sublimation rate err: {sublimation_rate_graphite_err.mean():.3E} ")
+    rs_boron = np.ones_like(hl_boron) * np.mean(sublimation_rate_graphite_err)
+    rs_boron_error = np.ones_like(rs_boron) * np.mean(sublimation_rate_graphite_err)
+    markers_p, caps_p, bars_p = ax2.errorbar(
+        hl_boron, rs_boron, yerr=rs_boron_error,
+        marker='H', ms=9, mew=1.25, mfc='magenta', label='Boron emission',
+        capsize=2.75, elinewidth=1.25, lw=1.5, c='magenta'
+    )
+
+    [bar.set_alpha(0.35) for bar in bars_p]
+    [cap.set_alpha(0.35) for cap in caps_p]
+
     # ax.set_xlabel('Heat load [MW/m$^{\mathregular{2}}$]')
 
-    ax.set_title('Carbon deposition rate')
+    ax.set_title('Carbon emission rate')
     for axx in axes:
         axx.set_xlim(5, 40)
     ax.tick_params(which='both', axis='y', labelright=False, right=True, direction='out')
     ax2.tick_params(which='both', axis='y', labelright=False, right=True, direction='out')
     ax.tick_params(which='both', axis='x', direction='out')
 
-    ax2.set_xlabel('Heat load [MW/m$^{\mathregular{2}}$]')
+    ax2.set_xlabel('Heat load (MW/m$^{\mathregular{2}}$)')
 
     # ax.set_ylabel('nm/s')
     # ax2.set_ylabel('nm/s')
@@ -314,17 +444,18 @@ def main():
 
     ax.set_ylim(-5, 60)
     ax2.set_ylim(-10, 70)
-    fig.supylabel(r'$\times$10$^{\mathregular{4}}$ [Torr-L/s/m$^{\mathregular{2}}$]', fontweight='regular', fontsize=12)
+    fig.supylabel(r'$\times$10$^{\mathregular{4}}$ (Torr-L/s/m$^{\mathregular{2}}$)', fontweight='regular', fontsize=12)
 
-    ax.legend(loc='best', frameon=True, fontsize=9)
-    ax2.legend(loc='best', frameon=True, fontsize=9)
+    ax.legend(loc='best', frameon=True, fontsize=10)
+    ax2.legend(loc='best', frameon=True, fontsize=10)
 
-    fig.tight_layout()
+    # fig.tight_layout()
 
+    file_tag = 'carbon_deposition_vs_laser_power_binder_content_20231020'
 
-    fig.savefig(os.path.join(base_dir, 'carbon_deposition_vs_laser_power_binder_content_20231020' + '.svg'), dpi=600)
-    fig.savefig(os.path.join(base_dir, 'carbon_deposition_vs_laser_power_binder_content_20231020' + '.png'), dpi=600)
-    fig.savefig(os.path.join(base_dir, 'carbon_deposition_vs_laser_power_binder_content_20231020' + '.pdf'), dpi=600)
+    fig.savefig(os.path.join(base_dir, file_tag + '.svg'), dpi=600)
+    fig.savefig(os.path.join(base_dir, file_tag + '.png'), dpi=600)
+    fig.savefig(os.path.join(base_dir, file_tag + '.pdf'), dpi=600)
 
     # fig2.savefig(os.path.join(base_dir, 'carbon_deposition_vs_laser_power_material_20231020' + '.png'), dpi=600)
 
@@ -332,4 +463,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(
+        base_dir=BASE_DIR, database_csv=DATABASE_CSV, laser_power_csv=LASER_POWER_CSV,
+        csv_soot_deposition=CSV_SOOT_DEPOSITION, drive_path=DRIVE_PATH, h0=h_0, h0_err=h_0_err, ncos=n_cos, dncos=dn_cos
+    )

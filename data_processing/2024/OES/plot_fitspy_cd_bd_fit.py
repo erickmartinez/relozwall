@@ -127,7 +127,7 @@ def load_echelle_xlsx(xlsx_file):
         echelle_df.loc[row_indexes, 'Elapsed time (s)'] = (echelle_df.loc[row_indexes, 'Timestamp'] - ts[0]).dt.seconds
     return  echelle_df
 
-temp_cols = [
+cd_bd_cols = [
     'Folder', 'File',
     'Model',
     'area (photons/cm^2/s)', 'area_err (photons/cm^2/s)',
@@ -135,12 +135,12 @@ temp_cols = [
 ]
 
 def load_output_db(xlsx_source):
-    global temp_cols
+    global cd_bd_cols
     try:
         out_df: pd.DataFrame = pd.read_excel(xlsx_source, sheet_name=0)
     except Exception as e:
         out_df = pd.DataFrame(data={
-            col: [] for col in cd_bd_columns
+            col: [] for col in cd_bd_cols
         })
         out_df.to_excel(xlsx_source, index=False)
     return out_df
@@ -161,7 +161,7 @@ def update_out_df(db_df:pd.DataFrame, row_data):
         db_df.loc[row_index, col] = val
     return db_df
 
-def load_folder_mapping():
+def load_folder_mapping(folder_map_xls):
     global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
@@ -169,9 +169,9 @@ def load_folder_mapping():
         mapping[row['Echelle folder']] = row['Data label']
     return mapping
 
-def main():
+def main(folder_map_xls):
     global path_to_fitspy_results, calibration_line, peaks_of_interest, echelle_xlsx
-    global temp_cols, output_xls
+    global cd_bd_cols, output_xls
     global q_branch_range, mixed_range
     echelle_df = load_echelle_xlsx(echelle_xlsx)
     file = os.path.basename(path_to_fitspy_results)
@@ -406,7 +406,7 @@ def main():
     ax.set_ylabel(r"$B_{\lambda}$ {\sffamily (photons/cm\textsuperscript{2}/s/nm)}", usetex=True)
 
     # Use folder_map_xls to map the dated folder to the corresponding sample
-    folder_mapping = load_folder_mapping()
+    folder_mapping = load_folder_mapping(folder_map_xls)
     sample_label = folder_mapping[folder]
     ax.set_title(f"{sample_label} - {elapsed_time/60.:.0f} min")
     figures_output_folder = os.path.join(output_folder, folder)
@@ -423,4 +423,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(FOLDER_MAP_XLS)

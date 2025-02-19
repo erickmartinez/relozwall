@@ -17,7 +17,7 @@ echelle_xlsx = r'./data/echelle_db.xlsx'
 calibration_line = {'center_wl': 433.93, 'label': r'D$_{\gamma}$'}
 
 
-def load_folder_mapping():
+def load_folder_mapping(folder_map_xls):
     global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
@@ -117,7 +117,7 @@ def jac_poly(b, x, y, w=1):
     return r
 
 
-def main():
+def main(folder_map_xls):
     global brightness_folder, calibration_line, echelle_xlsx
     params_df: pd.DataFrame = pd.read_excel(echelle_xlsx, sheet_name=0)
     # Get the elapased time since the first spectrum for each spectrum in the folder
@@ -130,7 +130,7 @@ def main():
         ts = params_df.loc[row_indexes, 'Timestamp'].reset_index(drop=True)
         params_df.loc[row_indexes, 'Elapsed time (s)'] = (params_df.loc[row_indexes, 'Timestamp'] - ts[0]).dt.seconds
 
-    folder_mapping = load_folder_mapping()
+    folder_mapping = load_folder_mapping(folder_map_xls)
     folders = os.listdir(brightness_folder)
     n = len(folders)
     load_plot_style()
@@ -276,4 +276,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(FOLDER_MAP_XLS)

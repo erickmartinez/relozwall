@@ -161,7 +161,7 @@ def jac_poly(b, x, y, w=1):
         r[:, i] = w * x ** i
     return r
 
-temp_cols = [
+cd_bd_cols = [
     'Folder',
     'File',
     'CD H (photons/cm^2/s)',
@@ -180,7 +180,7 @@ temp_cols = [
 ]
 
 def load_output_db(xlsx_source):
-    global temp_cols
+    global cd_bd_cols
     try:
         out_df: pd.DataFrame = pd.read_excel(xlsx_source, sheet_name=0)
     except Exception as e:
@@ -225,7 +225,7 @@ def estimate_lorentz_param(x, y, mu, d=0.1, fwhm=None):
 
 def main():
     global brightness_csv, d_pattern, wl_range, output_folder, echelle_xlsx
-    global temp_cols, lorentz_peaks_guess
+    global cd_bd_cols, lorentz_peaks_guess
     # Get the relative path to the echelle file
     relative_path = os.path.dirname(brightness_csv)
     # Define the file tag as the echelle file without the extension

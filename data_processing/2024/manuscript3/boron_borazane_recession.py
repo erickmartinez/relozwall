@@ -109,6 +109,7 @@ def main():
 
     fig.savefig('figures/boron_pebble_rod_recession.png', dpi=600)
     fig.savefig('figures/boron_pebble_rod_recession.pdf', dpi=600)
+    fig.savefig('figures/boron_pebble_rod_recession.svg', dpi=600)
 
     plt.show()
 

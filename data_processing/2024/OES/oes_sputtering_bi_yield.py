@@ -46,6 +46,7 @@ import numpy as np
 from emissivity_simulator import GridEmissivityCalculator
 from emissivity_simulator import load_plot_style
 from pathlib import Path
+from scipy.stats.distributions import t
 
 
 PARTICLE_DENS_FILE = r"./data/emissivity_simulations/20241224_particle_density.hd5"
@@ -58,6 +59,35 @@ MASS_TARGET_PARTICLE = 10.811
 CYLINDER_DIAMETER = 2.0  # cm <-- The probe diameter
 CYLINDER_AXIS = [(0, 1.0, 0.0), (0, -1.0, 0.0)]  # Points defining cylinder axis
 
+TRIMSP_DATA_DF = pd.DataFrame(data={
+    'ion': ['D+', 'D2+', 'D3+'],
+    'ion_composition': [0.41, 0.22, 0.37],
+    'sputtering_yield': [5.836E-03, 2.630E-05, 0.0],
+    # 'sputtered_energy_eV': [3.981E-04, 9.380E-07, 0.0]
+    'sputtered_energy_eV': [2.729E+00, 7.133E-01, 0.]
+})
+
+def estimate_vth_trim(trimsp_df: pd.DataFrame, mass_amu, surface_temperature_k):
+    trimsp_df['velocity (cm/s)'] = estimate_velocity_energy(
+        trimsp_df['sputtered_energy_eV'], mass_amu, surface_temperature_k
+    )
+    v_sputtered = trimsp_df['velocity (cm/s)'].values
+    ion_composition = trimsp_df['ion_composition'].values
+    sputtreing_yield = trimsp_df['sputtering_yield'].values
+    v_sputtered_mean = np.dot(v_sputtered, ion_composition * sputtreing_yield) / np.dot(sputtreing_yield, ion_composition)
+    v2_sputtered_mean = np.dot(v_sputtered*v_sputtered, ion_composition * sputtreing_yield) / np.dot(sputtreing_yield, ion_composition)
+    # Estimate the t-val for a confidence level 0f 95%
+    alpha = 1 - 0.95
+    n = len(trimsp_df)
+    tval = t.ppf(1. - alpha/2, n-1)
+    v_sputtered_std = np.sqrt(np.abs(v2_sputtered_mean - v_sputtered * v_sputtered)) * np.sqrt(n / (n-1))
+    v_sputtered_se = v_sputtered_std * tval / np.sqrt(n)
+    return v_sputtered_mean, v_sputtered_se
+
+def estimate_velocity_energy(energy_ev, mass_au, surface_temperature_k):
+    v_trimsp = 13891.388 * np.sqrt(energy_ev / mass_au ) * 100.
+    vth_surface_temperature = estimate_thermal_velocity(temperature_k=surface_temperature_k, mass_au=mass_au)
+    return np.array([max(v, vth_surface_temperature) for v in v_trimsp])
 
 def estimate_thermal_velocity(temperature_k, mass_au):
     dalton = 1.660539068E-27 # kg
@@ -127,7 +157,7 @@ def find_closest_timestamp(df, target_timestamp, timestamp_column='Timestamp'):
 
 def main(
     intensity_file, pa_probe_db_file, particle_density_hd5, cylinder_diameter, cylinder_axis, target_particle_mass,
-    photoemission_rate_coeff
+    photoemission_rate_coeff, trimsp_df
 ):
     probe_df = load_probe_data(pa_probe_db_file)
     intensity_df = load_intensity_data(intensity_file, 'Lorentzian peaks')
@@ -202,9 +232,14 @@ def main(
         nb_mean_uncertainty = nb_mean * intensity_error_pct
         # print(f'<n_b>: {nb_mean:.3E} -/+ {nb_mean_uncertainty:.3E}')
 
-        v_thermal = estimate_thermal_velocity(temperature_k=row['Temperature (K)'], mass_au=target_particle_mass)
+        # v_thermal = estimate_thermal_velocity(temperature_k=row['Temperature (K)'], mass_au=target_particle_mass)
+        v_thermal, v_thermal_error = estimate_vth_trim(
+            trimsp_df=trimsp_df, mass_amu=target_particle_mass, surface_temperature_k=row['Temperature (K)']
+        )
+
+        # print(f"v_th: {v_thermal:.3E} -/+ {v_thermal_error:.4E} cm/s")
         # Consider a 5% error in the temperture
-        v_thermal_error = 0.5 * v_thermal * 0.05
+        # v_thermal_error = 0.5 * v_thermal * 0.05 <- Using value from std of the estimated ion compoistion instead
         gamma_b = v_thermal * nb_mean
         gamma_b_error = gamma_b * np.linalg.norm([intensity_error_pct, 0.5*0.05])
 
@@ -234,7 +269,7 @@ if __name__ == '__main__':
     main(
         intensity_file=INTENSITY_FILE, pa_probe_db_file=PA_PROBE_MEANS_FILE, particle_density_hd5=PARTICLE_DENS_FILE,
         cylinder_diameter=CYLINDER_DIAMETER, cylinder_axis=CYLINDER_AXIS, target_particle_mass=MASS_TARGET_PARTICLE,
-        photoemission_rate_coeff=S_PEC
+        photoemission_rate_coeff=S_PEC, trimsp_df=TRIMSP_DATA_DF
     )
 
 

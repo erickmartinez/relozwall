@@ -13,7 +13,7 @@ from data_processing.utils import latex_float_with_error, latex_float
 from decimal import Decimal
 
 
-path_to_data_csv = r'./data/PA_probe/20241031/langprobe_results/symmetrized/lang_results_gamma_ivdata0011_symmetrized.csv'
+path_to_data_csv = r'./data/PA_probe/20240827/langprobe_results/symmetrized/lang_results_gamma_ivdata0003_symmetrized.csv'
 parent_path_figures = r'./figures/langmuir_probe_results'
 mean_values_xlsx = r'./data/PA_probe_surface_mean.xlsx'
 
@@ -719,7 +719,7 @@ def main():
     load_plot_style()
 
     fig, axes = plt.subplots(nrows=3, ncols=1, constrained_layout=True, sharex=True)
-    fig.set_size_inches(4., 6.5)
+    fig.set_size_inches(3., 6.5)
     axes[0].set_xlim(-4, 4.)
     axes[0].set_xlabel(r"Position (cm)")
     axes[0].set_ylabel(r"n$_{\mathregular{e}}$ (x10$^{\mathregular{11}}$ cm$^{\mathregular{-3}}$)")
@@ -740,7 +740,7 @@ def main():
         # label='Prediction interval'
     )
     axes[0].set_title('Density')
-    axes[0].legend(loc='upper left', frameon=True, fontsize=10)
+    axes[0].legend(loc='upper left', frameon=True, fontsize=9)
 
     markers, caps, bars = axes[1].errorbar(
         x, T_e, yerr=T_e_error,
@@ -808,7 +808,7 @@ def main():
     axes[0].xaxis.set_minor_locator(ticker.MultipleLocator(1.))
     axes[0].yaxis.set_major_locator(ticker.MultipleLocator(2.))
     axes[0].yaxis.set_minor_locator(ticker.MultipleLocator(1.))
-    axes[1].set_ylim(0, 20)
+    axes[1].set_ylim(0, 8)
     axes[1].yaxis.set_major_locator(ticker.MultipleLocator(4.))
     axes[1].yaxis.set_minor_locator(ticker.MultipleLocator(2.0))
     axes[2].set_ylim(0, 50)

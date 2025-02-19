@@ -52,14 +52,17 @@ def main():
     d = df['Film thickness (nm)'].values
     d_lb = df['Thickness lb (nm)'].values
     d_ub = df['Thickness ub (nm)'].values
+    d_err = df['Thickness error (nm)'].values
 
     d0 = d[0]
     dn = d / d0
     dn_lb, dn_ub = d_lb / d0, d_ub / d0
     yerr = (dn - dn_lb, dn_ub - dn)
+    # yerr = d_err
     dy = np.stack(yerr).T
-    weigths = np.power(np.diff(dy, axis=1), -1)[:,0]
-    weigths /= weigths.max()
+    # weigths = np.power(np.diff(dy, axis=1), -1)[:,0]
+    weigths = 1 / (d_err + np.median(d_err))
+    # weigths /= weigths.max()
     print('weights:', weigths)
     h0 = substrate_source_distance_in * 2.54
     all_tol = np.finfo(np.float64).eps
@@ -86,7 +89,7 @@ def main():
     res = least_squares(
         fobj,
         res_de.x,
-        # loss='soft_l1', f_scale=0.1,
+        loss='soft_l1', f_scale=0.1,
         jac=jac,
         args=(r, h0, dn, weigths),
         bounds=([-10., ], [10.]),
@@ -140,7 +143,7 @@ def main():
     ax.yaxis.set_major_locator(ticker.MultipleLocator(0.2))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
-    n_str = f"$n = {popt[0]:.0f}±{dn_opt:.0f}$"
+    n_str = f"$n = {popt[0]:.1f}±{dn_opt:.1f}$"
     ax.text(
         0.95, 0.95,
         n_str,

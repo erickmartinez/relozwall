@@ -213,7 +213,7 @@ def main(
             X_full, Y_full, Z_full, emissivity_full,
             cylinder_diameter,
             cylinder_axis[0], cylinder_axis[1]
-        ) * 4. * np.pi
+        ) #* 4. * np.pi
 
         intensity_factor = intensity_oes / simulated_intensity
 

@@ -4,7 +4,6 @@ import matplotlib.pylab as plt
 import pandas as pd
 import os
 from matplotlib import ticker
-import heat_flux_fourier as hff
 from scipy.signal import savgol_filter
 import matplotlib as mpl
 import json

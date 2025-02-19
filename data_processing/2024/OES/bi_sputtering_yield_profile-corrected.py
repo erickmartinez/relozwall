@@ -6,6 +6,7 @@ import matplotlib.ticker as ticker
 import json
 import os
 from scipy.optimize import least_squares, OptimizeResult
+from scipy.stats.distributions import t
 
 SPUTTERING_RATES_CSV = r'./data/boron_physical_sputtering_yields.csv'
 FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
@@ -15,10 +16,10 @@ AXES_MAPPING = {
 }
 
 LBL_MAPPING = {
-    'echelle_20240815': 'Boron rod (Good thermal contact)',
-    'echelle_20240827': 'Boron pebble rod (amorphous)',
-    'echelle_20241003': 'Boron pebble rod (poly-C)',
-    'echelle_20241031': 'Boron rod (Poor thermal contact)'
+    'echelle_20240815': 'SBR (High thermal contact)',
+    'echelle_20240827': 'ABPR',
+    'echelle_20241003': 'PBPR',
+    'echelle_20241031': 'SBR (Low thermal contact)'
 }
 
 COLOR_MAPPING = {
@@ -28,6 +29,27 @@ COLOR_MAPPING = {
 MARKER_MAPPING = {
     'echelle_20240815': 's', 'echelle_20240827': 'o', 'echelle_20241003': 'D', 'echelle_20241031': '^'
 }
+
+TRIMSP_DATA_DF = pd.DataFrame(data={
+    'ion': ['D+', 'D2+', 'D3+'],
+    'ion_composition': [0.41, 0.22, 0.37],
+    'sputtering_yield': [5.836E-03, 2.630E-05, 0.0],
+    'sputtered_energy_eV': [3.981E-04, 9.380E-07, 0.0]
+})
+
+def estimated_trim_weighted_sputtering_yield(trimsp_df: pd.DataFrame):
+    sputtering_yield = trimsp_df['sputtering_yield'].values
+    ion_composition = trimsp_df['ion_composition'].values
+    yield_mean = np.dot(sputtering_yield, ion_composition)
+    yield_squared_mean = np.dot(sputtering_yield*sputtering_yield, ion_composition)
+
+    # Estimate the t-val for a confidence level 0f 95%
+    alpha = 1 - 0.95
+    n = len(trimsp_df)
+    tval = t.ppf(1. - alpha / 2, n - 1)
+    yield_std = np.sqrt(np.abs(yield_squared_mean - yield_mean * yield_mean)) #* np.sqrt(n / (n - 1))
+    yield_se = yield_std * tval / np.sqrt(n)
+    return yield_mean, yield_std
 
 
 def model_poly(x, b) -> np.ndarray:
@@ -70,8 +92,7 @@ def load_folder_mapping():
     return mapping
 
 
-def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, marker_mapping):
-    global SPUTTERING_RATES_CSV, m_B
+def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, marker_mapping, trimsp_df):
     # load the fitted lorentzian peaks
     bi_df = pd.read_csv(sputtering_yield_file)
     numeric_cols = [
@@ -83,6 +104,11 @@ def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, mark
     folder_mapping = load_folder_mapping()
     folders = bi_df['Folder'].unique()
     n_plots = len(folders)
+
+    # Get TRIMSP simulated sputtering yields
+    trimsp_sy, trimsp_sy_se = estimated_trim_weighted_sputtering_yield(trimsp_df)
+
+    print(f'TRIM.SP sputtering yield: {trimsp_sy:.3E} -/+ {trimsp_sy_se:.4E} ({trimsp_sy-trimsp_sy_se:.3E}, {trimsp_sy+trimsp_sy_se:.3E})')
 
     # fig_cols = max(int(n_plots * 0.5), 1)
     # fig_rows = max(int(n_plots / fig_cols), 1)
@@ -159,14 +185,14 @@ def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, mark
 
         xpred = np.linspace(time_s.min(), time_s.max(), 500)
         ax_g.plot(xpred/60., np.exp(model_poly(xpred, fit_result_g.x)), color=colors[i], ls='--', lw=1)
-        # ax_y.plot(xpred / 60., model_poly(xpred, fit_result_y.x), color=colors[i], ls='--', lw=1)
+        ax_y.plot(xpred / 60., model_poly(xpred, fit_result_y.x), color=colors[i], ls='--', lw=1)
         ax_g.set_yscale('log')
         # ax_g.legend(loc='upper right', frameon=True, fontsize=10)
-        ax_g.set_ylim(1E14, 1E16)
+        ax_g.set_ylim(1E15, 1E17)
 
         ax_y.set_yscale('log')
         # ax_y.legend(loc='lower left', frameon=True, fontsize=10)
-        ax_y.set_ylim(1E-4, 1E-1)
+        ax_y.set_ylim(1E-3, 1)
 
         title = 'Boron rod' if axes_mapping[folder] % 2 == 0 else 'Boron pebble rod'
         ax_g.set_title(title)
@@ -182,12 +208,15 @@ def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, mark
 
     for ax in axes[:,0]:
         ax.set_ylabel(r"$\Gamma_{\mathrm{B}}$ {\sffamily (cm\textsuperscript{-2} s\textsuperscript{-1})}", usetex=True)
-        ax.axhline(y=5.8E-3, ls='--', lw=1., color='0.5')
+        ax.axhline(y=trimsp_sy, ls='--', lw=1., color='0.75')
+        # ax.axhspan(ymin=trimsp_sy-trimsp_sy_se, ymax=trimsp_sy+trimsp_sy_se, color='k')
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[::-1], labels[::-1], loc='upper right')
     for ax in axes[:,1]:
         ax.set_ylabel(r'$Y_{\mathrm{B/D^+}}$', usetex=True)
-        ax.axhline(y=5.8E-3, ls='--', lw=1., color='0.5')
+        ax.axhline(y=trimsp_sy, ls='--', lw=1., color='0.5')
+
+    print(f"TRIM weighted yield: {trimsp_sy:.3E}")
 
     fig.supxlabel(r'Time (min)', usetex=False)
 
@@ -201,6 +230,7 @@ def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, mark
 
     fig.savefig('./figures/bi_sputtering_yield.png', dpi=600)
     fig.savefig('./figures/bi_sputtering_yield.svg', dpi=600)
+    fig.savefig('./figures/bi_sputtering_yield.pdf', dpi=600)
     plt.show()
 
 
@@ -208,7 +238,7 @@ def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, mark
 if __name__ == '__main__':
     main(
         sputtering_yield_file=SPUTTERING_RATES_CSV, color_mapping=COLOR_MAPPING, axes_mapping=AXES_MAPPING,
-        label_mapping=LBL_MAPPING, marker_mapping=MARKER_MAPPING
+        label_mapping=LBL_MAPPING, marker_mapping=MARKER_MAPPING, trimsp_df=TRIMSP_DATA_DF
     )
 
 

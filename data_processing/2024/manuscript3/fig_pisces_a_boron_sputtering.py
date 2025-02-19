@@ -425,7 +425,7 @@ def main(angle_dist_file, particle_dens_file):
     #     axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False
     # )
     cs = axes[1,1].pcolormesh( Z[:, mid_y, :], X[:, mid_y, :],
-                         density_proj, shading='auto')
+                         density_proj, shading='auto', rasterized=True)
     axes[1,1].set_xlabel(r'z (cm)')
     axes[1,1].set_ylabel(r'y (cm)')
     axes[1,1].set_aspect('equal')
@@ -451,6 +451,7 @@ def main(angle_dist_file, particle_dens_file):
             va='top', ha='right'
         )
     fig.savefig(r'./figures/fig_boron_sputtered_density.png', dpi=600)
+    fig.savefig(r'./figures/fig_boron_sputtered_density.svg', dpi=600)
     fig.savefig(r'./figures/fig_boron_sputtered_density.pdf', dpi=600)
     plt.show()
 

@@ -151,7 +151,7 @@ def model_poly(x, b) -> np.ndarray:
     return r
 
 
-def load_folder_mapping():
+def load_folder_mapping(folder_map_xls):
     global FOLDER_MAP_XLS
     df = pd.read_excel(folder_map_xls, sheet_name=0)
     mapping = {}
@@ -214,7 +214,7 @@ def update_df(db_df:pd.DataFrame, row_data):
     db_df.sort_values(by=['Folder', 'File'], ascending=(True, True), inplace=True)
     return db_df
 
-def main():
+def main(folder_map_xls):
     global brightness_csv, d_pattern, wl_range, output_folder, echelle_xlsx
     global bi_df_columns, cold_baseline_fit_csv, subtract_baseline
     # Get the relative path to the echelle file
@@ -294,7 +294,7 @@ def main():
         exit(-1)
 
     # Use folder_map_xls to map the dated folder to the corresponding sample
-    folder_mapping = load_folder_mapping()
+    folder_mapping = load_folder_mapping(folder_map_xls)
     dated_folder = os.path.basename(relative_path)
     sample_label = folder_mapping[dated_folder]
     if not os.path.exists(output_folder):
@@ -440,5 +440,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(folder_map_xls=FOLDER_MAP_XLS)
 

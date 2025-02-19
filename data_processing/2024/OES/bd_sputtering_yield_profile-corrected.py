@@ -15,10 +15,10 @@ AXES_MAPPING = {
 }
 
 LBL_MAPPING = {
-    'echelle_20240815': 'Boron rod (Good thermal contact)',
-    'echelle_20240827': 'Boron pebble rod (amorphous)',
-    'echelle_20241003': 'Boron pebble rod (poly-C)',
-    'echelle_20241031': 'Boron rod (Poor thermal contact)'
+    'echelle_20240815': 'SBR (High thermal contact)',
+    'echelle_20240827': 'ABPR',
+    'echelle_20241003': 'PBPR',
+    'echelle_20241031': 'SBR (Low thermal contact)'
 }
 
 COLOR_MAPPING = {
@@ -116,27 +116,28 @@ def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, mark
         eps = float(np.finfo(np.float64).eps)
         degree = 4
         fit_result_g = least_squares(
-            res_poly, x0=[0.1**i for i in range(degree)], args=(time_s, np.log(fb), weights),
-            loss='linear', f_scale=0.1,
+            res_poly, x0=[0.01**i for i in range(degree)], args=(time_s, np.log(fb), weights),
+            loss='soft_l1', f_scale=1.,
             jac=jac_poly,
             xtol=eps,
             ftol=eps,
             gtol=eps,
             verbose=2,
-            x_scale='jac',
+            # x_scale='jac',
             max_nfev=1000 * degree
         )
 
         degree=4
+        weights = np.log(1 / (sputtering_yield_error + 0.1 * np.median(sputtering_yield_error)))
         fit_result_y = least_squares(
             res_poly, x0=[0.1 ** i for i in range(degree)], args=(time_s, np.log(sputtering_yield), weights),
-            loss='linear', f_scale=1.,
+            loss='soft_l1', f_scale=0.1,
             jac=jac_poly,
             xtol=eps,
             ftol=eps,
             gtol=eps,
             verbose=2,
-            x_scale='jac',
+            # x_scale='jac',
             max_nfev=10000 * degree
         )
 
@@ -202,6 +203,7 @@ def main(sputtering_yield_file, color_mapping, axes_mapping, label_mapping, mark
 
     fig.savefig('./figures/bd_sputtering_yield.png', dpi=600)
     fig.savefig('./figures/bd_sputtering_yield.svg', dpi=600)
+    fig.savefig('./figures/bd_sputtering_yield.pdf', dpi=600)
     plt.show()
 
 

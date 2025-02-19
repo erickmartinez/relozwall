@@ -303,7 +303,7 @@ def main():
     load_plot_style()
 
     fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True, constrained_layout=True)
-    fig.set_size_inches(4.5, 4.5)
+    fig.set_size_inches(4.5, 4.75)
 
     ax1.plot(energy_b_rod, intensity_b_rod, color='C0', label='B rod')
     ax2.plot(energy_pc_b_rod, intensity_pc_b_pebble_rod, color='C1', label='poly-B pebble rod')
@@ -347,7 +347,7 @@ def main():
 
     ax2.set_xlabel('Energy (keV)')
 
-    ax1.set_title('Amorphous boron')
+    ax1.set_title('Boron rod')
     ax2.set_title('Boron pebble rod')
 
 
@@ -357,9 +357,9 @@ def main():
         axi.xaxis.set_major_locator(ticker.MultipleLocator(0.5))
         axi.xaxis.set_minor_locator(ticker.MultipleLocator(0.1))
         # panel_label = chr(ord('`') + i + 1) # starts from a
-        panel_label = chr(ord('`') + i + 3)
+        panel_label = chr(ord('`') + i + 1)
         axi.text(
-            -0.1, 1.05, f'({panel_label})', transform=axi.transAxes, fontsize=14, fontweight='bold',
+            -0.12, 1.05, f'({panel_label})', transform=axi.transAxes, fontsize=14, fontweight='bold',
             va='top', ha='right'
         )
 

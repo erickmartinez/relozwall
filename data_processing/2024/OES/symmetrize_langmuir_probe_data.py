@@ -313,8 +313,8 @@ def main():
         'T_e error (eV)': T_e_err_sym,
         'J_sat (A/cm^2)': J_sat_sym,
         'J_sat error (A/cm^2)': J_sat_err_sym,
-        'V_sat (eV)': V_s_sym,
-        'V_sat error (eV)': V_s_err_sym,
+        'V_sc (eV)': V_s_sym,
+        'V_sc error (eV)': V_s_err_sym,
         'synthetic': synthetic_msk
     })
 
