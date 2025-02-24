@@ -8,7 +8,7 @@ import os
 from scipy.optimize import least_squares, OptimizeResult
 from scipy.stats.distributions import t
 
-SPUTTERING_RATES_CSV = r'./data/boron_physical_sputtering_yields.csv'
+SPUTTERING_RATES_CSV = r'./data/boron_physical_sputtering_yields.old.csv'
 FOLDER_MAP_XLS = r'./PISCES-A_folder_mapping.xlsx'  # Folder name to plot label database
 
 AXES_MAPPING = {
@@ -33,8 +33,8 @@ MARKER_MAPPING = {
 TRIMSP_DATA_DF = pd.DataFrame(data={
     'ion': ['D+', 'D2+', 'D3+'],
     'ion_composition': [0.41, 0.22, 0.37],
-    'sputtering_yield': [5.836E-03, 2.630E-05, 0.0],
-    'sputtered_energy_eV': [3.981E-04, 9.380E-07, 0.0]
+    'sputtering_yield': [0.016705392, 0.005855387, 0.0],
+    'sputtered_energy_eV': [1.952335105, 0.0, 0.0]
 })
 
 def estimated_trim_weighted_sputtering_yield(trimsp_df: pd.DataFrame):

@@ -8,8 +8,10 @@ from scipy.stats.distributions import t
 from edx_calibration import load_plot_style
 from scipy.optimize import least_squares, OptimizeResult
 
-BI_SPUTTERING_FILE = r"./data/boron_physical_sputtering_yields.csv"
+BI_SPUTTERING_FILE = r"data/boron_physical_sputtering_yields.csv"
 BD_SPUTTERING_FILE = r"./data/bd_sputtering_yields.csv"
+
+SDTRIMSP_SPUTTERING_W_ERROR = [0.016705392, 0.007924338]
 
 def load_sputtering_file(path_to_csv):
     df: pd.DataFrame = pd.read_csv(path_to_csv)
@@ -136,16 +138,18 @@ def fit_polylog(xdata, ydata, xerror=None, yerror=None, weights=None, degree=5, 
     )
     return fit_result_g
 
-def main(bi_sputtering_file, bd_sputtering_file, path_to_trim_xls):
+def main(bi_sputtering_file, bd_sputtering_file, sdtrim_yield):
     bi_sputtering_df = load_sputtering_file(bi_sputtering_file)
     bd_sputtering_df = load_sputtering_file(bd_sputtering_file)
 
-    # Get TRIMSP simulated sputtering yields
-    trimsp_df = pd.read_excel(path_to_trim_xls, sheet_name=0)
-    trimsp_sy, trimsp_sy_se = estimated_trim_weighted_sputtering_yield(trimsp_df, main_energy=42.)
+    # # Get TRIMSP simulated sputtering yields
+    # trimsp_df = pd.read_excel(path_to_trim_xls, sheet_name=0)
+    # trimsp_sy, trimsp_sy_se = estimated_trim_weighted_sputtering_yield(trimsp_df, main_energy=42.)
+    #
+    # trimsp_sy_lb, _ = estimated_trim_weighted_sputtering_yield(trimsp_df, main_energy=35.)
+    # trimsp_sy_ub, _ = estimated_trim_weighted_sputtering_yield(trimsp_df, main_energy=50.)
 
-    trimsp_sy_lb, _ = estimated_trim_weighted_sputtering_yield(trimsp_df, main_energy=35.)
-    trimsp_sy_ub, _ = estimated_trim_weighted_sputtering_yield(trimsp_df, main_energy=50.)
+    trimsp_sy, trimsp_sy_delta = sdtrim_yield
 
     load_plot_style()
     fig, ax = plt.subplots(nrows=1, ncols=1, sharex=True, constrained_layout=True)
@@ -299,11 +303,11 @@ def main(bi_sputtering_file, bd_sputtering_file, path_to_trim_xls):
 
 
 
-    ax.axhline(y=trimsp_sy, ls=':', lw=1.5, color='k')
-    ax.axhspan(ymin=trimsp_sy_lb, ymax=trimsp_sy_ub, color='k', alpha=0.2)
+    ax.axhline(y=trimsp_sy, ls='-.', lw=1.5, color='tab:blue')
+    # ax.axhspan(ymin=trimsp_sy-trimsp_sy_delta, ymax=trimsp_sy+trimsp_sy_delta, color='k', alpha=0.2)
 
     print(f"Y_BI: {bi_sy_mean:.3E} -/+ {bi_sy_se:.3E}")
-    print(f"TRIM sputtering yield: {trimsp_sy:.4E} [{trimsp_sy_lb:.4E}, [{trimsp_sy_ub:.4E}]")
+    print(f"TRIM sputtering yield: {trimsp_sy:.4E} [{trimsp_sy-trimsp_sy_delta:.4E}, [{trimsp_sy+trimsp_sy_delta:.4E}]")
 
     ax.legend(bbox_to_anchor=(0., -.28, 1., .102), loc='upper left',
                       ncols=2, mode="expand", borderaxespad=0., frameon=True)
@@ -321,5 +325,5 @@ if __name__ == '__main__':
     main(
         bi_sputtering_file=BI_SPUTTERING_FILE,
         bd_sputtering_file=BD_SPUTTERING_FILE,
-        path_to_trim_xls=PATH_TO_TRIM_XLS
+       sdtrim_yield=SDTRIMSP_SPUTTERING_W_ERROR
     )

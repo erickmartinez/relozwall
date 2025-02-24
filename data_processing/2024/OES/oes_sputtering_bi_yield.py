@@ -62,15 +62,15 @@ CYLINDER_AXIS = [(0, 1.0, 0.0), (0, -1.0, 0.0)]  # Points defining cylinder axis
 TRIMSP_DATA_DF = pd.DataFrame(data={
     'ion': ['D+', 'D2+', 'D3+'],
     'ion_composition': [0.41, 0.22, 0.37],
-    'sputtering_yield': [5.836E-03, 2.630E-05, 0.0],
-    # 'sputtered_energy_eV': [3.981E-04, 9.380E-07, 0.0]
-    'sputtered_energy_eV': [2.729E+00, 7.133E-01, 0.]
+    'sputtering_yield': [0.016705392, 0.005855387, 0.0],
+    'sputtered_energy_eV': [1.952335105, 0.0, 0.0]
 })
 
 def estimate_vth_trim(trimsp_df: pd.DataFrame, mass_amu, surface_temperature_k):
     trimsp_df['velocity (cm/s)'] = estimate_velocity_energy(
         trimsp_df['sputtered_energy_eV'], mass_amu, surface_temperature_k
     )
+    trimsp_df.loc[trimsp_df['sputtered_energy_eV'] == 0 , 'velocity (cm/s)'] = 0.
     v_sputtered = trimsp_df['velocity (cm/s)'].values
     ion_composition = trimsp_df['ion_composition'].values
     sputtreing_yield = trimsp_df['sputtering_yield'].values
@@ -80,8 +80,9 @@ def estimate_vth_trim(trimsp_df: pd.DataFrame, mass_amu, surface_temperature_k):
     alpha = 1 - 0.95
     n = len(trimsp_df)
     tval = t.ppf(1. - alpha/2, n-1)
-    v_sputtered_std = np.sqrt(np.abs(v2_sputtered_mean - v_sputtered * v_sputtered)) * np.sqrt(n / (n-1))
+    v_sputtered_std = np.sqrt(np.abs(v2_sputtered_mean - v_sputtered_mean ** 2.)) * np.sqrt(n / (n-1))
     v_sputtered_se = v_sputtered_std * tval / np.sqrt(n)
+    # print(trimsp_df)
     return v_sputtered_mean, v_sputtered_se
 
 def estimate_velocity_energy(energy_ev, mass_au, surface_temperature_k):
@@ -259,7 +260,7 @@ def main(
               f"-/+ {sputtering_yield_df.loc[i, 'Sputtering yield error']:.4f}, "
               f"v_th: {v_thermal:.4E}")
 
-        sputtering_yield_df.to_csv('./data/boron_physical_sputtering_yields.csv', index=False, lineterminator='\n')
+        sputtering_yield_df.to_csv('./data/boron_physical_sputtering_yields.old.csv', index=False, lineterminator='\n')
 
 
 

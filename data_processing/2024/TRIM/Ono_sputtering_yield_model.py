@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+import pandas as pd
 from scipy import integrate
 import matplotlib.ticker as ticker
 import json
@@ -19,6 +20,9 @@ M2 = 10.811
 U = 5.73  # surface binding energy for Fe (eV)
 N = 50 # normalization factor to be adjusted to match experimental data
 Einc = 50  # incident energy in eV
+
+# Get the prediction at the ion energies of interest for the beam composition
+ION_ENERGIES = np.array([11.67, 14., 16.67, 17.5, 21., 25.0, 35, 42., 50])
 
 def calculate_physical_parameters(z1, z2, m1, m2):
     """
@@ -143,6 +147,15 @@ def ono_distribution_stats(z1, z2, m1, m2, Einc, Eb, N=1, E_range=None):
     msk_positive = y >= 0
     y = y[msk_positive]
     E1 = E1[msk_positive]
+    if len(y) == 0:
+        return {
+            'mean': 0,
+            'mode': 0,
+            'variance': 0,
+            'std': 0,
+            'skewness': 0,
+            'kurtosis': 0
+        }
 
     # Normalize to get proper probability distribution
     norm = integrate.simpson(y, x=E1)
@@ -258,6 +271,19 @@ if __name__ == '__main__':
     # Calculate yields
     yields_II = np.array([normalized_yield_region_II(E, Einc, gamma, U, N, B) for E in E1_range])
     yields_thompson = thompson_distribution(U=U, E=E1_range)
+
+    mean_sputtered_energy = np.zeros(len(ION_ENERGIES))
+    for i, ion_energy in enumerate(ION_ENERGIES):
+        print(ion_energy)
+        ion_energy_stats = ono_distribution_stats(z1=Z1, z2=Z2, m1=M1, m2=M2, Einc=ion_energy, Eb=U, N=N)
+        mean_sputtered_energy[i] = ion_energy_stats['mean']
+
+    mean_ion_energies_df = pd.DataFrame(data={
+        'Ion energy (eV)': ION_ENERGIES,
+        'Mean sputtered energy (eV)': mean_sputtered_energy
+    })
+
+    mean_ion_energies_df.to_csv(r'./data/pisces_mean_sputtered_energy.csv', index=False)
 
     stats_ono = ono_distribution_stats(z1=Z1, z2=Z2, m1=M1, m2=M2, Einc=Einc, Eb=U, N=N)
     stats_thompson = thompson_distribution_stats(U=U, E_range=(0.01, 50), num_points=10000)
