@@ -387,7 +387,7 @@ def calculate_ion_flux(n_e, T_e, T_i=Ti, ion_mass=mi, dn_e=None, dT_e=None, B_fi
         Magnetic field strength in Tesla
 
     Returns:
-    float : Ion flux in m^-2s^-1
+    float : Ion flux in cm^-2s^-1
     """
     global cs_factor, mi, Zion
     # Constants

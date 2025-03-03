@@ -7,7 +7,6 @@ E. Tomkova/Surface Science 351 (1996) 309-318
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-from docutils.nodes import label
 from matplotlib import rcParams
 import os
 import json
@@ -18,9 +17,8 @@ from scipy.stats.distributions import t
 import matplotlib as mpl
 from scipy.integrate import simpson
 from data_processing.utils import latex_float, latex_float_with_error
-from matplotlib.font_manager import FontProperties
 from data_processing.utils import lighten_color
-from mcnabb_foster import ThermalDesorptionSimulator
+from WilsonBaskesv1 import ThermalDesorptionSimulator
 from scipy.interpolate import interp1d
 
 TDS_FILE_SBR = r'./data/TDS/20250213/Brod_mks_v3.txt'
@@ -28,7 +26,6 @@ TDS_FILE_ABPR = r'./data/TDS/20250213/Bpebble_srs_v3.txt'
 TDS_FILE_PBPR = r'./data/TDS/20250213/Bpebble_crystalline_srs_v3.txt'
 
 """
-Reference diffusion coefficient of hydrogen in boron
 +----------+-------------+------------+-------------+-----------+-----+
 | Material | D0 (cm^2/s) | D0 (m^2/s) | Ed (kJ/mol) |  Ed (eV)  | Ref |
 +----------+-------------+------------+-------------+-----------+-----+
@@ -37,21 +34,34 @@ Reference diffusion coefficient of hydrogen in boron
 +----------+-------------+------------+-------------+-----------+-----+
 
 
+
+
+Taking lambda parameter from beta-rhombohedral boron lattice parameter = 10 Å [2]
+
+Assume that total retention is the integral of the trapped species over the distance.
+
 [1] K. Schnarr and H. Münzel, "Release of tritium from boron carbide." (1990) J. Chem. Soc., Faraday Trans. 86, 651-656
 doi: 10.1039/FT9908600651
+
+[2] R.E. Hughes, C.H.L. Kennard, D.B. Sullenger, H.A. Weakliem, D.E. Sands, J.L. Hoard, "The Structure of β-Rhombohedral Boron"
+(1963) Journal of the American Chemical Society, 85, 361
+doi: https://doi.org/10.1021/ja00886a036
 """
 
 
 MODEL_FIXED_PARAMS = dict(
+    T0=300,  # Initial temperature (K)
+    Tf=1300,  # Final temperature (K)
     beta=0.3,  # Heating rate (K/s)
-    C0=5e25,  # Peak concentration (1/m³)
-    L=1e-6,  # Sample thickness (m)
-    k0=1e-15,  # Trapping coefficient pre-exponential (m³/s)
-    Et=1.2,  # Trapping energy (eV)
-    p0=1e13,  # Detrapping frequency factor (1/s)
-    Eb=1.2,  # Binding energy (eV) for detrapping
-    N=1e27,  # Trap density (1/m³)
-    nx=1001  # Number of spatial points
+    L=25e-6,  # Sample thickness (m)
+    D0=2.3E-8,  # Diffusion pre-exponential (m²/s)
+    Ed=1.0,  # Diffusion activation energy (eV)
+    kr=3.2e-15,  # Recombination coefficient (m³/s)
+    Er=1.16,
+    lam=1E-9,  # The jump distance, taken from lattice parameter
+    v0=1e13,  # attempt frequency for detrapping (1/s)
+    density_host=2.31,  # Host density (g/cm³)
+    atomic_mass_host=10.811,  # g/mol
 )
 
 k_b = 8.617333262E-5 # eV/K
@@ -61,21 +71,26 @@ def model(temperature: np.ndarray, params):
     T = temperature
     T0 = T.min()
     Tf = T.max()
-    D0, Ed, C0 = params
+    trap_filling, Et, L, D0, Ed = params
     simulator = ThermalDesorptionSimulator(
-        T0=T0-20,  # Initial temperature (K)
-        Tf=Tf+20,  # Final temperature (K)
+        Et=Et,
+        trap_filling=trap_filling,
+        T0=MODEL_FIXED_PARAMS['T0'],  # Initial temperature (K)
+        Tf=MODEL_FIXED_PARAMS['Tf'],  # Final temperature (K)
         beta=MODEL_FIXED_PARAMS['beta'],  # Heating rate (K/s)
-        C0=C0,  # Peak concentration (1/m³)
-        L=MODEL_FIXED_PARAMS['L'],  # Sample thickness (m)
-        D0=D0,  # Diffusion pre-exponential (m²/s)
-        Ed=Ed,  # Diffusion activation energy (eV)
-        k0=MODEL_FIXED_PARAMS['k0'],  # Trapping coefficient pre-exponential (m³/s)
-        Et=MODEL_FIXED_PARAMS['Et'],  # Trapping energy (eV)
-        p0=MODEL_FIXED_PARAMS['p0'],  # Detrapping frequency factor (1/s)
-        Eb=MODEL_FIXED_PARAMS['Eb'],  # Binding energy (eV) for detrapping
-        N=MODEL_FIXED_PARAMS['N'],  # Trap density (1/m³)
-        nx=MODEL_FIXED_PARAMS['nx']  # Number of spatial points
+        L=L,  # Sample thickness (m)
+        # D0=MODEL_FIXED_PARAMS['D0'],  # Diffusion pre-exponential (m²/s)
+        # Ed=MODEL_FIXED_PARAMS['Ed'],  # Diffusion activation energy (eV)
+        D0=D0,
+        Ed=Ed,
+        kr=MODEL_FIXED_PARAMS['kr'],  # Recombination coefficient (m³/s)
+        Er=MODEL_FIXED_PARAMS['Er'],
+        lam=MODEL_FIXED_PARAMS['lam'],  # The jump distance, taken from lattice parameter
+        v0=MODEL_FIXED_PARAMS['v0'],  # attempt frequency for detrapping (1/s)
+        density_host=MODEL_FIXED_PARAMS['density_host'],  # Host density (g/cm³)
+        atomic_mass_host=MODEL_FIXED_PARAMS['atomic_mass_host'],  # g/mol
+        nx=51,
+        adapt_mesh=True
     )
 
     t_max = (simulator.Tf - simulator.T0) / simulator.beta
@@ -83,12 +98,20 @@ def model(temperature: np.ndarray, params):
 
     # Interpolate the solution at the selected points
     f = interp1d(x=solution['temperature'], y=solution['flux'])
-
-    return f(T)
+    try:
+        y = f(T)
+    except ValueError as e:
+        print(e)
+        y = np.zeros_like(T)
+        print(params)
+        raise e
+    return y
 
 def residual(params, temperature, effusion):
     effusion_sim = model(temperature, params)
-    return effusion - effusion_sim
+    eps = float(np.finfo(float).eps)
+    # return np.log(np.abs(effusion)+eps) - np.log(np.abs(effusion_sim)+eps)
+    return effusion_sim - effusion
 
 
 def load_plot_style():
@@ -103,41 +126,11 @@ def load_plot_style():
                                            r'\usepackage{siunitx}'
                                            r'\usepackage{amsmath, array, makecell}')
 
-def draw_retention_table(ax, retained_dh, retained_d2):
-    col_labels = [r'Retention m$^{\mathregular{-2}}$']
-    row_labels = [r'DH ', r'D$_{\mathregular{2}}$ ', r'Total D ']
-    table1_vals = [
-        [fr'${latex_float(retained_dh, significant_digits=1)}$'],
-        [fr'${latex_float(retained_d2, significant_digits=1)}$'],
-        [fr'${latex_float(retained_dh + 2.*retained_d2, significant_digits=1)}$']
-    ]
-    row_colors = ['C1', 'C2', 'C0']
-    table = ax.table(
-        cellText=table1_vals,
-        colLabels=col_labels,
-        rowLabels=row_labels,
-        rowColours=row_colors,
-        loc='upper left',
-        bbox=[0.28, 0.54, 0.48, 0.44],
-        edges='closed',
-        fontsize=12,
-        rowLoc='left',
-    )
-    # table_1.PAD=-0.1
-
-    cells = table.get_celld()
-
-    for (row, col), cell in cells.items():
-        if col == -1:
-            cell.set_text_props(fontproperties=FontProperties(weight='bold'))
-            cell.set_text_props(color='w')
-    table.set_fontsize(12)
-
 
 def fit_tds(xdata, ydata, x0, bounds, loss='soft_l1', f_scale=0.1, tol=None) -> OptimizeResult:
     if tol is None:
         # tol = np.finfo(np.float64).eps
-        tol = 1E-4
+        tol = 1E-8
 
     lower_bounds, upper_bounds = bounds
     bounds_de = []
@@ -179,21 +172,21 @@ def fit_tds(xdata, ydata, x0, bounds, loss='soft_l1', f_scale=0.1, tol=None) -> 
         gtol=tol,
         verbose=2,
         x_scale='jac',
-        diff_step=1E-15,
+        # diff_step=1E-12,
         max_nfev=1000 * len(x0)
     )
 
     return result
 
 
-def load_tds_data(path_to_csv) -> pd.DataFrame:
+def load_tds_data(path_to_csv):
     df = pd.read_csv(path_to_csv, comment = '#', delimiter = r'\s+').apply(pd.to_numeric)
-    df['[D/m^2/s]'] = np.where(df['[D/m^2/s]'] < 0, 0, df['[D/m^2/s]'])
-    df['[HD/m^2/s]'] = np.where(df['[HD/m^2/s]'] < 0, 0, df['[HD/m^2/s]'])
-    df['[D2/m^2/s]'] = np.where(df['[D2/m^2/s]'] < 0, 0, df['[D2/m^2/s]'])
+    # df['[D/m^2/s]'] = np.where(df['[D/m^2/s]'] < 0, 0, df['[D/m^2/s]'])
+    # df['[HD/m^2/s]'] = np.where(df['[HD/m^2/s]'] < 0, 0, df['[HD/m^2/s]'])
+    # df['[D2/m^2/s]'] = np.where(df['[D2/m^2/s]'] < 0, 0, df['[D2/m^2/s]'])
     mean_heating_rate = np.mean(np.gradient(df['Temp[K]'].values, df['Time[s]'].values))
     print(f"file: {path_to_csv}, mean heating rate (K/s) {mean_heating_rate:.3E}")
-    return df
+    return df, mean_heating_rate
 
 def plot_d_retention(axes, row, tds_df, color, title=None):
     # axes[row,0].plot(
@@ -232,12 +225,16 @@ def save_fit_results(fit_result: OptimizeResult, path_to_tds_file, d_retention):
     ci = cf.confidence_interval(fit_result)
     delta = ci[:,1] - popt[:]
     fit_result_df = pd.DataFrame(data={
-        'D0 (m^2/s)': [popt[0]],
-        'D0_error (m^2/s)': [delta[0]],
-        'Ed (eV)': [popt[1]],
-        'Ed _err (eV)': [delta[1]],
-        'C0 (/m^3)': [popt[2]],
-        'C0_err (/m^3)': [delta[2]],
+        'Total desorption (1/m^2)': [popt[0]],
+        'Total desorption error (1/m^2)': [delta[0]],
+        'Et (eV)': [popt[1]],
+        'Et _err (eV)': [delta[1]],
+        'L (m)': [popt[2]],
+        'L error (m)': [delta[2]],
+        'D0 (m^2/s)': [popt[3]],
+        'D0 error (m^2/s)': [delta[3]],
+        'Ed (eV)': [popt[4]],
+        'Ed error (eV)': [delta[4]]
     })
 
     print(fit_result_df)
@@ -252,35 +249,38 @@ def save_fit_results(fit_result: OptimizeResult, path_to_tds_file, d_retention):
         fit_result_df.to_csv(f, index=False)
 
 
-def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr):
-    sintered_boron_rod_df = load_tds_data(tds_file_sbr)
-    abpr_df = load_tds_data(tds_file_abpr)
-    pbpr_df = load_tds_data(tds_file_pbpr)
+def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
+    sintered_boron_rod_df, beta_sbr = load_tds_data(tds_file_sbr)
+    abpr_df, beta_apbr = load_tds_data(tds_file_abpr)
+    pbpr_df, beta_pbpr = load_tds_data(tds_file_pbpr)
 
     load_plot_style()
 
     fig, axes = plt.subplots(nrows=3, ncols=1, constrained_layout=True, sharex=True)
     fig.set_size_inches(4.5, 5.5)
 
-    plot_d_retention(axes, 0, sintered_boron_rod_df, color='C0', title='Boron rod (SBR)')
-    plot_d_retention(axes, 1, abpr_df, color='C1', title='Boron pebble rod (ABPR)')
-    plot_d_retention(axes, 2, pbpr_df, color='C2', title='Boron pebble rod (PBPR)')
+    plot_d_retention(axes, 0, sintered_boron_rod_df, color='C0', title='Solid boron')
+    plot_d_retention(axes, 1, abpr_df, color='C1', title='Sample A')
+    plot_d_retention(axes, 2, pbpr_df, color='C2', title='Sample B')
 
     """
-    Fit the data for boron rod total d2  with single desorption peak of order 1
+    Fit the data for boron rod total d2  with single trap 
     """
     x_data_sbr = sintered_boron_rod_df['Temp[K]'].values
     y_data_sbr = sintered_boron_rod_df['[D2/m^2/s]'].values
+    integrated_d, integrated_dh, integrated_d2 = get_deuterium_retention(tds_df=sintered_boron_rod_df)
     msk_fit = x_data_sbr >= 600
+    MODEL_FIXED_PARAMS['beta'] = beta_sbr
+
     x0 = np.array([
-        9.602984112810235e-09, 1.0707792071844882, 5.501928944902321e+25
+        5.2E+22, 2.2, 2.3E-06, 5E-9, 1.15
     ])
     bounds = (
         [
-            1E-9, 0.9, 1E23
+            1E10, 1.5, 1E-10, 1E-9, 0.1
         ],
         [
-            1E-7, 1.5, 1E27
+            1E40, 10.0, 25E-6, 1E-6, 2.0
         ]
     )
 
@@ -304,23 +304,24 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr):
     """
     x_data_abpr = abpr_df['Temp[K]'].values
     y_data_abpr = abpr_df['[D2/m^2/s]'].values
+    MODEL_FIXED_PARAMS['beta'] = beta_apbr
     msk_fit = x_data_abpr >= 600
+    integrated_d, integrated_dh, integrated_d2 = get_deuterium_retention(tds_df=abpr_df)
 
     x0 = np.array([
-        9.602984112810235e-09, 1.0707792071844882, 5.501928944902321e+23
+        1.24E+20, 2.8, 4E-06, 6E-9, 1.15
     ])
     bounds = (
         [
-            1E-9, 0.9, 1E20
+            1E10, 1.5, 1E-10, 1E-9, 0.1
         ],
         [
-            9E-7, 1.2, 1E27
+            1E40, 10.0, 25E-6, 1E-6, 2.0
         ]
     )
 
-
     fit_result_abpr: OptimizeResult = fit_tds(
-        xdata=x_data_abpr[msk_fit], ydata=y_data_abpr[msk_fit], x0=x0, bounds=bounds, loss='linear', f_scale=0.1
+        xdata=x_data_abpr, ydata=y_data_abpr, x0=x0, bounds=bounds, loss='linear', f_scale=0.1
     )
 
 
@@ -336,16 +337,18 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr):
     x_data_pbpr = pbpr_df['Temp[K]'].values
     y_data_pbpr = pbpr_df['[D2/m^2/s]'].values
     msk_fit = x_data_pbpr >= 600
+    MODEL_FIXED_PARAMS['beta'] = beta_pbpr
+    integrated_d, integrated_dh, integrated_d2 = get_deuterium_retention(tds_df=pbpr_df)
 
     x0 = np.array([
-        9.602984112810235e-09, 1.0707792071844882, 5.501928944902321e+23
+        8E+19, 2.9, 2E-06, 6E-9, 1.
     ])
     bounds = (
         [
-            1E-9, 0.9, 1E20
+            1E10, 1.5, 1E-10, 1E-9, 0.1
         ],
         [
-            9E-7, 1.2, 1E27
+            1E40, 10.0, 25E-6, 1E-6, 2.0
         ]
     )
 
@@ -372,7 +375,7 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr):
     axes[-1].set_xlim(300, 1200)
     fig.supxlabel('Temperature (K)')
 
-    axes[0].set_ylim(0, 7E19)
+    axes[0].set_ylim(0, 8E19)
     axes[1].set_ylim(0, 2E17)
     axes[2].set_ylim(0, 2E17)
     #
@@ -396,10 +399,13 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr):
         )
 
 
-    fig.savefig(r'./figures/fig_tds_plots_20250226.svg', dpi=600)
+    fig.savefig(r'./figures/fig_tds_plots_20250226-2svg', dpi=600)
     plt.show()
 
 
 
 if __name__ == '__main__':
-    main(tds_file_sbr=TDS_FILE_SBR, tds_file_abpr=TDS_FILE_ABPR, tds_file_pbpr=TDS_FILE_PBPR)
+    main(
+        tds_file_sbr=TDS_FILE_SBR, tds_file_abpr=TDS_FILE_ABPR, tds_file_pbpr=TDS_FILE_PBPR,
+        model_fixed_params=MODEL_FIXED_PARAMS
+    )

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
-
+import scipy.stats.distributions as distributions
 """
 +----------+-------------+------------+-------------+-----------+-----+
 | Material | D0 (cm^2/s) | D0 (m^2/s) | Ed (kJ/mol) |  Ed (eV)  | Ref |
@@ -16,6 +16,7 @@ doi: 10.1039/FT9908600651
 """
 
 class ThermalDesorptionSimulator:
+    kB = 8.617333262145179e-05
     def __init__(
             self,
             T0=300,  # Initial temperature (K)
@@ -54,10 +55,19 @@ class ThermalDesorptionSimulator:
         # Initial concentration profile (Gaussian)
         self.C0 = C0  # Peak concentration (1/m³)
         self.sigma = 0.025  # Width of Gaussian in normalized coordinates
-        self.u0 = np.exp(-(self.X - 0.05) ** 2 / (2 * self.sigma ** 2))
+        self.gamma_ampl = 2.0598166
+        self.gamma_shape = 6.1870771
+        self.gamma_scale = 2.43103442
+        self.gamma_loc = -5.04063028
+        # self.u0 = np.exp(-(self.X - 0.05) ** 2 / (2 * self.sigma ** 2))
 
         # Threshold for considering concentration effectively zero
         self.zero_threshold = 1e-10
+
+    def estimate_u0(self):
+        self.u0 = self.gamma_ampl * distributions.gamma.pdf(
+            self.x*1E10, self.gamma_shape, loc=self.gamma_loc, scale=self.gamma_scale
+        )
 
     def D(self, T):
         """Temperature-dependent diffusion coefficient"""
@@ -111,7 +121,7 @@ class ThermalDesorptionSimulator:
 
         # Zero flux boundary conditions
         # dudt[0] = 0
-        # dudt[-1] = 0
+        dudt[-1] = 0
 
         # Trapping terms (same as original)
         dwdt = lambda_param * u - nu_param * u * w - mu_param * w
@@ -128,10 +138,12 @@ class ThermalDesorptionSimulator:
     # Rest of the methods remain the same
     def get_initial_conditions(self):
         """Calculate initial equilibrium conditions"""
+        self.estimate_u0()
         T = self.T0
         k_val = self.k(T)
         p_val = self.p(T)
-        n0 = k_val * self.u0 * self.C0 / (k_val * self.u0 * self.C0 + p_val)
+        # n0 = k_val * self.u0 * self.C0 / (k_val * self.u0 * self.C0 + p_val)
+        n0 = np.zeros_like(self.u0)
         w0 = n0 * self.N / self.C0
         return np.concatenate([self.u0, w0])
 
@@ -195,8 +207,8 @@ simulator = ThermalDesorptionSimulator(
     beta=0.3,  # Heating rate (K/s)
     C0=5e25,  # Peak concentration (1/m³)
     L=1e-6,  # Sample thickness (m)
-    D0=1e-8,  # Diffusion pre-exponential (m²/s)
-    Ed=1.07,  # Diffusion activation energy (eV)
+    D0=2.3e-8,  # Diffusion pre-exponential (m²/s)
+    Ed=1.0,  # Diffusion activation energy (eV)
     k0=1e-15,  # Trapping coefficient pre-exponential (m³/s)
     Et=1.2,  # Trapping energy (eV)
     p0=1e13,  # Detrapping frequency factor (1/s)
