@@ -7,7 +7,80 @@ from scipy.integrate import solve_ivp, simpson
 import matplotlib.pyplot as plt
 import scipy.stats.distributions as distributions
 from scipy.interpolate import interp1d
+from scipy.optimize import least_squares, OptimizeResult
+import data_processing.confidence as cf
+from data_processing.heat_equation_1d_rod_with_laser_pulse import debug
 
+
+def model_poly(x, b) -> np.ndarray:
+    n = len(b)
+    r = np.zeros(len(x))
+    for i in range(n):
+        r += b[i] * x ** i
+    return r
+
+
+def res_poly(b, x, y, w=1.):
+    return (model_poly(x, b) - y) * w
+
+
+def jac_poly(b, x, y, w=1):
+    n = len(b)
+    r = np.zeros((len(x), n))
+    for i in range(n):
+        r[:, i] = w * x ** i
+    return r
+
+def fit_polynomial(x, y, weights=1, poly_order:int=10, loss:str= 'soft_l1', f_scale:float=1.0, tol:float=None) -> OptimizeResult:
+    """
+    Fits the curve to a polynomial function
+    Parameters
+    ----------
+    x: np.ndarray
+        The x values
+    y: np.ndarray
+        The y values
+    weights: float
+        The weights for the residuals
+    poly_order: int
+        The degree of the polynomial to be used
+    loss: str
+        The type of loss to be used
+    f_scale: float
+        The scaling factor for the outliers
+    tol: float
+        The tolerance for the convergence
+
+    Returns:
+    -------
+    OptimizeResult:
+        The least squares optimized result
+    """
+    if tol is None:
+        tol = float(np.finfo(np.float64).eps)
+
+    x0 = [(0.01) ** (i-1) for i in range(poly_order+1)]
+    try:
+        ls_res: OptimizeResult = least_squares(
+            res_poly,
+            x0=x0,
+            args=(x, y, weights),
+            loss=loss, f_scale=f_scale,
+            jac=jac_poly,
+            xtol=tol,
+            ftol=tol,
+            gtol=tol,
+            verbose=0,
+            x_scale='jac',
+            method='trf',
+            max_nfev=10000 * poly_order
+        )
+    except ValueError as e:
+        for xi, yi, r in zip(x, y, res_poly(b=x0, x=x, y=y)):
+            print(xi, yi, r)
+        raise e
+
+    return ls_res
 
 class ThermalDesorptionSimulator:
     kB = 8.617333262145179e-05  # Boltzmann constant in eV/K
@@ -88,26 +161,21 @@ class ThermalDesorptionSimulator:
         if self.debug:
             print(f"Desorption from traps: {integrated_implanted_profile:.2E} 1/m²")
 
-        # The interpolating functions for desorption rate at time and temperature are not initially defined
-        self.desorption_at_time = None
+        # The interpolating functions for desorption rate at temperature are not initially defined
         self.desorption_at_temperature = None
 
-    def interpolate_experimental_tds(self, time, temperature, desorption_rate):
+    def set_experimental_tds(self, temperature, desorption_flux):
         """
-        Generates interpolating functions for the desorption rate as a function of time
-        and temperature
+        Generates interpolating functions for the desorption rate as a function of temperature
 
         Parameters
         ----------
-        time: np.ndarray
-            The desorption time (s)
         temperature: np.ndarray
             The desorption temperature (K)
-        desorption_rate: np.ndarray
+        desorption_flux: np.ndarray
             The desorption rate (atoms/m^2/s)
         """
-        self.desorption_at_time = interp1d(x=time, y=desorption_rate)
-        self.desorption_at_temperature = interp1d(x=temperature, y=desorption_rate)
+        self.desorption_at_temperature = interp1d(x=temperature, y=desorption_flux, bounds_error=False, fill_value=0.0)
 
 
     def setup_mesh(self):
@@ -115,7 +183,7 @@ class ThermalDesorptionSimulator:
         if self.adapt_mesh:
             # Parameters to control mesh properties
             alpha = 3.0  # Controls mesh density near boundaries
-            boundary_frac = 0.5  # Fraction of mesh points allocated to each boundary region
+            boundary_frac = 0.4  # Fraction of mesh points allocated to each boundary region
 
             # Total number of points
             n_total = self.nx
@@ -169,9 +237,9 @@ class ThermalDesorptionSimulator:
 
             # Additional debug info for adaptive mesh
             if self.adapt_mesh:
-                left_region = self.X[self.X <= boundary_frac]
-                center_region = self.X[(self.X > boundary_frac) & (self.X < (1 - boundary_frac))]
-                right_region = self.X[self.X >= (1 - boundary_frac)]
+                left_region = self.X[self.X <= X_left.max()]
+                center_region = self.X[(self.X > X_left.max()) & (self.X < X_right.min())]
+                right_region = self.X[self.X >= X_right.min()]
 
                 print(f"Left region (X≤{boundary_frac:.1f}): {len(left_region)} points")
                 print(f"Center region ({boundary_frac:.1f}<X<{1 - boundary_frac:.1f}): {len(center_region)} points")
@@ -273,7 +341,7 @@ class ThermalDesorptionSimulator:
         if self.desorption_at_temperature is None:
             ghost_val = u[1] - 4 * self.L * self.C0 * dx_first * K_r_T * u[0] ** 2 / D_T
         else:
-            ghost_val = u[1] - 2 * self.L * self.C0 * dx_first * self.desorption_at_temperature(T) / D_T
+            ghost_val = u[1] - 2 * self.L * dx_first * self.desorption_at_temperature(T) / D_T / self.C0
 
         # Now use this ghost point in the central difference formula for second derivative
         dudt[0] = D_ratio * (u[1] - 2 * u[0] + ghost_val) / (dx_first ** 2)
@@ -340,7 +408,7 @@ class ThermalDesorptionSimulator:
             t_eval=taus,
             rtol=1e-9,  # Relative tolerance
             atol=1e-11,  # Absolute tolerance
-            max_step=tau_max / 50,  # Maximum step size
+            # max_step=tau_max / 50,  # Maximum step size
             # events=self.concentrations_depleted,  # Add event detection
         )
 
@@ -349,12 +417,17 @@ class ThermalDesorptionSimulator:
         C_M = solution.y[:self.nx, :] * self.C0
         C_T = solution.y[self.nx:, :] * self.C0
 
+
+        kr, Er, kr_delta, Er_delta, fit_result = None, None, None, None, None
+        if self.desorption_at_temperature :
+            kr, Er, kr_delta, Er_delta, fit_result = self.fit_Kr(temps, solution.y[:self.nx, :])
+
         # Calculate flux using recombination rate K
         flux = np.zeros(len(temps))
         for i, T in enumerate(temps):
             flux[i] = 2. * self.K_r(T) * C_M[0, i] ** 2.
 
-        return {
+        result = {
             'time': solution.t * (self.L ** 2) / self.D(self.Tf),  # Convert to physical time
             'temperature': temps,
             'C_M': C_M,
@@ -362,6 +435,53 @@ class ThermalDesorptionSimulator:
             'flux': flux,
             'terminated_early': len(solution.t_events[0]) > 0 if solution.t_events else False
         }
+
+        if self.desorption_at_temperature:
+            result['KR fit result'] = {
+                'kr': kr, 'kr_delta': kr_delta,
+                'Er': Er, 'Er_delta': Er_delta,
+                'least_squares_result': fit_result
+            }
+
+        return result
+
+    def fit_Kr(self, temperature, u):
+        x = -1. / temperature / self.kB
+        # Get the desorption flux from the interpolated value
+        J_TDS = self.desorption_at_temperature(temperature)
+        u0 = u[0,:]
+
+        msk_pos = (J_TDS > 0) & (u0 > 0)
+        J_TDS = J_TDS[msk_pos]
+        u0 = u0[msk_pos]
+        y = np.log(J_TDS) - 2 * np.log(u0)
+        x = x[msk_pos]
+
+
+        fit_result = fit_polynomial(x=x, y=y, poly_order=1, loss='linear', f_scale=0.1)
+        popt = fit_result.x
+        if self.debug:
+            print('popt:', popt)
+        try:
+            ci = cf.confidence_interval(fit_result)
+        except IndexError as e:
+            print("len(x):", len(x), "len(y):", len(y))
+            raise e
+        delta = np.abs(ci[:, 1] - popt)
+        # log_kr = popt[0] - np.log(2)
+        kr = np.exp(popt[0]) / 2 / (self.C0 ** 2)
+        kr_delta = kr * delta[0]
+
+        Er = popt[1]
+        Er_delta = delta[1]
+
+        if self.debug:
+            print(f"kr: {kr:.3E} ± {kr_delta:.3E} m^4/2, Er: {Er:.3E} ± {Er_delta:.3E} eV")
+
+        self.kr = kr
+        self.Er = Er
+        return kr, Er, kr_delta, Er_delta, fit_result
+
 
     def plot_results(self, solution, save_path=None):
         """Plot the simulation results"""
@@ -396,7 +516,7 @@ class ThermalDesorptionSimulator:
         if save_path:
             plt.savefig(save_path, dpi=300)
 
-        return fig
+        return fig, ax1, ax2
 
 
 # Example usage:
@@ -421,17 +541,28 @@ def run_simulation(save_plot=False):
     #     debug=True
     # )
 
+    TDS_FILE_SBR = r'./data/TDS/20250213/Brod_mks_v3.txt'
+    import pandas as pd
+    sintered_boron_rod_df = pd.read_csv(TDS_FILE_SBR, comment='#', delimiter=r'\s+').apply(pd.to_numeric)
+    sintered_boron_rod_df = sintered_boron_rod_df[sintered_boron_rod_df['[D2/m^2/s]'] > 0]
+    temperature_sbr = sintered_boron_rod_df['Temp[K]'].values
+    desorption_flux = sintered_boron_rod_df['[D2/m^2/s]'].values
+    # desorption_flux_min_pos = desorption_flux[desorption_flux>0].min()
+    # desorption_flux[desorption_flux<=0] = float(np.finfo(float).eps)
+
     simulator = ThermalDesorptionSimulator(
-        T0=300,  # Initial temperature (K)
-        Tf=1300,  # Final temperature (K)
+        T0=temperature_sbr.min(),  # Initial temperature (K)
+        Tf=temperature_sbr.max(),  # Final temperature (K)
         # beta=0.5,  # Heating rate (K/s)
-        trap_filling=3.24E+20,  # Total retained deuterium (1/m²)
-        L=8.48E-06,  # Sample thickness (m)
-        # D0=2.9e-7,  # Diffusion pre-exponential (m²/s)
-        # Ed=0.39,  # Diffusion activation energy (eV)
+        # trap_filling=3.24E+20,  # Total retained deuterium (1/m²)
+        trap_filling=5.5E+22,  # Total retained deuterium (1/m²)
+        L=4.3E-06,  # Sample thickness (m)
+        D0=2.3e-8,  # Diffusion pre-exponential (m²/s)
+        Ed=1.,  # Diffusion activation energy (eV)
         # kr=3.2e-15,  # Recombination coefficient (m³/s)
         # Er=1.16,
-        Et=2.623371661,  # Trapping energy (eV)
+        # Et=2.623371661,  # Trapping energy (eV)
+        Et=2.16,
         # lam=0.3E-9,  # Jump distance (m)
         # v0=1e13,  # Attempt frequency (1/s)
         # density_host=19.3,  # Host density (g/cm³)
@@ -442,13 +573,17 @@ def run_simulation(save_plot=False):
     )
 
 
+    # simulator.set_experimental_tds(temperature=temperature_sbr, desorption_flux=desorption_flux)
+
+
     # Run the simulation
     t_max = (simulator.Tf - simulator.T0) / simulator.beta
     print(f"Physical simulation time: {t_max:.3f} seconds")
     solution = simulator.simulate(t_max)
 
     # Plot and optionally save the results
-    fig = simulator.plot_results(solution, save_path='tds_simulation.png' if save_plot else None)
+    fig, ax1, ax2 = simulator.plot_results(solution, save_path='tds_simulation.png' if save_plot else None)
+    ax1.plot(temperature_sbr, desorption_flux, color='tab:green', ls='-', marker='none', label='Experiment')
     plt.show()
 
     return simulator, solution

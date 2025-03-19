@@ -5,8 +5,9 @@ from matplotlib import rcParams
 import json
 import matplotlib.ticker as ticker
 from scipy.optimize import least_squares, OptimizeResult
+from pathlib import Path
 
-PATH_TO_DATA = r'./data/20250224.xlsx'
+PATH_TO_DATA = r'./data/20250513.xlsx'
 
 
 def load_data(path):
@@ -75,7 +76,7 @@ def fit_polynomial(x, y, weights=1, poly_order:int=10, loss:str= 'soft_l1', f_sc
     """
     ls_res = least_squares(
         res_poly,
-        x0=[(0.01) ** (i-1) for i in range(poly_order)],
+        x0=[(0.01) ** (i-1) for i in range(poly_order+1)],
         args=(x, y, weights),
         loss=loss, f_scale=f_scale,
         jac=jac_poly,
@@ -92,6 +93,9 @@ def fit_polynomial(x, y, weights=1, poly_order:int=10, loss:str= 'soft_l1', f_sc
 
 def main(path_to_data):
     peak_df, ref_ratio = load_data(path_to_data)
+    path_to_xlsx = Path(path_to_data)
+    base_name = path_to_xlsx.name.split()
+    print(base_name)
 
     load_plot_style()
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
@@ -102,8 +106,10 @@ def main(path_to_data):
     raman_ratio = peak_df['ID/IG'].values
 
     fit_result: OptimizeResult = fit_polynomial(
-        x=x, y=raman_ratio, loss='soft_l1', f_scale=0.1, poly_order=3
+        x=x, y=raman_ratio, loss='soft_l1', f_scale=0.1, poly_order=2
     )
+
+    print('popt:', fit_result.x)
 
     x_pred = np.linspace(x.min(), x.max(), 1000)
     y_pred = model_poly(x_pred, fit_result.x)
@@ -116,12 +122,12 @@ def main(path_to_data):
     ax.legend(loc='best', frameon=True)
     ax.set_xlabel('x (mm)')
     ax.set_ylabel(r'{\sffamily I\textsubscript{D}/I\textsubscript{G}}', usetex=True)
-    ax.set_title('TLD head #1')
+    ax.set_title('DiMES dome #1')
 
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 1.5)
 
-    fig.savefig(r'./figures/tld1_20250224_id2ig.png', dpi=600)
+    # fig.savefig(r'./figures/tld1_20250224_id2ig.png', dpi=600)
 
     plt.show()
 

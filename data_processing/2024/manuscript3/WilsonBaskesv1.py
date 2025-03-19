@@ -140,7 +140,7 @@ class ThermalDesorptionSimulator:
         if self.adapt_mesh:
             # Parameters to control mesh properties
             alpha = 3.0  # Controls mesh density near boundaries
-            boundary_frac = 0.5  # Fraction of mesh points allocated to each boundary region
+            boundary_frac = 0.4  # Fraction of mesh points allocated to each boundary region
 
             # Total number of points
             n_total = self.nx
@@ -194,9 +194,9 @@ class ThermalDesorptionSimulator:
 
             # Additional debug info for adaptive mesh
             if self.adapt_mesh:
-                left_region = self.X[self.X <= boundary_frac]
-                center_region = self.X[(self.X > boundary_frac) & (self.X < (1 - boundary_frac))]
-                right_region = self.X[self.X >= (1 - boundary_frac)]
+                left_region = self.X[self.X <= X_left.max()]
+                center_region = self.X[(self.X > X_left.max()) & (self.X < X_right.min())]
+                right_region = self.X[self.X >= X_right.min()]
 
                 print(f"Left region (X≤{boundary_frac:.1f}): {len(left_region)} points")
                 print(f"Center region ({boundary_frac:.1f}<X<{1 - boundary_frac:.1f}): {len(center_region)} points")
@@ -296,7 +296,6 @@ class ThermalDesorptionSimulator:
         K_r_T = self.K_r(T)
         D_T = self.D(T)
         ghost_val = u[1] - 4 * self.L * self.C0 * dx_first * K_r_T * u[0] ** 2 / D_T
-        ghost_val2 = u[-1] - 4 * self.L * self.C0 * dx_first * K_r_T * u[-1] ** 2 / D_T
 
         # Now use this ghost point in the central difference formula for second derivative
         dudt[0] = D_ratio * (u[1] - 2 * u[0] + ghost_val) / (dx_first ** 2)
@@ -305,7 +304,6 @@ class ThermalDesorptionSimulator:
         # Using a forward difference approximation
         dx_last = self.X[-1] - self.X[-2]
         dudt[-1] = D_ratio * (2.0 * u[-2] - 2.0 * u[-1]) / (dx_last ** 2)
-        # dudt[-1] = D_ratio * (u[-2] - 2 * u[-1] + ghost_val2) / (dx_last ** 2)
 
 
 
@@ -364,8 +362,8 @@ class ThermalDesorptionSimulator:
             t_eval=taus,
             rtol=1e-9,  # Relative tolerance
             atol=1e-11,  # Absolute tolerance
-            max_step=tau_max / 50,  # Maximum step size
-            # events=self.concentrations_depleted,  # Add event detection
+            # max_step=tau_max / 50,  # Maximum step size
+            events=self.concentrations_depleted,  # Add event detection
         )
 
         # Calculate temperatures and physical quantities

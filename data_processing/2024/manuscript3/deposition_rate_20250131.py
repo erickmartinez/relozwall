@@ -373,6 +373,8 @@ def main(base_dir, database_csv, laser_power_csv, csv_soot_deposition, drive_pat
         ls='--', c='tab:red'
     )
 
+    # Sublimation at
+
 
     fit_results_pebbles = fit_polylog(
         xdata=heat_load_pebbles,
@@ -442,7 +444,7 @@ def main(base_dir, database_csv, laser_power_csv, csv_soot_deposition, drive_pat
         # connectionstyle=connectionstyle
     )
     ax.annotate(
-        f"Threshold",
+        f"Low-Z limit",
         xy=(35, 1E3), xycoords='data',  # 'figure pixels', #data',
         # transform=axes[1].transAxes,
         xytext=(0, 40), textcoords='offset pixels',
@@ -451,6 +453,9 @@ def main(base_dir, database_csv, laser_power_csv, csv_soot_deposition, drive_pat
         arrowprops=arrowprops,
         bbox=bbox,
     )
+
+    # W melting at 32 MW/m^2
+    ax.axvline(x=32, ls='-.', lw=1.25, )
 
     ax.legend(loc='upper left', frameon=True, fontsize=11)
 

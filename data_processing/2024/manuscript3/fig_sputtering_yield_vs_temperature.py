@@ -221,6 +221,19 @@ def main(bi_sputtering_file, bd_sputtering_file, sdtrim_yield):
 
     [bar.set_alpha(0.35) for bar in bars_b]
 
+    chemical_sputtering = np.concatenate([
+        bd_sputtering_df['Sputtering yield'].values,
+        apr_bd_sputtering_df['Sputtering yield'].values,
+        pcpr_bd_sputtering_df['Sputtering yield'].values
+    ])
+
+    chemical_sputtering_mean = chemical_sputtering.mean()
+    chemical_sputtering_std = np.std(chemical_sputtering, ddof=1)
+    confidence_level = 0.95
+    alpha = 1 - confidence_level
+    n_points_chemical_erosion = len(chemical_sputtering)
+    t_val = t.ppf(1 - alpha/2, n_points_chemical_erosion - 1)
+    chemical_sputtering_se = chemical_sputtering_std * t_val / np.sqrt(n_points_chemical_erosion)
 
     """
     Solid rod
@@ -308,6 +321,7 @@ def main(bi_sputtering_file, bd_sputtering_file, sdtrim_yield):
 
     print(f"Y_BI: {bi_sy_mean:.3E} -/+ {bi_sy_se:.3E}")
     print(f"TRIM sputtering yield: {trimsp_sy:.4E} [{trimsp_sy-trimsp_sy_delta:.4E}, [{trimsp_sy+trimsp_sy_delta:.4E}]")
+    print(f"Y_BD: {chemical_sputtering_mean:.3E} -/+ {chemical_sputtering_se:.3E}")
 
     ax.legend(bbox_to_anchor=(0., -.28, 1., .102), loc='upper left',
                       ncols=2, mode="expand", borderaxespad=0., frameon=True)

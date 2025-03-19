@@ -18,7 +18,7 @@ import matplotlib as mpl
 from scipy.integrate import simpson
 from data_processing.utils import latex_float, latex_float_with_error
 from data_processing.utils import lighten_color
-from WilsonBaskesv1 import ThermalDesorptionSimulator
+from WilsonBaskes_v2 import ThermalDesorptionSimulator
 from scipy.interpolate import interp1d
 
 TDS_FILE_SBR = r'./data/TDS/20250213/Brod_mks_v3.txt'
@@ -54,8 +54,8 @@ MODEL_FIXED_PARAMS = dict(
     Tf=1300,  # Final temperature (K)
     beta=0.3,  # Heating rate (K/s)
     L=25e-6,  # Sample thickness (m)
-    D0=6E-9,  # Diffusion pre-exponential (m²/s)
-    Ed=1.15,  # Diffusion activation energy (eV)
+    D0=2.3E-8,  # Diffusion pre-exponential (m²/s)
+    Ed=1.0,  # Diffusion activation energy (eV)
     kr=3.2e-15,  # Recombination coefficient (m³/s)
     Er=1.16,
     lam=1E-9,  # The jump distance, taken from lattice parameter
@@ -66,9 +66,11 @@ MODEL_FIXED_PARAMS = dict(
 
 k_b = 8.617333262E-5 # eV/K
 
-def model(temperature: np.ndarray, params):
+def model(data: np.ndarray, params):
     global MODEL_FIXED_PARAMS
-    T = temperature
+    n = len(data) // 2
+    T = data[:n]
+    desorption_flux = data[n:]
     T0 = T.min()
     Tf = T.max()
     trap_filling, Et, L, D0, Ed = params
@@ -93,6 +95,8 @@ def model(temperature: np.ndarray, params):
         adapt_mesh=True
     )
 
+    simulator.set_experimental_tds(temperature=T, desorption_rate=desorption_flux)
+
     t_max = (simulator.Tf - simulator.T0) / simulator.beta
     solution = simulator.simulate(t_max)
 
@@ -107,6 +111,10 @@ def model(temperature: np.ndarray, params):
         raise e
     return y
 
+def residual(params, temperature, effusion):
+    effusion_sim = model(np.concatenate([temperature, effusion]), params)
+    return effusion_sim - effusion
+
 
 def load_plot_style():
     with open('plot_style.json', 'r') as file:
@@ -120,6 +128,57 @@ def load_plot_style():
                                            r'\usepackage{siunitx}'
                                            r'\usepackage{amsmath, array, makecell}')
 
+
+def fit_tds(xdata, ydata, x0, bounds, loss='soft_l1', f_scale=0.1, tol=None) -> OptimizeResult:
+    if tol is None:
+        # tol = np.finfo(np.float64).eps
+        tol = 1E-8
+
+    lower_bounds, upper_bounds = bounds
+    bounds_de = []
+    for lb, ub in zip(lower_bounds, upper_bounds):
+        bounds_de.append((lb, ub))
+
+    # try:
+    #     result_de: OptimizeResult = differential_evolution(
+    #             func=residual,
+    #             args=(xdata, ydata),
+    #             x0=x0,
+    #             bounds=bounds_de,
+    #             maxiter=1000 * len(x0),
+    #             # tol=tol,
+    #             # atol=tol,
+    #             workers=-1,
+    #             updating='deferred',
+    #             recombination=0.2,
+    #             strategy='best1bin',
+    #             mutation=(0.5, 1.5),
+    #             init='sobol',
+    #             polish=False,
+    #             disp=True
+    #         )
+    # except ValueError as e:
+    #     for lb, xi, ub in zip(lower_bounds, x0, upper_bounds):
+    #         print(f"lb: {lb:.3g}, x0: {xi:.3g}, ub: {ub:.3g}")
+    #         raise e
+
+    result: OptimizeResult = least_squares(
+        residual,
+        x0=x0,
+        bounds=bounds,
+        args=(xdata, ydata),
+        loss=loss,
+        f_scale=f_scale,
+        xtol=tol,
+        ftol=tol,
+        gtol=tol,
+        verbose=2,
+        x_scale='jac',
+        # diff_step=1E-12,
+        max_nfev=1000 * len(x0)
+    )
+
+    return result
 
 
 def load_tds_data(path_to_csv):
@@ -146,8 +205,9 @@ def plot_d_retention(axes, row, tds_df, color, title=None):
         axes[row].set_title(title)
         # axes[row, 1].set_title(title)
 
-def plot_fit_model(axes, row, fit_params, x_pred: np.ndarray):
-    axes[row].plot(x_pred, model(x_pred, fit_params), lw=2., color='k', label='Model')
+def plot_fit_model(axes, row, fit_result: OptimizeResult, x_pred: np.ndarray):
+    popt = fit_result.x
+    axes[row].plot(x_pred, model(x_pred, popt), lw=2., color='k', label='Model')
 
 
 def get_deuterium_retention(tds_df: pd.DataFrame):
@@ -161,6 +221,34 @@ def get_deuterium_retention(tds_df: pd.DataFrame):
     integrated_d2 = simpson(y=d2, x=time_s)
     # print(f'Retained D: {integrated_d:.3E}')
     return integrated_d, integrated_dh, integrated_d2
+
+def save_fit_results(fit_result: OptimizeResult, path_to_tds_file, d_retention):
+    popt = fit_result.x
+    ci = cf.confidence_interval(fit_result)
+    delta = ci[:,1] - popt[:]
+    fit_result_df = pd.DataFrame(data={
+        'Total desorption (1/m^2)': [popt[0]],
+        'Total desorption error (1/m^2)': [delta[0]],
+        'Et (eV)': [popt[1]],
+        'Et _err (eV)': [delta[1]],
+        'L (m)': [popt[2]],
+        'L error (m)': [delta[2]],
+        'D0 (m^2/s)': [popt[3]],
+        'D0 error (m^2/s)': [delta[3]],
+        'Ed (eV)': [popt[4]],
+        'Ed error (eV)': [delta[4]]
+    })
+
+    print(fit_result_df)
+
+    (integrated_d, integrated_dh, integrated_d2) = d_retention
+
+    filename_without_extension = os.path.splitext(path_to_tds_file)[0]
+    with open(filename_without_extension + '_fit_results.csv', 'w') as f:
+        f.write(f'# Total D retention: {integrated_d:.3E} 1/m^2\n')
+        f.write(f'# DH retention: {integrated_dh:.3E} 1/m^2\n')
+        f.write(f'# D2 retention: {integrated_d2:.3E} 1/m^2\n')
+        fit_result_df.to_csv(f, index=False)
 
 
 def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
@@ -183,19 +271,34 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
     x_data_sbr = sintered_boron_rod_df['Temp[K]'].values
     y_data_sbr = sintered_boron_rod_df['[D2/m^2/s]'].values
     integrated_d, integrated_dh, integrated_d2 = get_deuterium_retention(tds_df=sintered_boron_rod_df)
-    msk_fit = x_data_sbr >= 600
+    msk_fit = x_data_sbr >= 300
+    MODEL_FIXED_PARAMS['beta'] = beta_sbr
 
-    # model_params = np.array([
-    #     5.2E+22, 2.2, 2.3E-06, 5E-9, 1.15
-    # ])
-
-    model_params = np.array([
-        5.5E+22, 2.16, 4.3E-06, 2.3E-8, 1.
+    x0 = np.array([
+        5.2E+22, 2.2, 2.3E-06, 5E-9, 1.15
     ])
+    bounds = (
+        [
+            1E10, 1.5, 1E-10, 1E-9, 0.1
+        ],
+        [
+            1E40, 10.0, 25E-6, 1E-6, 2.0
+        ]
+    )
 
+    fit_result_sbr: OptimizeResult = fit_tds(
+        xdata=x_data_sbr[msk_fit], ydata=y_data_sbr[msk_fit], x0=x0, bounds=bounds, loss='linear', f_scale=0.1
+    )
 
     x_pred = np.linspace(300, 1200, 2000)
-    plot_fit_model(axes=axes, row=0, fit_params=model_params, x_pred=x_pred)
+
+
+    save_fit_results(
+        fit_result=fit_result_sbr, path_to_tds_file=tds_file_sbr, d_retention=get_deuterium_retention(sintered_boron_rod_df)
+    )
+
+    # axes[0].plot(x_pred, y_pred_sbr, color='k', label='Model')
+    plot_fit_model(axes=axes, row=0, fit_result=fit_result_sbr, x_pred=x_pred)
 
     """
     Fit the data for boron pebble rod d-h with multiple desorption peaks
@@ -207,16 +310,28 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
     msk_fit = x_data_abpr >= 600
     integrated_d, integrated_dh, integrated_d2 = get_deuterium_retention(tds_df=abpr_df)
 
-    # model_params = np.array([
-    #     1.24E+20, 2.8, 4E-06, 6E-9, 1.15
-    # ])
-
-    model_params = np.array([
-        1.1E+20, 2.85, 4E-06, 2.3E-8, 1.
+    x0 = np.array([
+        1.24E+20, 2.8, 4E-06, 6E-9, 1.15
     ])
+    bounds = (
+        [
+            1E10, 1.5, 1E-10, 1E-9, 0.1
+        ],
+        [
+            1E40, 10.0, 25E-6, 1E-6, 2.0
+        ]
+    )
+
+    fit_result_abpr: OptimizeResult = fit_tds(
+        xdata=x_data_abpr, ydata=y_data_abpr, x0=x0, bounds=bounds, loss='linear', f_scale=0.1
+    )
 
 
-    plot_fit_model(axes=axes, row=1, fit_params=model_params, x_pred=x_pred)
+    plot_fit_model(axes=axes, row=1, fit_result=fit_result_abpr, x_pred=x_pred)
+
+    save_fit_results(
+        fit_result=fit_result_abpr, path_to_tds_file=tds_file_abpr, d_retention=get_deuterium_retention(abpr_df)
+    )
 
     """
     Fit the data for boron rod (PBPR) total d2 with single desorption peak of order 1
@@ -224,21 +339,32 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
     x_data_pbpr = pbpr_df['Temp[K]'].values
     y_data_pbpr = pbpr_df['[D2/m^2/s]'].values
     msk_fit = x_data_pbpr >= 600
+    MODEL_FIXED_PARAMS['beta'] = beta_pbpr
     integrated_d, integrated_dh, integrated_d2 = get_deuterium_retention(tds_df=pbpr_df)
 
-    # model_params = np.array([
-    #     1E+20, 2.223371661, 8.48E-06
-    # ])
-    #
-    #
-    # model_params = np.array([
-    #     8E+19, 2.9, 2E-06, 6E-9, 1.
-    # ])
-    model_params = np.array([
-        7.2E+19, 2.85, 2E-06, 2.3E-8, 1.
+    x0 = np.array([
+        8E+19, 2.9, 2E-06, 6E-9, 1.
     ])
+    bounds = (
+        [
+            1E10, 1.5, 1E-10, 1E-9, 0.1
+        ],
+        [
+            1E40, 10.0, 25E-6, 1E-6, 2.0
+        ]
+    )
 
-    plot_fit_model(axes=axes, row=2, fit_params=model_params, x_pred=x_pred)
+    fit_result_pbpr: OptimizeResult = fit_tds(
+        xdata=x_data_pbpr[msk_fit], ydata=y_data_pbpr[msk_fit], x0=x0, bounds=bounds, loss='linear', f_scale=0.1
+    )
+
+
+    save_fit_results(
+        fit_result=fit_result_pbpr, path_to_tds_file=tds_file_pbpr, d_retention=get_deuterium_retention(pbpr_df)
+    )
+
+
+    plot_fit_model(axes=axes, row=2, fit_result=fit_result_pbpr, x_pred=x_pred)
 
     for ax in axes.flatten():
         ax.ticklabel_format(axis='y', useMathText=True)
@@ -275,7 +401,7 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
         )
 
 
-    fig.savefig(r'./figures/fig_tds_plots_20250304.svg', dpi=600)
+    fig.savefig(r'./figures/fig_tds_plots_20250226-2svg', dpi=600)
     plt.show()
 
 
