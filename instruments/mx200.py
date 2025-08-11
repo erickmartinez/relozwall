@@ -65,10 +65,10 @@ class MX200(BaseSerial):
             self._log.addHandler(ch)
 
         self._ppsee_pattern = re.compile(r"\d{5}")
-        self._previous_pressures = ['', '']
-        for i in range(2):
+        self._previous_pressures = {1: '', 2: ''}
+        for i in [1, 2]:
             while type(self._previous_pressures[i]) != float:
-                self._previous_pressures[i] = self.pressure(i + 1)
+                self._previous_pressures[i] = self.pressure(i)
 
     def id_validation_query(self) -> str:
         response = self.query('SN')
@@ -139,9 +139,10 @@ class MX200(BaseSerial):
             if self._ppsee_pattern.match(pressure) is not None:
                 pressure = self.ppsee(pressure)
                 self._previous_pressures[gauge_number] = pressure
+                return pressure
             elif use_previous:
                 pressure = self._previous_pressures[gauge_number]
-            return pressure
+                return pressure
         else:
             msg = "Invalid gauge number ({0:d}). Valid gauges are 1-2.".format(gauge_number)
             raise ValueError(msg)

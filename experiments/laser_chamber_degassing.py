@@ -7,21 +7,26 @@ sys.path.append('../')
 sys.modules['cloudpickle'] = None
 
 import time
-from pymeasure.display.Qt import QtGui
+# from pymeasure.display.Qt import QtGui
+from pymeasure.display.Qt import QtWidgets
 from pymeasure.display.windows import ManagedWindow
 from pymeasure.experiment import Procedure, Results
 from pymeasure.experiment import FloatParameter, Parameter
-from pymeasure.experiment import unique_filename
+from pymeasure.experiment import unique_filename, replace_placeholders
+from pymeasure.log import console_log, file_log
 from instruments.mx200 import MX200
 from instruments.inhibitor import WindowsInhibitor
 from instruments.esp32 import DualTCLoggerTCP
 from serial import SerialException
+from pymeasure.units import ureg
 
 MX200_COM = 'COM3'
 # TC_LOGGER_COM = 'COM10'
 TC_LOGGER_IP = '192.168.4.3'
 
 chamber_volume = 34.0  # L
+
+ureg.load_definitions('./pint_units.txt')
 
 
 def number_density(chamber_pressure, chamber_temperature):
@@ -37,8 +42,8 @@ def number_density(chamber_pressure, chamber_temperature):
 
 class LaserChamberDegassing(Procedure):
     measurement_time = FloatParameter('Measurement Time', units='h', default=1.0, minimum=0.1667, maximum=48.0)
-    interval = FloatParameter('Sampling Interval', units='s', default=0.1, minimum=0.1, maximum=60)
-    sample_name = Parameter("Sample Name", default="UNKNOWN")
+    interval = FloatParameter('Sampling Interval', units='s', default=0.1, minimum=0.01, maximum=60)
+    test_name = Parameter("Test Name", default="PUMPDOWN")
 
     __mx200: MX200 = None
     __mx200_delay: float = 0.05
@@ -49,7 +54,7 @@ class LaserChamberDegassing(Procedure):
     __degassing_time_start = None
     __is_degassing: bool = False
 
-    DATA_COLUMNS = ["Measurement Time (h)", "Pressure (Torr)", "TC1 (C)", "TC2 (C)", "n (1/cm^3)", "Degassing Time (h)"]
+    DATA_COLUMNS = ["Measurement Time (s)", "Pressure (Torr)", "TC1 (C)", "TC2 (C)", "n (1/cm^3)", "Degassing Time (s)"]
 
     def startup(self):
         log.info("Setting up the experiment")
@@ -57,22 +62,26 @@ class LaserChamberDegassing(Procedure):
     def shutdown(self):
         log.info("Shutting down the experiment")
         # Remove file handlers from logger
+        if "log" not in locals():
+            return
         if len(log.handlers) > 0:
-            for handler in log.handlers:
-                if isinstance(handler, logging.FileHandler):
-                    log.removeHandler(handler)
+            for h in log.handlers:
+                if isinstance(h, logging.FileHandler):
+                    log.removeHandler(h)
+                    h.close()
 
     def execute(self):
         print('***  Startup ****')
-        self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
+        # self.__mx200 = MX200(address=MX200_COM, keep_alive=True)
+        self.__mx200 = MX200()
         time.sleep(2.0)
         log.info('Connection to pressure readout successful...')
         log.info('Connecting to the temperature readout...')
         self.__temperature_readout = DualTCLoggerTCP(ip_address=TC_LOGGER_IP)
         self.__mx200.units = 'MT'
-        time.sleep(2.0)
+        time.sleep(1.0)
         log.info("Connection to temperature readout successful...")
-        pressure = self.__mx200.pressure(2)
+        pressure = self.__mx200.pressure(gauge_number=1, use_previous=True)
         time.sleep(0.1)
 
         if type(pressure) is str:
@@ -83,12 +92,12 @@ class LaserChamberDegassing(Procedure):
         tc1 = tc[0]
         n = number_density(pressure, tc1)
         self.__previous_reading = {
-            'Measurement Time (h)': 0.0,
+            'Measurement Time (s)': 0.0,
             'Pressure (Torr)': pressure,
             "TC1 (C)": tc1,
             "TC2 (C)": tc[1],
             "n (1/cm^3)": n,
-            "Degassing Time (h)": 0.0
+            "Degassing Time (s)": 0.0
         }
 
         previous_time = 0.0
@@ -118,7 +127,7 @@ class LaserChamberDegassing(Procedure):
         if self.should_stop():
             log.warning("Caught the stop flag in the procedure")
 
-        p = self.__mx200.pressure(1)
+        p = self.__mx200.pressure(gauge_number=1, use_previous=True)
 
         if p == '':
             p = self.__previous_reading['Pressure (Torr)']
@@ -132,19 +141,19 @@ class LaserChamberDegassing(Procedure):
         n = number_density(p, tc1) if (not np.isnan(p)) and (not np.isnan(tc1)) else np.nan
         degassing_time = current_time - self.__degassing_time_start if self.__is_degassing else 0.0
         data = {
-            "Measurement Time (h)": float(dt) / 3600.0,
+            "Measurement Time (s)": float(dt), # / 3600.0,
             "Pressure (Torr)": p,
             "TC1 (C)": tc1,
             "TC2 (C)": tc2,
             "n (1/cm^3)": n,
-            "Degassing Time (h)": degassing_time / 3600.0
+            "Degassing Time (s)": degassing_time #/ 3600.0
         }
 
         # log.info(f"Time: {dt:.3f}, Pressure: {p:6.3E}, TC1: {tc1:5.2f} °C, TC2: {tc2:5.2f} °C, n: {n:.3E} 1/cm^3")
         self.__previous_reading = data
         self.emit('results', data)
         self.emit('progress', float(dt) * 100.0 / self.measurement_time / 3600.0)
-        log.debug("Emitting results: {0}".format(data))
+        # log.debug("Emitting results: {0}".format(data))
 
     def inhibit_sleep(self):
         if os.name == 'nt' and not self.__keep_alive:
@@ -162,30 +171,46 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=LaserChamberDegassing,
-            inputs=["measurement_time", "sample_name", "interval"],
-            displays=["measurement_time", "sample_name", "interval"],
-            x_axis="Measurement Time (h)",
+            inputs=["measurement_time", "test_name", "interval"],
+            displays=["measurement_time", "test_name", "interval"],
+            x_axis="Measurement Time (s)",
             y_axis="Pressure (Torr)",
-            directory_input=True,
+            # directory_input=True,
         )
         self.setWindowTitle('Degassing Test')
+        self.filename = r'CHAMBER_{Test Name}_'
+        self.file_input.extensions = ["csv"]
 
     def queue(self):
         directory = self.directory
 
         procedure: LaserChamberDegassing = self.make_procedure()
-        sample_name = procedure.sample_name
 
-        prefix = f'DEGASSING_{sample_name}_'
-        filename = unique_filename(directory, prefix=prefix)
-        log_file = os.path.splitext(filename)[0] + '.log'
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh = logging.FileHandler(log_file)
-        fh.setFormatter(formatter)
-        fh.setLevel(logging.DEBUG)
-        log.addHandler(fh)
+        file_path = unique_filename(
+            directory=self.directory,
+            prefix=replace_placeholders(procedure=procedure, string=self.filename)
+        )
 
-        results = Results(procedure, filename)
+        # test_name = procedure.test_name
+
+        # prefix = f'DEGASSING_{sample_name}_'
+        # filename = unique_filename(directory, prefix=prefix)
+        # log_file = os.path.splitext(filename)[0] + '.log'
+        log_file = os.path.splitext(file_path)[0] + '.log'
+        # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        # fh = logging.FileHandler(log_file)
+        # fh.setFormatter(formatter)
+        # fh.setLevel(logging.DEBUG)
+        # log.addHandler(fh)
+
+        # Using pymeasure logging functionality which implements Queues for consistent multi-process logging.
+        file_log(logger=log, log_filename=log_file, level=logging.DEBUG)
+        log.info(f'Starting experiment')
+
+        procedure.unique_filename = file_path
+        procedure.directory = directory
+
+        results = Results(procedure, file_path)
         experiment = self.new_experiment(results)
 
         self.manager.queue(experiment)
@@ -207,7 +232,9 @@ if __name__ == "__main__":
         ch.setLevel(logging.DEBUG)
         log.addHandler(ch)
 
-    app = QtGui.QApplication(sys.argv)
+    # app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec_())
+    # sys.exit(app.exec_())
+    sys.exit(app.exec())

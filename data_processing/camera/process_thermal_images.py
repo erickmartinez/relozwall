@@ -24,9 +24,9 @@ platform_system = platform.system()
 # info_csv = r'LCT_R4N137_ROW513_100PCT_2024-01-24_1.csv'
 img_extension = 'tiff'
 
-color_map = 'viridis'
+color_map = 'jet'
 # color_map = 'coolwarm'
-t_range = [1500, 2500]
+t_range = [600, 2500]
 
 """
 Remove the attenuation from carbon deposit on the windows
@@ -57,7 +57,7 @@ frame_rate = 200.0
 # pixel_size = 20.4215  # pixels/mm
 pixel_size = 23.6364
 p = re.compile(r'.*?-(\d+)\.'+img_extension)
-nmax = 200
+nmax = 241
 # calibration_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\CALIBRATION_20230726\GAIN5dB\adc_calibration_curve.csv'
 calibration_path = 'calibration/CALIBRATION_20231010'
 
@@ -65,7 +65,8 @@ calibration_path = 'calibration/CALIBRATION_20231010'
 px2mm = 1. / pixel_size
 px2cm = 0.1 * px2mm
 crop_image = True
-center = np.array([274, 485])
+center = np.array([274, 485]) # FOR RODS
+center = np.array([370, 440]) # FOR graphite plate 3
 crop_r = 200  # 9x
 crop_extents = {
     'left': (center[0] - crop_r),
@@ -282,14 +283,14 @@ def main():
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="7%", pad=0.025)
 
-    cs = ax.imshow(temp_im, interpolation='none', norm=norm1, cmap=cmap)  # ,
+    cs = ax.imshow(temp_im, interpolation='nearest', norm=norm1, cmap=cmap, rasterized=True)  # ,
     # extent=(0, frameSize[1] * px2mm, 0, frameSize[0] * px2mm))
-    cbar = fig.colorbar(cs, cax=cax , extend='min')
+    cbar = fig.colorbar(cs, cax=cax, extend='min')
     cbar.set_label('Temperature (K)\n', size=9, labelpad=9)
     cbar.ax.set_ylim(t_range[0], t_range[1])
     # cbar.ax.ticklabel_format(axis='x', style='sci', useMathText=True)
     cbar.ax.tick_params(labelsize=9)
-    cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(200))
+    cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(500))
     cbar.ax.yaxis.set_minor_locator(ticker.MultipleLocator(100))
     # Add a scalebar
     scalebar = ScaleBar(px2cm, 'cm', frameon=False, color='w', scale_loc='top', location='lower right')
@@ -342,7 +343,7 @@ def main():
     ft = file_tag + '_movie.mp4'
     if crop_image:
         ft = file_tag + '_cropped_movie.mp4'
-    ani.save(os.path.join(image_save_path, ft), writer=writer, dpi=300)  # dpi=pixel_size*25.4)
+    ani.save(os.path.join(image_save_path, ft), writer=writer, dpi=600)  # dpi=pixel_size*25.4)
 
     # out = cv2.VideoWriter(
     #     # os.path.join(base_path, f'{file_tag}.avi'), cv2.VideoWriter_fourcc(*'DIVX'), 5, frameSize

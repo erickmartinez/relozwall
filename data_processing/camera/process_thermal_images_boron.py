@@ -59,7 +59,7 @@ calibration_path = 'calibration/CALIBRATION_20231010_boron'
 px2mm = 1. / pixel_size
 px2cm = 0.1 * px2mm
 crop_image = True
-center = np.array([274, 485])
+center = np.array([444, 441])
 crop_r = 200  # 9x
 crop_extents = {
     'left': (center[0] - crop_r),
