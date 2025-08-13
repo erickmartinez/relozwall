@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import json
 import os
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\tumbling'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\tumbling'
 files = [
     'GLASSY_CARBON_TYPE_1_REG1_results.csv',
     'GLASSY_CARBON_TYPE_1_REG2_results.csv',
@@ -20,7 +20,7 @@ def prepare_data():
     df = pd.DataFrame(columns=['Major', 'Minor'])
     for i, f in enumerate(files):
         df = df.append(
-            pd.read_csv(os.path.join(base_path, f), usecols=['Major', 'Minor']).apply(pd.to_numeric),
+            pd.read_csv(os.path.join(data_path, f), usecols=['Major', 'Minor']).apply(pd.to_numeric),
             ignore_index=True
         )
     df['Diameter (mm)'] = 0.5 * (df['Major'] + df['Minor'])

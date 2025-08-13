@@ -9,7 +9,7 @@ from scipy.optimize import least_squares
 import confidence as cf
 from utils import lighten_color, specific_heat_of_graphite
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\thermal_conductivity\graphite'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\thermal_conductivity\graphite'
 csv_file = 'entegris_thermal_diffusivity_axf5q.csv'
 
 
@@ -74,7 +74,7 @@ def jac(b, temperature_c, alpha_exp):
 
 if __name__ == '__main__':
     basename = os.path.splitext(csv_file)[0]
-    df = pd.read_csv(os.path.join(base_path, csv_file), comment='#').apply(pd.to_numeric)
+    df = pd.read_csv(os.path.join(data_path, csv_file), comment='#').apply(pd.to_numeric)
     print(df)
     load_plot_style()
     temperature = df['Temperature (°C)'].values

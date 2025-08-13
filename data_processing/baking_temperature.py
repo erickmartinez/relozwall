@@ -6,11 +6,11 @@ import os
 import json
 from matplotlib.ticker import ScalarFormatter
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests'
 csv_file = 'R3N3_R3N4_BAKING_TEMP.csv'
 
 if __name__ == "__main__":
-    df = pd.read_csv(filepath_or_buffer=os.path.join(base_path, csv_file), sep=",")
+    df = pd.read_csv(filepath_or_buffer=os.path.join(data_path, csv_file), sep=",")
     # df = df.drop(columns=df.columns[0])
     df = df.iloc[:,2:].apply(pd.to_numeric)
     df = df.groupby('Baking Temperature (C)').agg(

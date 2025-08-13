@@ -11,7 +11,7 @@ from scipy.optimize import least_squares
 from scipy.linalg import svd
 import confidence as cf
 
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Extrusion\Linear Translator\Calibration"
+data_path = r"G:\Shared drives\ARPA-E Project\Lab\Extrusion\Linear Translator\Calibration"
 calibration_file = 'calibration_2022.csv'
 
 

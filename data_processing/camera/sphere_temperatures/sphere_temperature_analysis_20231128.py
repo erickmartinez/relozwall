@@ -25,7 +25,7 @@ elif platform_system == 'Darwin':
     drive_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
 
 data_path = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC')
-base_path = os.path.join(drive_path, r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/')
+data_path = os.path.join(drive_path, r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/')
 tracking_list_csv = r'Firing Tests - Mass Loss - Tracking.csv'
 deposition_rates_csv = os.path.join(drive_path,
                                     r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/deposition_rates_20231128.csv')
@@ -183,7 +183,7 @@ def normalize_path(the_path):
 
 
 def main():
-    global data_path, base_path, deposition_rates_csv, calibration_path
+    global data_path, data_path, deposition_rates_csv, calibration_path
     data_path = normalize_path(data_path)
     base_path = normalize_path(base_path)
     deposition_rates_csv = normalize_path(deposition_rates_csv)

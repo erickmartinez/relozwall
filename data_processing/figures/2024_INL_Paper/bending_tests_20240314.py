@@ -14,7 +14,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/bending_tests'
+data_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/bending_tests'
 
 data_dir = 'R4N137'
 
@@ -53,7 +53,7 @@ def load_plot_style():
 
 
 def main():
-    global base_path, data_dir, csv
+    global data_path, data_dir, csv
     base_path = normalize_path(base_path)
     data_dir = os.path.join(base_path, data_dir)
     load_plot_style()

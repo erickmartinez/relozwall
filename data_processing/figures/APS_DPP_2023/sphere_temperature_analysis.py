@@ -15,7 +15,7 @@ from scipy.optimize import least_squares, OptimizeResult, differential_evolution
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from data_processing import confidence as cf
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\DPP 2023\figures'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\DPP 2023\figures'
 save_dir = 'temperature_stats'
 tracking_csv = r'LCT_R4N85_manual_tracking.xlsx'
 sheet_name = 'R4N85'
@@ -94,7 +94,7 @@ def convert_to_temperature(adc, cal):
 
 
 def map_laser_power_settings():
-    rdir = os.path.join(base_path, laser_power_dir)
+    rdir = os.path.join(data_path, laser_power_dir)
     file_list = os.listdir(rdir)
     mapping = {}
     for i, f in enumerate(file_list):
@@ -158,12 +158,12 @@ def main():
     heat_loads_mapping = map_heat_loads()
     laser_setting_color_map = {100: 'tab:red', 80: 'darkorchid', 60: 'olivedrab'}
     file_tag = os.path.splitext(info_csv)[0]
-    if not os.path.exists(os.path.join(base_path, save_dir)):
-        os.makedirs(os.path.join(base_path, save_dir))
-    params = get_experiment_params(relative_path=base_path, filename=file_tag)
+    if not os.path.exists(os.path.join(data_path, save_dir)):
+        os.makedirs(os.path.join(data_path, save_dir))
+    params = get_experiment_params(relative_path=data_path, filename=file_tag)
     pulse_length = float(params['Emission Time']['value'])
     sample_name = params['Sample Name']['value']
-    tracking_df: pd.DataFrame = pd.read_excel(io=os.path.join(base_path, tracking_csv), sheet_name=sheet_name).apply(
+    tracking_df: pd.DataFrame = pd.read_excel(io=os.path.join(data_path, tracking_csv), sheet_name=sheet_name).apply(
         pd.to_numeric)
     pids = tracking_df['PID'].unique()
     n = len(pids)
@@ -399,12 +399,12 @@ def main():
     fig.supylabel('Temperature [K]', fontweight='regular', fontsize=12)
     fig.tight_layout()
 
-    fig.savefig(os.path.join(base_path, save_dir, 'pebble_temperature.png'), dpi=600)
-    fig2.savefig(os.path.join(base_path, save_dir, 'free_pebble_temperature.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, save_dir, 'pebble_temperature.png'), dpi=600)
+    fig2.savefig(os.path.join(data_path, save_dir, 'free_pebble_temperature.png'), dpi=600)
 
     print(cooling_data)
 
-    cooling_data.to_csv(os.path.join(base_path, save_dir, 'cooling_data.csv'), index=False, encoding='utf-8-sig')
+    cooling_data.to_csv(os.path.join(data_path, save_dir, 'cooling_data.csv'), index=False, encoding='utf-8-sig')
 
     plt.show()
 

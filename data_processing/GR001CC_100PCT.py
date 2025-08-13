@@ -10,7 +10,7 @@ import matplotlib.ticker as ticker
 from scipy import interpolate
 from scipy.signal import savgol_filter
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
 # data_file = 'LT_GR001CC_7mTorr_100PCT_60GAIN 2022-04-22_1'
 data_file = 'LT_GR001CC_150mT_1cm_100PCT_60GAIN 2022-04-26_1'
 time_constant_1, time_constant_2 = 2.1148, 2.1148
@@ -58,13 +58,13 @@ def get_experiment_params(relative_path: str, filename: str):
 
 
 if __name__ == '__main__':
-    results_path = os.path.join(base_path, 'results')
-    data_filetag = os.path.join(base_path, data_file)
+    results_path = os.path.join(data_path, 'results')
+    data_filetag = os.path.join(data_path, data_file)
     main_csv = data_filetag + '.csv'
     if not os.path.exists(results_path):
         os.makedirs(results_path)
     measurements_df = pd.read_csv(main_csv, comment='#').apply(pd.to_numeric)
-    experiment_params = get_experiment_params(relative_path=base_path, filename=data_filetag)
+    experiment_params = get_experiment_params(relative_path=data_path, filename=data_filetag)
     photodiode_gain = experiment_params['Photodiode Gain']['value']
     laser_power_setting = experiment_params['Laser Power Setpoint']['value']
 

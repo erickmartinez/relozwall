@@ -15,7 +15,7 @@ Sample R4N137
 Laser test ROW513 (40 MW/m^2)
 """
 
-base_path = './data/tracking'
+data_path = './data/tracking'
 plot_files = [
     {'fn': 'P1_278_474_N1_temperature.csv', 'label': 'Pebble 1', 'marker': '^'},
     # {'fn': 'P4_300_478_N1_temperature.csv', 'label': 'Pebble 2', 'marker': '<'},
@@ -47,7 +47,7 @@ def normalize_path(the_path):
     return os.path.join(drive_path, the_path)
 
 def main():
-    global base_path, plot_files, inl_sim
+    global data_path, plot_files, inl_sim
     inl_sim = normalize_path(inl_sim)
 
     load_plot_style()

@@ -174,8 +174,8 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
     fig.set_size_inches(4.5, 5.5)
 
     plot_d_retention(axes, 0, sintered_boron_rod_df, color='C0', title='Solid boron')
-    plot_d_retention(axes, 1, abpr_df, color='C1', title='Sample A')
-    plot_d_retention(axes, 2, pbpr_df, color='C2', title='Sample B')
+    plot_d_retention(axes, 1, abpr_df, color='C1', title='Sample 1')
+    plot_d_retention(axes, 2, pbpr_df, color='C2', title='Sample 2')
 
     """
     Fit the data for boron rod total d2  with single trap 
@@ -188,6 +188,7 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
     # model_params = np.array([
     #     5.2E+22, 2.2, 2.3E-06, 5E-9, 1.15
     # ])
+    # trap_filling, Et, L, D0, Ed = params
 
     model_params = np.array([
         5.5E+22, 2.16, 4.3E-06, 2.3E-8, 1.
@@ -234,8 +235,9 @@ def main(tds_file_sbr, tds_file_abpr, tds_file_pbpr, model_fixed_params):
     # model_params = np.array([
     #     8E+19, 2.9, 2E-06, 6E-9, 1.
     # ])
+    # trap_filling, Et, L, D0, Ed = params
     model_params = np.array([
-        7.2E+19, 2.85, 2E-06, 2.3E-8, 1.
+        7.2E+19, 2.85, 4E-06, 2.3E-8, 1.
     ])
 
     plot_fit_model(axes=axes, row=2, fit_params=model_params, x_pred=x_pred)

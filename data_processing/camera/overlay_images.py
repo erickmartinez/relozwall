@@ -13,7 +13,7 @@ import re
 import matplotlib as mpl
 import json
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
 images_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC\LCT_R4N55_100PCT_2023-03-16_1_processed_images\threshold'
 info_csv = r'LCT_R4N55_100PCT_2023-03-16_1.csv'
 frame_rate = 200.0
@@ -85,7 +85,7 @@ def subtract_images(img2: np.ndarray, img1: np.ndarray):
 
 
 def main():
-    params = get_experiment_params(relative_path=base_path, filename=os.path.splitext(info_csv)[0])
+    params = get_experiment_params(relative_path=data_path, filename=os.path.splitext(info_csv)[0])
     pulse_length = float(params['Emission Time']['value'])
     file_tag = os.path.splitext(info_csv)[0]
     # images_path = os.path.join(base_path, file_tag + '_images')
@@ -179,11 +179,11 @@ def main():
     ax.add_artist(scalebar)
     ax.set_title('Pebble trajectories')
 
-    fitted_trajectories_df = pd.read_csv(os.path.join(base_path, fitted_trajectories_csv)).apply(pd.to_numeric)
+    fitted_trajectories_df = pd.read_csv(os.path.join(data_path, fitted_trajectories_csv)).apply(pd.to_numeric)
     fitted_trajectories_df['x (px)'] = fitted_trajectories_df['x (cm)'] * 10. * pixel_size + center_mm[0] * pixel_size
     fitted_trajectories_df['y (px)'] = 1080 - (10. * pixel_size * fitted_trajectories_df['y (cm)'])
 
-    trajectories_df = pd.read_csv(os.path.join(base_path, trajectories_csv)).apply(pd.to_numeric)
+    trajectories_df = pd.read_csv(os.path.join(data_path, trajectories_csv)).apply(pd.to_numeric)
     trajectory_ids = trajectories_df['TID'].unique()
     for tid in trajectory_ids:
         if tid not in exclude_trajectories:
@@ -195,9 +195,9 @@ def main():
 
 
     # trajectories_df = pd.read_csv(trajectories_csv).apply(pd.to_numeric)
-    fig.savefig(os.path.join(base_path, file_tag + '_overlaid_trajectories.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, file_tag + '_overlaid_trajectories.pdf'), dpi=600)
-    fig.savefig(os.path.join(base_path, file_tag + '_overlaid_trajectories.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '_overlaid_trajectories.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '_overlaid_trajectories.pdf'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '_overlaid_trajectories.png'), dpi=600)
 
     plt.show()
 

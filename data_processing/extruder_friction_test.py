@@ -17,7 +17,7 @@ from serial import SerialException
 SPEED_CM = 0.2  # cm/s
 DISTANCE_IN = 4.0  # inches
 STATIC_MEASUREMENT_TIME = 2.0 # s
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
+data_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
 
 EXT_READOUT_COM = 'COM12'
 MX200_COM = 'COM3'
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
     prefix = f'EXTRUSION_'
-    filename = unique_filename(base_path, prefix=prefix)
+    filename = unique_filename(data_path, prefix=prefix)
     log_file = os.path.splitext(filename)[0] + '.log'
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     fh = logging.FileHandler(log_file)

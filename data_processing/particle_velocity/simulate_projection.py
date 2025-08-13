@@ -6,7 +6,7 @@ import json
 from matplotlib.animation import FFMpegWriter
 import matplotlib.animation as manimation
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\pebble_simulations'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\pebble_simulations'
 file_tag = 'simulated_projection'
 
 rectangle_wh_cm = np.array([12., 1.])
@@ -172,7 +172,7 @@ def main():
     for i, ax in enumerate(axes):
         ax.axis('equal')
 
-    fig.savefig(os.path.join(base_path, file_tag + '.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '.svg'), dpi=600)
     plt.show()
 
 

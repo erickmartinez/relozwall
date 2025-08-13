@@ -12,7 +12,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = r'Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\bending_test'
+data_path = r'Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\bending_test'
 data_dir = 'gold'
 
 def load_plt_style():
@@ -30,11 +30,11 @@ def normalize_path(the_path):
     return os.path.join(drive_path, the_path)
 
 if __name__ == '__main__':
-    base_path = normalize_path(base_path)
+    data_path = normalize_path(data_path)
     load_plt_style()
-    s1 = pd.read_csv(os.path.join(base_path, data_dir, 'R3N61_6_processed.csv'))
-    s2 = pd.read_csv(os.path.join(base_path, data_dir, 'R3N62_2_processed.csv'))
-    s3 = pd.read_csv(os.path.join(base_path, data_dir, 'R3N63-1_processed.csv'))
+    s1 = pd.read_csv(os.path.join(data_path, data_dir, 'R3N61_6_processed.csv'))
+    s2 = pd.read_csv(os.path.join(data_path, data_dir, 'R3N62_2_processed.csv'))
+    s3 = pd.read_csv(os.path.join(data_path, data_dir, 'R3N63-1_processed.csv'))
 
     fig, ax = plt.subplots(ncols=1, nrows=1, constrained_layout=True)
     fig.set_size_inches(4.0, 3.0)
@@ -45,7 +45,7 @@ if __name__ == '__main__':
              ms=8, mew=1.25, mfc='None', label='Experiment 2')
     ax.plot(s3['disp'], s3['load'], 'b:^', lw=1.25,
              ms=8, mew=1.25, mfc='None', label='Experiment 3')
-    beam3d = pd.read_csv(os.path.join(base_path, 'beam3d_out_oct5.csv'))
+    beam3d = pd.read_csv(os.path.join(data_path, 'beam3d_out_oct5.csv'))
 
     ax.plot(-1e3*beam3d['deformation'],
              beam3d['load'], 'r-', lw=3, label='Simulation (MOOSE)')
@@ -67,8 +67,8 @@ if __name__ == '__main__':
     #     va='top', ha='right'
     # )
 
-    fig.savefig(os.path.join(base_path, 'load_deformation.pdf'), dpi=600, format='svg')
-    fig.savefig(os.path.join(base_path, 'load_deformation.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, 'load_deformation.png'), dpi=600)
-    fig.savefig(os.path.join(base_path, 'load_deformation.eps'), dpi=600, format='eps')
+    fig.savefig(os.path.join(data_path, 'load_deformation.pdf'), dpi=600, format='svg')
+    fig.savefig(os.path.join(data_path, 'load_deformation.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, 'load_deformation.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, 'load_deformation.eps'), dpi=600, format='eps')
     plt.show()

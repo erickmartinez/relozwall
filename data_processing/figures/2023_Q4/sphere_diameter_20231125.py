@@ -15,7 +15,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/pebble_size'
+data_path = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/pebble_size'
 sublimation_csv = 'deposition_rates.csv'
 
 firing_csv = r'Documents/ucsd/Postdoc/research/data/firing_tests/merged_db.xlsx'
@@ -71,7 +71,7 @@ def normalize_path(the_path):
     return the_path
 
 def main():
-    global base_path, sublimation_csv, firing_csv, laser_power_dir, tracking_csv
+    global data_path, sublimation_csv, firing_csv, laser_power_dir, tracking_csv
     if platform.system() != 'Windows':
         base_path =  normalize_path(base_path)
         sublimation_csv = normalize_path(sublimation_csv)

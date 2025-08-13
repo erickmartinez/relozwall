@@ -15,7 +15,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = r'Documents/ucsd/Postdoc/research/data/bending_tests'
+data_path = r'Documents/ucsd/Postdoc/research/data/bending_tests'
 
 firing_csv = r'Documents/ucsd/Postdoc/research/data/firing_tests/merged_db.xlsx'
 laser_power_dir = r'Documents\ucsd\Postdoc\research\data\firing_tests\MATERIAL_SCAN\laser_output'
@@ -94,7 +94,7 @@ def normalize_path(the_path):
 
 
 def main():
-    global base_path, firing_csv, laser_power_dir, selected_ids, laser_power_settings
+    global data_path, firing_csv, laser_power_dir, selected_ids, laser_power_settings
     global bending_xlsx
     if platform.system() != 'Windows':
         base_path = normalize_path(base_path)

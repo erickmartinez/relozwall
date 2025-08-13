@@ -9,7 +9,7 @@ import matplotlib as mpl
 import json
 from scipy import interpolate
 
-base_path = r'./data'
+data_path = r'./data'
 data_file = 'reflectance_of_graphite_Taft&Philipp_PR1965'
 laser_wavelength = 1.07  # um
 band_pass_wavelength = 0.91  # um
@@ -27,7 +27,7 @@ def um_to_ev(energy: np.ndarray) -> np.ndarray:
 
 
 if __name__ == '__main__':
-    reflectivity_df = pd.read_csv(os.path.join(base_path, data_file + '.csv')).apply(pd.to_numeric)
+    reflectivity_df = pd.read_csv(os.path.join(data_path, data_file + '.csv')).apply(pd.to_numeric)
     reflectivity_df.sort_values(by=['Photon Energy (eV)'], inplace=True)
     photon_energy = reflectivity_df['Photon Energy (eV)'].values
     wavelength = 1.2398 / photon_energy
@@ -60,7 +60,7 @@ if __name__ == '__main__':
         'Reflectivity': reflectivity_interp
     })
     reflectivity_df.to_csv(
-        os.path.join(base_path, data_file + '_eV.csv')
+        os.path.join(data_path, data_file + '_eV.csv')
     )
 
     reflectivity_df = pd.DataFrame(data={
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         'Reflectivity': reflectivity_interp_wl
     })
     reflectivity_df.to_csv(
-        os.path.join(base_path, data_file + '_um.csv')
+        os.path.join(data_path, data_file + '_um.csv')
     )
 
     with open('plot_style.json', 'r') as file:

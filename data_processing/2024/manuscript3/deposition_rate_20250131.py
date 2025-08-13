@@ -7,7 +7,7 @@ import os
 import json
 from scipy.optimize import least_squares, OptimizeResult
 
-from data_processing.camera.process_thermal_images import deposition_rate
+# from data_processing.camera.process_thermal_images import deposition_rate
 from data_processing.utils import get_experiment_params
 import platform
 
@@ -392,11 +392,21 @@ def main(base_dir, database_csv, laser_power_csv, csv_soot_deposition, drive_pat
         ls='--', c='tab:blue'
     )
 
+    # The heat load on boron pebble rods
     hl_boron = 5 * np.arange(1,9)
 
-    # Boron measurements were taken with the lock-in amplifier which gave a std in the range of 500 uV instead
-    # instead of 2 uV
+    # Boron measurements were taken with the lock-in amplifier which gave a std in the range of 400 uV instead
+    # instead of 2 mV
     adjust_uncertainty_factor = 400E-6 / 0.02
+    print('Thickness pebbles error (min):', film_thickness_pebble_err.min() * adjust_uncertainty_factor)
+    print('Deposition rate pebbles error (min):', deposition_rate_graphite.min() * adjust_uncertainty_factor)
+    print('Sublimation rate pebbles error (min):', sublimation_rate_pebbles_err.min())
+    sublimation_boron_rate, sublimation_boron_rate_err = deposition_rate_to_sublimation_rate(
+        deposition_rate=deposition_rate_graphite * adjust_uncertainty_factor*4,
+        deposition_rate_error=deposition_rate_pebble_err*adjust_uncertainty_factor*4,
+        h0=h0, dh0=h0_err, n=ncos, dn=dn_cos, area=pebble_area
+    )
+    print('Deposition rate boron (estimate) pebbles error (mean):', sublimation_boron_rate.min())
     rs_boron = np.ones_like(hl_boron) * np.min(sublimation_rate_pebbles_err) * adjust_uncertainty_factor
     rs_boron_error = np.ones_like(rs_boron) * np.min(sublimation_rate_pebbles_err) * adjust_uncertainty_factor
     rs_boron_ub_log = np.log10(rs_boron + rs_boron_error)
@@ -407,14 +417,14 @@ def main(base_dir, database_csv, laser_power_csv, csv_soot_deposition, drive_pat
         marker='^', ms=9, mew=1.25, mfc='C2', label='Boron pebble rod',
         capsize=2.75, elinewidth=1.25, lw=1.5, c='C2'
     )
-    print(f"Mean sublimation rate err: {rs_boron.mean():.3E} ")
+    print(f"Mean boron sublimation rate err: {rs_boron.mean():.3E} ")
 
     [bar.set_alpha(0.35) for bar in bars_p]
     [cap.set_alpha(0.35) for cap in caps_p]
 
     # ax.set_xlabel('Heat load [MW/m$^{\mathregular{2}}$]')
 
-    ax.set_title('Outgassing due to sublimation')
+    ax.set_title('Material release due to sublimation')
     ax.set_xlim(5, 40)
     ax.tick_params(which='both', axis='y', labelright=False, right=True, direction='out')
     ax.tick_params(which='both', axis='x', direction='out')

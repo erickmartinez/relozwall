@@ -13,7 +13,7 @@ from scipy import interpolate
 import platform
 
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
 # data_file = 'LT_GR008G_4mTorr-contact-shield_080PCT_60GAIN 2022-05-06_1'
 data_file = 'LT_GR008G_100mTorr_100PCT_50GAIN 2022-05-03_1'
 
@@ -71,16 +71,16 @@ def get_experiment_params(relative_path: str, filename: str):
 
 if __name__ == '__main__':
     if platform.system() == 'Windows':
-        base_path = r'\\?\\' + base_path
-    results_path = os.path.join(base_path, 'temperature_data')
+        data_path = r'\\?\\' + data_path
+    results_path = os.path.join(data_path, 'temperature_data')
     data_filetag = data_file
     print('results_path: ', results_path)
-    main_csv = os.path.join(base_path, data_filetag + '.csv')
+    main_csv = os.path.join(data_path, data_filetag + '.csv')
     if not os.path.exists(results_path):
         os.makedirs(results_path)
 
     measurements_df = pd.read_csv(main_csv, comment='#').apply(pd.to_numeric)
-    experiment_params = get_experiment_params(relative_path=base_path, filename=data_file)
+    experiment_params = get_experiment_params(relative_path=data_path, filename=data_file)
     photodiode_gain = experiment_params['Photodiode Gain']['value']
     laser_power_setting = experiment_params['Laser Power Setpoint']['value']
     sample_name = experiment_params['Sample Name']['value']
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     #     if np.isnan(p):
     #         print(i, measurement_time[i], p)
 
-    tc_csv = os.path.join(base_path, data_filetag + '_tcdata.csv')
+    tc_csv = os.path.join(data_path, data_filetag + '_tcdata.csv')
     tc_df = pd.read_csv(tc_csv, comment='#').apply(pd.to_numeric)
     tc_time = tc_df['Time (s)'].values
     temperature_a = tc_df['TC1 (C)'].values

@@ -419,9 +419,9 @@ if __name__ == '__main__':
     title_txt = rf'$F_{{fit}} = {utils.latex_float(flux_fit, 3)}$, 95% CI: [${utils.latex_float(ci[0][0], 4)}, {utils.latex_float(ci[0][1], 4)}$] K/cm'
 
 
-    # title_txt = rf'$\alpha_{{fit}} = {utils.latex_float(a_fit, 3)}$, 95% CI: [${utils.latex_float(ci[0][0], 4)}, {utils.latex_float(ci[0][1], 4)}$] cm$^2$/s'
+    # title_txt = rf'$\alpha_{{fit}} = {misc_utils.latex_float(a_fit, 3)}$, 95% CI: [${misc_utils.latex_float(ci[0][0], 4)}, {misc_utils.latex_float(ci[0][1], 4)}$] cm$^2$/s'
     # title_txt += '\n'
-    # title_txt += rf'$F_{{fit}} = {utils.latex_float(flux_fit, 3)}$, 95% CI: [${utils.latex_float(ci[1][0], 4)}, {utils.latex_float(ci[1][1], 4)}$] K/cm'
+    # title_txt += rf'$F_{{fit}} = {misc_utils.latex_float(flux_fit, 3)}$, 95% CI: [${misc_utils.latex_float(ci[1][0], 4)}, {misc_utils.latex_float(ci[1][1], 4)}$] K/cm'
 
     ax.set_title(title_txt, fontweight='regular')
 

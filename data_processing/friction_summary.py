@@ -8,11 +8,11 @@ import json
 import matplotlib.ticker as ticker
 import matplotlib.gridspec as gridspec
 
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
+data_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
 database_csv = r"friction_force_database.csv"
 
 if __name__ == "__main__":
-    database_df: pd.DataFrame = pd.read_csv(os.path.join(base_path, database_csv))
+    database_df: pd.DataFrame = pd.read_csv(os.path.join(data_path, database_csv))
     column_names = database_df.columns
     database_df[column_names[2:]] = database_df[column_names[2:]].apply(pd.to_numeric)
 
@@ -47,11 +47,11 @@ if __name__ == "__main__":
     speed_markers = {r['Speed Setpoint']: markers[i] for i, r in background_df.iterrows()}
 
     for i, row in samples_df.iterrows():
-        data_df = pd.read_csv(os.path.join(base_path, row['csv'])).apply(pd.to_numeric)
+        data_df = pd.read_csv(os.path.join(data_path, row['csv'])).apply(pd.to_numeric)
         speed_setting = row['Speed Setpoint']
         bkg_csv_df = background_df[background_df['Speed Setpoint'] == speed_setting]
         bkg_csv = bkg_csv_df['csv'].iloc[0]
-        bkg_data_df = pd.read_csv(os.path.join(base_path, bkg_csv)).apply(pd.to_numeric)
+        bkg_data_df = pd.read_csv(os.path.join(data_path, bkg_csv)).apply(pd.to_numeric)
         position = data_df['Position (cm)'].values
         force = data_df['Force (N)'].values - bkg_data_df['Force (N)'].values
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         )
 
     for i, row in background_df.iterrows():
-        data_df = pd.read_csv(os.path.join(base_path, row['csv'])).apply(pd.to_numeric)
+        data_df = pd.read_csv(os.path.join(data_path, row['csv'])).apply(pd.to_numeric)
         position = data_df['Position (cm)'].values
         force = data_df['Force (N)'].values
         position = position[:-1]
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     # ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., prop={'size': 10})
     today = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     filetag = f"friction_measurements_{today}"
-    fig.savefig(os.path.join(base_path, filetag + '.png'), dpi=600)
-    fig.savefig(os.path.join(base_path, filetag + '.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, filetag + '.eps'), dpi=600)
+    fig.savefig(os.path.join(data_path, filetag + '.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, filetag + '.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, filetag + '.eps'), dpi=600)
     plt.show()
 

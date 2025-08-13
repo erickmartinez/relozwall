@@ -12,7 +12,7 @@ import ir_thermography.thermometry as irt
 from utils import get_experiment_params
 
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\IR_VS_POWER'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
 # csv_database = r'R3N21_firing_database.csv'
 csv_database = 'pebble_sample_equilibrium_redone_files.csv'
 chamber_volume = 31.57  # L
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     thermometry = irt.PDThermometer()
     thermometry.emissivity = emissivity
     database_df = pd.read_csv(
-        os.path.join(base_path, csv_database), comment='#'
+        os.path.join(data_path, csv_database), comment='#'
     )
     database_df['Laser Power Setting (%)'] = database_df['Laser Power Setting (%)'].apply(pd.to_numeric)
 
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         file = file.strip()
         csv_file = file + '_irdata.csv'
         print(f"Processing file {i + 1:d} of {n}: {file}")
-        experiment_params = get_experiment_params(relative_path=base_path, filename=file)
+        experiment_params = get_experiment_params(relative_path=data_path, filename=file)
         photodiode_gain = experiment_params['Photodiode Gain']['value']
         laser_power_setting = float(experiment_params['Laser Power Setpoint']['value'])
         laser_power_setpoint_list.append(laser_power_setting)
@@ -179,10 +179,10 @@ if __name__ == '__main__':
         c = cmap(norm(power_setting[i]))
 
         heat_flux[i] = heat_flux_at_100pct * laser_power_setting * heat_flux_factor * 0.01
-        ir_df = pd.read_csv(os.path.join(base_path, csv_file)).apply(pd.to_numeric)
+        ir_df = pd.read_csv(os.path.join(data_path, csv_file)).apply(pd.to_numeric)
         ir_df = ir_df[ir_df['Time (s)'] <= max_time]
         ir_df = ir_df[ir_df['Voltage (V)'] > 0.0]
-        measurements_df = pd.read_csv(os.path.join(base_path, file + '.csv'), comment='#').apply(pd.to_numeric)
+        measurements_df = pd.read_csv(os.path.join(data_path, file + '.csv'), comment='#').apply(pd.to_numeric)
         measurement_time = measurements_df['Measurement Time (s)'].values
         trigger_voltage = measurements_df['Trigger (V)'].values
         photodiode_voltage = measurements_df['Photodiode Voltage (V)'].values
@@ -405,7 +405,7 @@ if __name__ == '__main__':
             )
 
         pressure_csv = f'{file}_pressure.csv'
-        pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(base_path, pressure_csv))
+        pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(data_path, pressure_csv))
         pressure_data = pressure_data.apply(pd.to_numeric)
         time_s = pressure_data['Time (s)'].values
         time_s -= time_s.min() + 0.5
@@ -473,18 +473,18 @@ if __name__ == '__main__':
         'Flat top time (s)': flat_top_time
     })
 
-    temperature_vs_power_df.to_csv(os.path.join(base_path, f'{filetag}_surface_temperature.csv'), index=False)
+    temperature_vs_power_df.to_csv(os.path.join(data_path, f'{filetag}_surface_temperature.csv'), index=False)
 
     print(outgas_df)
-    outgas_df.to_csv(os.path.join(base_path, f'{filetag}_OUTGASSING.csv'), index=False)
+    outgas_df.to_csv(os.path.join(data_path, f'{filetag}_OUTGASSING.csv'), index=False)
 
     fig_p.tight_layout()
 
-    fig.savefig(os.path.join(base_path, filetag + "_ir_thermography_plot.png"), dpi=600)
-    fig.savefig(os.path.join(base_path, filetag + "_ir_thermography_plot.eps"), dpi=600)
-    fig.savefig(os.path.join(base_path, filetag + "_ir_thermography_plot.svg"), dpi=600)
+    fig.savefig(os.path.join(data_path, filetag + "_ir_thermography_plot.png"), dpi=600)
+    fig.savefig(os.path.join(data_path, filetag + "_ir_thermography_plot.eps"), dpi=600)
+    fig.savefig(os.path.join(data_path, filetag + "_ir_thermography_plot.svg"), dpi=600)
 
-    fig_p.savefig(os.path.join(base_path, filetag + "_pressure_plot.png"), dpi=600)
-    fig_p.savefig(os.path.join(base_path, filetag + "_pressure_plot.eps"), dpi=600)
-    fig_p.savefig(os.path.join(base_path, filetag + "_pressure_plot.svg"), dpi=600)
+    fig_p.savefig(os.path.join(data_path, filetag + "_pressure_plot.png"), dpi=600)
+    fig_p.savefig(os.path.join(data_path, filetag + "_pressure_plot.eps"), dpi=600)
+    fig_p.savefig(os.path.join(data_path, filetag + "_pressure_plot.svg"), dpi=600)
     plt.show()

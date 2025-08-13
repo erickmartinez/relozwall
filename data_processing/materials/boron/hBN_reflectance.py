@@ -8,7 +8,7 @@ import os
 import platform
 import json
 
-base_path = r'Documents/ucsd/Research/Literature/Boron/Boron nitride'
+data_path = r'Documents/ucsd/Research/Literature/Boron/Boron nitride'
 csv = 'Jin-Xiang 2009 hBN reflectance.csv'
 
 
@@ -27,7 +27,7 @@ def normalize_path(the_path):
 
 
 def main():
-    global base_path
+    global data_path
     base_path = normalize_path(base_path)
     r_df = pd.read_csv(os.path.join(base_path, csv))
     wl = r_df['Wavelength (nm)'].values

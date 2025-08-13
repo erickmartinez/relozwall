@@ -13,7 +13,7 @@ import platform
 # csv_file = 'Sample50_debris_distribution_3kW_1s.csv'
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\beam_expander\MULTIPLE_FIRINGS'
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample\pebble_velocity'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample\pebble_velocity'
 # csv_file = r'R3N40_66h_DEGASSING_20220516_171725212_results.csv'
 # csv_file = 'R3N18_Single_Exposure_20220311_181146661.csv'
 csv_file = 'R3N41_ROW109_results.csv'
@@ -30,9 +30,9 @@ g = 9.8E2  # cm/s^2
 
 if __name__ == "__main__":
     if platform.system() == 'Windows':
-        base_path = "\\\\?\\" + base_path
-        print(base_path)
-    df = pd.read_csv(filepath_or_buffer=os.path.join(base_path, csv_file), sep=",").reset_index(drop=True)
+        data_path = "\\\\?\\" + data_path
+        print(data_path)
+    df = pd.read_csv(filepath_or_buffer=os.path.join(data_path, csv_file), sep=",").reset_index(drop=True)
     df = df.drop(columns=df.columns[0])
     df = df.apply(pd.to_numeric)
     if units == 'mm':
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
     fig.tight_layout()
     output_filename = os.path.splitext(csv_file)[0]
-    fig.savefig(os.path.join(base_path, f'{output_filename}_histograms.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{output_filename}_histograms.png'), dpi=600)
     plt.show()
 
 

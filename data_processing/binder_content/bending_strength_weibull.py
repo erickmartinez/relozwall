@@ -24,7 +24,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = r'Documents/ucsd/Postdoc/research/data/bending_tests'
+data_path = r'Documents/ucsd/Postdoc/research/data/bending_tests'
 
 bending_xlsx = 'bending_strength_vs_matrix_content.xlsx'
 
@@ -83,7 +83,7 @@ def bending_to_tensile(bending_strength: np.ndarray, shape_parameter: float, dbs
 
 
 def main():
-    global base_path
+    global data_path
     global bending_xlsx
     base_path = normalize_path(base_path)
     weibull_path = os.path.join(base_path, 'weibull')

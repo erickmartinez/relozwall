@@ -22,7 +22,7 @@ import warnings
 
 
 # brightness_csv = r'./data/Echelle_data/echelle_20241003/MechelleSpect_024.asc'
-brightness_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20240827/MechelleSpect_016.csv'
+brightness_csv = r'./data/brightness_data_fitspy_wl-calibrated/echelle_20240815/MechelleSpect_019.csv'
 echelle_xlsx = r'./data/echelle_db.xlsx'
 sample_label = 'Boron rod'
 subtract_background = True
@@ -372,6 +372,8 @@ def main():
 
     # axes_bh[0].set_ylim(top=photon_flux[msk_bh].max()*1.2, bottom=0.)
     # axes_bh[1].set_ylim(top=photon_flux[msk_bh].max() * 0.1, bottom=0.)
+
+    # fig_bhp, ax_bhp = plt.subplots(1, 1)
 
     plt.show()
 

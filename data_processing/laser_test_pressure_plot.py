@@ -14,7 +14,7 @@ chamber_volume = 31.57 # L
 # base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES"
 # base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS"
 # base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\SAMPLES\MULTIPLE EXPOSURES"
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\GC_GRAPHITE'
 
 # filename = 'BINDER_SCAN_PLOT'
 # filename = 'STARTING_MATERIALS'
@@ -187,4 +187,4 @@ if __name__ == "__main__":
     # pressure_data = pressure_data.apply(pd.to_numeric)
     # # pressure_data['Pressure (Torr)'] = pressure_data['Pressure (Torr)']/1000
     # pressure_data.to_csv(os.path.join(base_path, pressure_csv), index=False)
-    plot_pressure(base_path, filelist, legends, filename)
+    plot_pressure(data_path, filelist, legends, filename)

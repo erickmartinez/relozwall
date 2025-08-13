@@ -14,7 +14,7 @@ if platform.system() != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/baking_time'
+data_path = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/baking_time'
 sublimation_csv = 'sublimation_rates_baking_time.csv'
 tracking_csv = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/Firing Tests - Mass Loss - Tracking_gsr_20231128_mod.csv'
 
@@ -65,7 +65,7 @@ def map_laser_power_settings():
 
 
 def main():
-    global base_path, sublimation_csv, firing_csv, laser_power_dir, tracking_csv
+    global data_path, sublimation_csv, firing_csv, laser_power_dir, tracking_csv
     if platform.system() != 'Windows':
         base_path = base_path.replace('\\', '/')
         sublimation_csv = sublimation_csv.replace('\\', '/')

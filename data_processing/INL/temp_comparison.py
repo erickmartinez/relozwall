@@ -7,7 +7,7 @@ import os
 import json
 import platform
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\thermal_test'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\thermal_test'
 data_dir = 'gold'
 
 def load_plt_style():
@@ -18,21 +18,21 @@ def load_plt_style():
 
 if __name__ == '__main__':
     if platform == 'Windows':
-        base_path = r'\\?\\' + data_dir
+        data_path = r'\\?\\' + data_dir
     load_plt_style()
-    TC1 = pd.read_csv(os.path.join(base_path,data_dir, 'TC1.csv'))
+    TC1 = pd.read_csv(os.path.join(data_path, data_dir, 'TC1.csv'))
     TC1_t = TC1['time'].values
     TC1_T = TC1['TC1'].values
     TC1_res = np.ones_like(TC1_T) * 0.25
     TC1_T_err = np.maximum(TC1_res, TC1_T*0.01)
-    TC2 = pd.read_csv(os.path.join(base_path,data_dir, 'TC2.csv'))
+    TC2 = pd.read_csv(os.path.join(data_path, data_dir, 'TC2.csv'))
     TC2_t = TC2['time'].values
     TC2_T = TC2['TC2'].values
     TC2_res = np.ones_like(TC2_T) * 0.25
     TC2_T_err = np.maximum(TC2_res, TC2_T * 0.01)
 
 
-    sim3d = pd.read_csv(os.path.join(base_path,'cylinder_out.csv'))
+    sim3d = pd.read_csv(os.path.join(data_path, 'cylinder_out.csv'))
     sim3d = sim3d.drop(sim3d.index[0])
 
     sim3d_t = sim3d['time'].values
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     ax.legend(
         loc='best', prop={'size': 9}, ncol=1
     )
-    fig.savefig(os.path.join(base_path, 'temp_cmp_curves.svg'), dpi=600, format='svg')
-    fig.savefig(os.path.join(base_path, 'temp_cmp_curves.eps'), dpi=600, format='eps')
-    fig.savefig(os.path.join(base_path, 'temp_cmp_curves.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, 'temp_cmp_curves.svg'), dpi=600, format='svg')
+    fig.savefig(os.path.join(data_path, 'temp_cmp_curves.eps'), dpi=600, format='eps')
+    fig.savefig(os.path.join(data_path, 'temp_cmp_curves.png'), dpi=600)
     plt.show()

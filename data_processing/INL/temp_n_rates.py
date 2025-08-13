@@ -17,7 +17,7 @@ from matplotlib.animation import FuncAnimation
 #     MultipleLocator, FormatStrFormatter, AutoMinorLocator)
 # from matplotlib.offsetbox import TextArea, DrawingArea, OffsetImage, AnnotationBbox, AnchoredOffsetbox
 # from pandas.io.parquet import FastParquetImpl
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\laser_heating'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\inl\data_and_script_for_figures\data_and_script_for_figures\laser_heating'
 
 
 def dropZero(df):
@@ -35,7 +35,7 @@ def load_plt_style():
 
 if __name__ == '__main__':
     load_plt_style()
-    out = pd.read_csv(os.path.join(base_path, 'laserHeating_out_oct6.csv'))
+    out = pd.read_csv(os.path.join(data_path, 'laserHeating_out_oct6.csv'))
     # columns: [time, abs_rate, avg_front_temp, avg_min_y, current_rate, flux_bottom, flux_mvg_bnd]
     cur_rate = out.loc[:, ['time', 'current_rate']]
     cur_rate.dropna(inplace=True)
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     # ax.set_xlim(0, 1)
     # # ax.set_ylim(1, 5)
     # ax.ticklabel_format(style='sci')
-    fig.savefig(os.path.join(base_path, 'avg_front_temp.svg'), dpi=600, format='svg')
-    fig.savefig(os.path.join(base_path, 'avg_front_temp.eps'), dpi=600, format='eps')
-    fig.savefig(os.path.join(base_path, 'avg_front_temp.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, 'avg_front_temp.svg'), dpi=600, format='svg')
+    fig.savefig(os.path.join(data_path, 'avg_front_temp.eps'), dpi=600, format='eps')
+    fig.savefig(os.path.join(data_path, 'avg_front_temp.png'), dpi=600)
     plt.show()

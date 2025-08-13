@@ -13,7 +13,7 @@ import json
 import ir_thermography.thermometry as irt
 import re
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
 csv_file = 'GR001C_1cm_probe_smoothed_temperature_data'
 # data_file = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\LT_GR001CC_150mT_1cm_100PCT_60GAIN 2022-04-26_1.csv'
 data_file = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1.csv'
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     )
     toc = time.time() - tic
     print(f"Simulation time: {toc:.4f} s")
-    tc_data_df = pd.read_csv(os.path.join(base_path, csv_file + '.csv')).apply(pd.to_numeric)
+    tc_data_df = pd.read_csv(os.path.join(data_path, csv_file + '.csv')).apply(pd.to_numeric)
     ta = tc_data_df['Temperature A (C)'].values
     time_tc = tc_data_df['Time (s)'].values
     idx_range = time_tc <= 2.0
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     ax.yaxis.set_major_locator(ticker.MultipleLocator(400))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(100))
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, f'{data_filetag}_raw_fit.eps'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{data_filetag}_raw_fit.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{data_filetag}_raw_fit.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_filetag}_raw_fit.eps'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_filetag}_raw_fit.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_filetag}_raw_fit.png'), dpi=600)
     plt.show()

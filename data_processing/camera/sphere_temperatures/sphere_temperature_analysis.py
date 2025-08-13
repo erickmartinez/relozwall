@@ -22,7 +22,7 @@ if platform_system == 'Windows':
 elif platform_system == 'Darwin':
     drive_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
 
-base_path = os.path.join(drive_path, r'\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC')
+data_path = os.path.join(drive_path, r'\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC')
 save_dir = 'R4N85_stats'
 tracking_csv = r'LCT_R4N85_manual_tracking.xlsx'
 sheet_name = 'R4N85'
@@ -214,10 +214,10 @@ def fit_trajectory(t: np.ndarray, x: np.ndarray, y: np.ndarray) -> OptimizeResul
 def main():
     cal = load_calibration()
     file_tag = os.path.splitext(info_csv)[0]
-    params = get_experiment_params(relative_path=base_path, filename=file_tag)
+    params = get_experiment_params(relative_path=data_path, filename=file_tag)
     pulse_length = float(params['Emission Time']['value'])
     sample_name = params['Sample Name']['value']
-    tracking_df: pd.DataFrame = pd.read_excel(io=os.path.join(base_path, tracking_csv), sheet_name=sheet_name).apply(
+    tracking_df: pd.DataFrame = pd.read_excel(io=os.path.join(data_path, tracking_csv), sheet_name=sheet_name).apply(
         pd.to_numeric)
     pids = tracking_df['PID'].unique()
     n = len(pids)
@@ -431,17 +431,17 @@ def main():
     axes[0].legend(handles=legend_elements0, loc='lower right', fontsize=8)
     axes[1].legend(handles=legend_elements1, loc='lower right', fontsize=8)
 
-    fig.savefig(os.path.join(base_path, save_dir, 'temperature_fulltime.png'), dpi=600)
-    fig2.savefig(os.path.join(base_path, save_dir, 'temperature_relatvive.png'), dpi=600)
-    fig3.savefig(os.path.join(base_path, save_dir, 'temperature_released.png'), dpi=600)
-    fig_t.savefig(os.path.join(base_path, save_dir, 'trajectories.png'), dpi=600)
-    fig_th.savefig(os.path.join(base_path, save_dir, 'ejection_temperatures_hist.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, save_dir, 'temperature_fulltime.png'), dpi=600)
+    fig2.savefig(os.path.join(data_path, save_dir, 'temperature_relatvive.png'), dpi=600)
+    fig3.savefig(os.path.join(data_path, save_dir, 'temperature_released.png'), dpi=600)
+    fig_t.savefig(os.path.join(data_path, save_dir, 'trajectories.png'), dpi=600)
+    fig_th.savefig(os.path.join(data_path, save_dir, 'ejection_temperatures_hist.png'), dpi=600)
 
     print(cooling_data)
 
     ejection_data_df = pd.DataFrame(data=ejection_data)
-    ejection_data_df.to_csv(os.path.join(base_path, save_dir, 'ejection_data.csv'), index=False, encoding='utf-8-sig')
-    cooling_data.to_csv(os.path.join(base_path, save_dir, 'cooling_data.csv'), index=False, encoding='utf-8-sig')
+    ejection_data_df.to_csv(os.path.join(data_path, save_dir, 'ejection_data.csv'), index=False, encoding='utf-8-sig')
+    cooling_data.to_csv(os.path.join(data_path, save_dir, 'cooling_data.csv'), index=False, encoding='utf-8-sig')
 
     plt.show()
 

@@ -9,7 +9,7 @@ import platform
 
 drive_path = r'C:\Users\erick\OneDrive' if platform.system() == 'Windows' else r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
 
-base_path = r'Documents\ucsd\Postdoc\research\data\firing_tests'
+data_path = r'Documents\ucsd\Postdoc\research\data\firing_tests'
 # base_path = '/Users/erickmartinez/Documents/UCSD/research/data/firing tests'
 database_filetag = 'merged_db'
 
@@ -96,8 +96,8 @@ def pull_sheet_data(spreadsheet_id, sheet_range):
 
 if __name__ == '__main__':
     if platform.system() != 'Windows':
-        base_path = base_path.replace('\\', '/')
-    base_path = os.path.join(drive_path, base_path)
+        data_path = data_path.replace('\\', '/')
+    data_path = os.path.join(drive_path, data_path)
     df_lasers = pull_sheet_data(LASER_SAMPLE_SPREADSHEET_ID, LASER_SAMPLE_RANGE_NAME)
     df_lasers['ROW'] = df_lasers.index + 2
     df_recipe =  pull_sheet_data(RECIPE_SAMPLE_SPREADSHEET_ID, RECIPE_SAMPLE_RANGE_NAME)
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     #     r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\merged_db.csv', index=False,
     #     encoding="utf-8"
     # )
-    output_xlsx = os.path.join(base_path, database_filetag + '.xlsx')
+    output_xlsx = os.path.join(data_path, database_filetag + '.xlsx')
     df_merged.to_excel(
         output_xlsx,
         sheet_name='Laser tests',

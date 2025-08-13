@@ -9,7 +9,7 @@ from data_processing.utils import get_experiment_params
 import re
 from scipy.stats.distributions import t
 
-base_path = 'Documents/ucsd/Postdoc/research/data/firing_tests/SS_TUBE/GC'
+data_path = 'Documents/ucsd/Postdoc/research/data/firing_tests/SS_TUBE/GC'
 csv_db = './data/pebble_ir_list.csv'
 output_path = './data/tracking'
 
@@ -101,7 +101,7 @@ def gaussian_beam_aperture_factor(beam_r, sample_r):
     return 1.0 - np.exp(-2.0 * (sample_r / beam_r) ** 2.0)
 
 def main():
-    global base_path, beam_radius, sample_diameter, csv_db, ir_calibration_path, coating_rate
+    global data_path, beam_radius, sample_diameter, csv_db, ir_calibration_path, coating_rate
     base_path = normalize_path(base_path)
     ir_calibration_path = normalize_path(ir_calibration_path)
     files_df: pd.DataFrame = pd.read_csv(csv_db, comment='#')

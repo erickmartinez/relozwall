@@ -18,8 +18,8 @@ import matplotlib.ticker as ticker
 
 
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\test\BEAM_PROFILER_REALIGNED_LASER'
-base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\BEAM_PROFILING_20221212'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\test\BEAM_PROFILER_REALIGNED_LASER'
+data_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\BEAM_PROFILING_20221212'
 center = np.array([590, 593])
 center = np.array([500, 500])
 # pixel_size = 207.2227  # pixels/cm
@@ -83,8 +83,8 @@ def fobj_log(b, xyc, y_exp):
 def main(logger: logging.Logger):
     logger.info(f'Fitting gaussian beam')
     # Get the list of images
-    image_list = file_list(path=base_path, extension='.jpg')
-    im_laser = imread(os.path.join(base_path, image_list[0]))
+    image_list = file_list(path=data_path, extension='.jpg')
+    im_laser = imread(os.path.join(data_path, image_list[0]))
     im_laser = np.zeros_like(im_laser, dtype=np.float64)
     # pattern = re.compile('\d+\.?\d?[eE]\d+')
     n_points = len(image_list)
@@ -92,7 +92,7 @@ def main(logger: logging.Logger):
         # Get the exposure time from the csv
         # m = pattern.findall(im)
         # exposure_times.append(float(m[0]))
-        img = imread(os.path.join(base_path, im)).astype(np.float64)
+        img = imread(os.path.join(data_path, im)).astype(np.float64)
         # exposure_s = 1E6 / row['Exposure (us)']
         im_laser += img
 
@@ -103,7 +103,7 @@ def main(logger: logging.Logger):
     im_laser -= im_laser.flatten().min()
     image = img_as_ubyte(im_laser.astype(int))
 
-    imsave(os.path.join(base_path, 'average_img.jpg'), image)
+    imsave(os.path.join(data_path, 'average_img.jpg'), image)
 
     blurred = filters.gaussian(
         image, sigma=0.5)  # , mode='reflect')
@@ -166,7 +166,7 @@ def main(logger: logging.Logger):
     logger.info(f'ypred limits: {ypred_lim}')
 
     im_pred = img_as_ubyte(ypred.astype(int))
-    imsave(os.path.join(base_path, 'predicted_img.jpg'), im_pred)
+    imsave(os.path.join(data_path, 'predicted_img.jpg'), im_pred)
 
     # ypred, lpb, upb = cf.predint(x=xyc, xd=xyc, yd=im_laser, func=model, res=res)
     logger.info(f'wz (px): {wz:.6f}, 95% CI:{ci[0]}')
@@ -259,7 +259,7 @@ def main(logger: logging.Logger):
         ax.xaxis.set_major_locator(ticker.MultipleLocator(280))
         ax.yaxis.set_major_locator(ticker.MultipleLocator(270))
 
-    fig.savefig(os.path.join(base_path, 'result.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, 'result.png'), dpi=600)
 
     # region = np.s_[np.argwhere(np), 5:50]
     # x, y, z = x[region], y[region], z[region]
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
     logger.addHandler(logging.NullHandler())
     logger.setLevel(logging.DEBUG)
-    log_file = os.path.join(base_path, 'results.log')
+    log_file = os.path.join(data_path, 'results.log')
     ch = logging.StreamHandler()
     fh = logging.FileHandler(log_file)
     c_format = logging.Formatter('%(name)s - %(levelname)s - %(message)s')

@@ -10,7 +10,7 @@ import pandas as pd
 
 chamber_volume = 31.57 # L
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\surface_temperature\equilibrium_redone\pebble_sample'
 
 csv_database = 'pebble_sample_equilibrium_redone_files.csv'
 filename = 'GC_GRAPHITE_POWER_SCAN'
@@ -22,7 +22,7 @@ add_time = 0.88
 
 if __name__ == "__main__":
     database_df = pd.read_csv(
-        os.path.join(base_path, csv_database), comment='#'
+        os.path.join(data_path, csv_database), comment='#'
     )
     filelist = database_df['csv']
     database_df['sample diameter (cm)'] = database_df['sample diameter (cm)'].apply(pd.to_numeric)
@@ -46,14 +46,14 @@ if __name__ == "__main__":
     sample_id = []
 
     for fn, c, i in zip(filelist, colors, range(len(filelist))):
-        params = get_experiment_params(base_path, fn)
+        params = get_experiment_params(data_path, fn)
         power_setting = params['Laser Power Setpoint']['value']
         laser_power_setpoint[i] = power_setting
         sample_id.append(params['Sample Name']['value'])
         leg = f'{float(power_setting):.1f} %'
         pressure_csv = f'{fn}_pressure.csv'
         print(pressure_csv)
-        pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(base_path, pressure_csv))
+        pressure_data = pd.read_csv(filepath_or_buffer=os.path.join(data_path, pressure_csv))
         pressure_data = pressure_data.apply(pd.to_numeric)
         time_s = pressure_data['Time (s)'].values
         time_s -= time_s.min() + 0.5
@@ -110,11 +110,11 @@ if __name__ == "__main__":
 
     print(outgas_df)
     
-    outgas_df.to_csv(os.path.join(base_path, f'{filename}_OUTGASSING.csv'), index=False)
+    outgas_df.to_csv(os.path.join(data_path, f'{filename}_OUTGASSING.csv'), index=False)
 
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, f'{filename}_PRESSURE.png'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{filename}_PRESSURE.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{filename}_PRESSURE.eps'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{filename}_PRESSURE.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{filename}_PRESSURE.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{filename}_PRESSURE.eps'), dpi=600)
 
     plt.show()

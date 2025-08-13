@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy.linalg as la
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\perspective_matrix'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\perspective_matrix'
 img_file = 'scale_20230324_90deg.bmp'
 
 # To open matplotlib in interactive mode
@@ -16,7 +16,7 @@ def rotation_matrix(angle):
 
 def main():
     # Load the image
-    img = cv2.imread(os.path.join(base_path, img_file))
+    img = cv2.imread(os.path.join(data_path, img_file))
 
     # Create a copy of the image
     img_copy = np.copy(img)

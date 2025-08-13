@@ -11,7 +11,7 @@ from scipy.optimize import least_squares, OptimizeResult
 from data_processing.utils import lighten_color
 import data_processing.confidence as cf
 
-base_path = r"C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\thermal_conductivity\graphite\laser_flash\CALIBRATION_20230719"
+data_path = r"C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\thermal_conductivity\graphite\laser_flash\CALIBRATION_20230719"
 xls_db = "flash_method_at_different_heat_loads.xlsx"
 
 
@@ -45,7 +45,7 @@ def jac(b, x, y):
 
 
 def main():
-    ftc_df: pd.DataFrame = pd.read_excel(os.path.join(base_path, xls_db))
+    ftc_df: pd.DataFrame = pd.read_excel(os.path.join(data_path, xls_db))
     columns = ftc_df.columns
     numeric_columns = columns[:-1]
     ftc_df[numeric_columns] = ftc_df[numeric_columns].apply(pd.to_numeric)
@@ -62,7 +62,7 @@ def main():
         csv_origin = str(r['csv'])
         csv_file = os.path.splitext(csv_origin)[0] + '_ftd_curves.csv'
         lp = r['P_laser (W)']
-        full_file = os.path.join(base_path, csv_file)
+        full_file = os.path.join(data_path, csv_file)
         # print(f"Plotting {full_file}")
         c_df = pd.read_csv(full_file).apply(pd.to_numeric)
         tth = c_df['t/t_h'].values

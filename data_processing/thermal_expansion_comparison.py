@@ -7,7 +7,7 @@ import matplotlib.ticker as ticker
 import os
 import json
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\POCO_GRAPHITE_SPHERES'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\POCO_GRAPHITE_SPHERES'
 
 material_properties = {
     'Material': ['POCO graphite', 'Glassy Carbon'],

@@ -9,7 +9,7 @@ import json
 import time
 import datetime
 
-base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS\chamber_pressure'
+data_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\STARTING_MATERIALS\chamber_pressure'
 log_time = 300  # s
 chamber_volume_in = 14.0 * 15.0 * 11.0
 chamber_volume_m = chamber_volume_in * (2.54E-2 ** 3)
@@ -81,18 +81,18 @@ if __name__ == '__main__':
 
         current_date = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         print(current_date)
-        filename = os.path.join(base_path, f'IG_LOG_DATA_{current_date}')
+        filename = os.path.join(data_path, f'IG_LOG_DATA_{current_date}')
 
         df.to_csv(path_or_buf=filename + '.csv', index=False)
     else:
-        df = pd.read_csv(os.path.join(base_path, log_file))
+        df = pd.read_csv(os.path.join(data_path, log_file))
         elapsed_time = np.array(df['Time (s)'], dtype=float)
         pressure = np.array(df['Pressure (Torr)'], dtype=float)
         temperature = np.array(df['Temperature (°C)'], dtype=float)
         concentration = number_density(pressure, temperature)
         filename = os.path.splitext(log_file)[0]
         df['Concentration (1/cm3)'] = concentration
-        df.to_csv(path_or_buf=os.path.join(base_path, filename) + '.csv', index=False)
+        df.to_csv(path_or_buf=os.path.join(data_path, filename) + '.csv', index=False)
 
     fig, ax1 = plt.subplots()
     fig.set_size_inches(5.5, 3.0)
@@ -125,5 +125,5 @@ if __name__ == '__main__':
     ax3.tick_params(axis='y', labelcolor=color_3)
 
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, filename + '.png'))
+    fig.savefig(os.path.join(data_path, filename + '.png'))
     plt.show()

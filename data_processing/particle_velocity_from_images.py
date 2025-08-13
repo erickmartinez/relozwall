@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
 info_csv = r'LCT_R4N55_100PCT_2023-03-16_1.csv'
 tracking_points_csv = r'LCT_R4N55_100PCT_2023-03-16_1_trackpoints.csv'
 frame_rate = 199.
@@ -21,7 +21,7 @@ camera_angle = 18.  # deg
 
 def load_tracking_data():
     df = pd.read_csv(
-        os.path.join(base_path, tracking_points_csv), usecols=['TID', 'PID', 'x [pixel]', 'y [pixel]', 't [sec]']
+        os.path.join(data_path, tracking_points_csv), usecols=['TID', 'PID', 'x [pixel]', 'y [pixel]', 't [sec]']
     )
     return df.apply(pd.to_numeric)
 
@@ -77,7 +77,7 @@ def main():
         bbox=props
     )
 
-    fig.savefig(os.path.join(base_path, os.path.splitext(info_csv)[0] + '_velocity_histogram.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, os.path.splitext(info_csv)[0] + '_velocity_histogram.png'), dpi=600)
     plt.show()
 
 

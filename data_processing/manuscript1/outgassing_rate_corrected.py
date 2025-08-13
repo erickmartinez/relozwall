@@ -24,7 +24,7 @@ elif platform_system == 'Darwin':
     drive_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal'
 
 
-base_path = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC')
+data_path = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC')
 data_csv = 'LCT_R4N55_100PCT_2023-03-16_1.csv'
 pumpdown_data_csv = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\data\laser_chamber_pumping_speed\turbo\DEGASSING_TRURBO_PUMPDOWN_2023-03-09_1.csv')
 out_dir = os.path.join(drive_path, r'Documents\ucsd\Postdoc\research\manuscripts\paper1\submission_JAP\rev1\figures')
@@ -53,7 +53,7 @@ def normalize_path(the_path):
     return the_path
 
 def main():
-    global platform_system, base_path, pumpdown_data_csv, data_csv, out_dir
+    global platform_system, data_path, pumpdown_data_csv, data_csv, out_dir
     if platform_system != 'Windows':
         base_path = normalize_path(base_path)
         pumpdown_data_csv = normalize_path(pumpdown_data_csv)

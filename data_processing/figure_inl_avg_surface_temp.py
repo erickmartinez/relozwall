@@ -7,13 +7,13 @@ from matplotlib import ticker
 import os
 import json
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\inl'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\manuscripts\paper1\inl'
 temperature_csv = 'average_surface_temperature.csv'
 current_disintegration_csv = 'breakup_plot_no_legend.csv'
 
 
 def prepare_dataset():
-    df = pd.read_csv(os.path.join(base_path, temperature_csv), comment='#').apply(pd.to_numeric)
+    df = pd.read_csv(os.path.join(data_path, temperature_csv), comment='#').apply(pd.to_numeric)
     time_s = df['Time (s)'].values
     temperature_k = df['Temperature (K)'].values
     f = interp1d(time_s, temperature_k)
@@ -26,12 +26,12 @@ def prepare_dataset():
         'Time (s)': time_interp, 'Temperature (K)': temperature_interp_k
     })
     base_name = os.path.splitext(temperature_csv)[0]
-    interp_df.to_csv(os.path.join(base_path, base_name + '_interp.csv'), index=False)
+    interp_df.to_csv(os.path.join(data_path, base_name + '_interp.csv'), index=False)
     return interp_df
 
 
 def prepare_disintegration_dataset():
-    df = pd.read_csv(os.path.join(base_path, current_disintegration_csv), comment='#').apply(pd.to_numeric)
+    df = pd.read_csv(os.path.join(data_path, current_disintegration_csv), comment='#').apply(pd.to_numeric)
     # df = df.loc[df['Time (s)'].round(2).drop_duplicates().index]
     print(df.describe())
     time_s = df['Time (s)'].values
@@ -52,7 +52,7 @@ def prepare_disintegration_dataset():
         'Average disintegration rate (mm/s)': average_disintegration
     })
     base_name = os.path.splitext(current_disintegration_csv)[0]
-    interp_df.to_csv(os.path.join(base_path, base_name + '_interp.csv'), index=False)
+    interp_df.to_csv(os.path.join(data_path, base_name + '_interp.csv'), index=False)
     return interp_df
 
 

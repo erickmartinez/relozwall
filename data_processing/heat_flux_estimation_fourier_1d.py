@@ -13,7 +13,7 @@ import confidence as cf
 from utils import get_experiment_params
 import re
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
 data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
 
 # data_file = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\LT_GR001CC_150mT_1cm_100PCT_60GAIN 2022-04-26_1.csv'
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     ax.yaxis.set_major_locator(ticker.MultipleLocator(400))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(100))
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, f'{data_file}_fourier_fit.eps'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{data_file}_fourier_fourier_fit.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{data_file}_fourier_raw_fit.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_file}_fourier_fit.eps'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_file}_fourier_fourier_fit.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_file}_fourier_raw_fit.png'), dpi=600)
     plt.show()

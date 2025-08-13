@@ -11,7 +11,7 @@ import json
 import platform
 import shutil
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\heat equation\model_comparison'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\heat equation\model_comparison'
 
 incident_power = 3.18E3  # kW
 time_constant = 1.681  # 0.256  #1.681  # 2.1148
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     # if platform.system() == 'Windows':
     #     base_path = r'\\?\\' + base_path
 
-    adi_data_dir = os.path.join(os.path.join(base_path, 'adi_data'))
+    adi_data_dir = os.path.join(os.path.join(data_path, 'adi_data'))
 
     if not load_model:
         hf_file = simulate_adi_temp(
@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
     fig.tight_layout()
     fig.savefig(
-        os.path.join(base_path, file_tag + '.png'), dpi=600
+        os.path.join(data_path, file_tag + '.png'), dpi=600
     )
 
     plt.show()

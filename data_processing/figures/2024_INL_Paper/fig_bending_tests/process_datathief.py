@@ -20,7 +20,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/fig_bending_tests'
+data_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/fig_bending_tests'
 
 
 def load_plot_style():
@@ -38,7 +38,7 @@ def normalize_path(the_path):
     return os.path.join(drive_path, the_path)
 
 def main():
-    global base_path, files
+    global data_path, files
     base_path = normalize_path(base_path)
     load_plot_style()
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)

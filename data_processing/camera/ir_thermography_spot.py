@@ -16,7 +16,7 @@ from scipy.optimize import least_squares
 from skimage.util import img_as_ubyte
 import matplotlib.ticker as ticker
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration'
 image_file = 'ir_thermography_spot_size_20.8252px_per_mm.png'
 # base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\Laser Tests\CAMERA\BEAM_PROFILING_20221212'
 center = np.array([13.97, 12.03])
@@ -25,7 +25,7 @@ diameter = 2.68
 
 
 if __name__ == '__main__':
-    img = imread(os.path.join(base_path, image_file))
+    img = imread(os.path.join(data_path, image_file))
     with open('../plot_style.json', 'r') as file:
         json_file = json.load(file)
         plot_style = json_file['defaultPlotStyle']
@@ -80,5 +80,5 @@ if __name__ == '__main__':
     # ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
     # ax.yaxis.set_major_locator(ticker.MultipleLocator(100))
 
-    fig.savefig(os.path.join(base_path, 'result.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, 'result.png'), dpi=600)
     plt.show()

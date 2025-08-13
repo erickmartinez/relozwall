@@ -13,7 +13,7 @@ chamber_volume = 31.57  # L
 chamber_cube_length = 12. * 2.54E-2
 gauge_position = 0.5 * chamber_cube_length
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
 data_csv = 'LCT_R4N55_100PCT_2023-03-16_1.csv'
 pumpdown_data_csv = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\laser_chamber_pumping_speed\turboDEGASSING_TRURBO_PUMPDOWN_2023-03-09_1'
 sample_diameter = 0.9
@@ -118,8 +118,8 @@ def loss_smb(b, t, p, d):
 
 def main():
     file_tag = os.path.splitext(data_csv)[0]
-    params = get_experiment_params(base_path, file_tag)
-    data_df = pd.read_csv(os.path.join(base_path, data_csv), comment='#').apply(pd.to_numeric)
+    params = get_experiment_params(data_path, file_tag)
+    data_df = pd.read_csv(os.path.join(data_path, data_csv), comment='#').apply(pd.to_numeric)
     laser_power = data_df['Laser output peak power (W)'].values
     time_s = data_df['Measurement Time (s)'].values
     pressure = 1000. * data_df['Pressure (Torr)'].values
@@ -425,11 +425,11 @@ def main():
         loc='best', frameon=True, fontsize=10
     )
 
-    fig.savefig(os.path.join(base_path, file_tag + '_outgassing_gaussians.png'), dpi=600)
-    fig.savefig(os.path.join(base_path, file_tag + '_outgassing_gaussians.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '_outgassing_gaussians.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '_outgassing_gaussians.svg'), dpi=600)
 
-    fig_outgassing.savefig(os.path.join(base_path, file_tag + '_outgassing_pumping_speed.png'), dpi=600)
-    fig_outgassing.savefig(os.path.join(base_path, file_tag + '_outgassing_pumping_speed.svg'), dpi=600)
+    fig_outgassing.savefig(os.path.join(data_path, file_tag + '_outgassing_pumping_speed.png'), dpi=600)
+    fig_outgassing.savefig(os.path.join(data_path, file_tag + '_outgassing_pumping_speed.svg'), dpi=600)
 
     plt.show()
 

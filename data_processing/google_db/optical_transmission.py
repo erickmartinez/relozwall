@@ -10,7 +10,7 @@ import platform
 drive_path = r'C:\Users\erick\OneDrive' if platform.system() == 'Windows' else (r'/Users/erickmartinez/Library'
                                                                                 r'/CloudStorage/OneDrive-Personal')
 
-base_path = r'Documents\ucsd\Postdoc\research\data\firing_tests'
+data_path = r'Documents\ucsd\Postdoc\research\data\firing_tests'
 database_filetag = 'optical_transmission_db'
 
 # If modifying these scopes, delete the file token.json.

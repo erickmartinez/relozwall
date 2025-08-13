@@ -12,7 +12,7 @@ import re
 import matplotlib as mpl
 import json
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\LCT_GRAPHITE_100PCT_2023-03-10_3_images'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\thermal camera\calibration\LCT_GRAPHITE_100PCT_2023-03-10_3_images'
 info_csv = r'LCT_GRAPHITE_100PCT_2023-03-10_3.csv'
 file_tag = 'GRAPHITE_IMG'
 frame_rate = 200.0
@@ -45,7 +45,7 @@ def subtract_images(img2: np.ndarray, img1:np.ndarray):
 def update_line(n, ln, file_list, t0, img0, pulse_width, cal):
     file = file_list[n]
     n_max = len(file_list)
-    img = imread(os.path.join(base_path, file))
+    img = imread(os.path.join(data_path, file))
     m = p.match(file)
     dt = (float(m.group(1)) - t0) * 1E-9
     if dt <= pulse_width:
@@ -77,13 +77,13 @@ def convert_to_temperature(img: np.ndarray, cali: np.ndarray) -> np.ndarray:
 
 
 def main():
-    params = get_experiment_params(relative_path=os.path.dirname(base_path), filename=os.path.splitext(info_csv)[0])
+    params = get_experiment_params(relative_path=os.path.dirname(data_path), filename=os.path.splitext(info_csv)[0])
     pulse_length = float(params['Emission Time']['value'])
     cal = load_calibration()
     # print(f'length of cal: {len(cal)}')
     # for i, c in enumerate(cal):
     #     print(f'ADC: {i}, temp: {c} °C')
-    list_of_files = get_files(base_dir=base_path, tag=file_tag)
+    list_of_files = get_files(base_dir=data_path, tag=file_tag)
     files_dict = {}
     p2 = re.compile(r'.*?-(\d+)-(\d+)\.jpg')
     for i, f in enumerate(list_of_files):
@@ -99,7 +99,7 @@ def main():
     for f in list_of_files:
         print(f)
     # frameSize = (1440, 1080)
-    img = imread(os.path.join(base_path, list_of_files[0]))
+    img = imread(os.path.join(data_path, list_of_files[0]))
     img_shape = img.shape
     temp_im = convert_to_temperature(np.zeros_like(img), cal)
 
@@ -174,7 +174,7 @@ def main():
     )
 
     ft = file_tag + '_movie.mp4'
-    save_dir = os.path.dirname(base_path)
+    save_dir = os.path.dirname(data_path)
     ani.save(os.path.join(save_dir, ft), writer=writer, dpi=200) # dpi=pixel_size*25.4)
 
     # out = cv2.VideoWriter(

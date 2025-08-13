@@ -20,7 +20,7 @@ DC_SOURCE_IP = '192.168.1.3'
 EXT_READOUT_IP = '192.168.4.2'
 
 ISC08_COM = 'COM4'
-base_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
+data_path = r"G:\Shared drives\ARPA-E Project\Lab\Data\Extruder\Friction"
 pid_stabilizing_time = 600.0  # seconds
 SPEED_CMS = 1.1
 speed_setting_map = {0.11: 20, 0.57: 55, 1.1: 65}
@@ -134,12 +134,12 @@ if __name__ == "__main__":
     # print(f"Speed setting: {SPEED_SETTING}")
     if plot_csv:
         file_tag = os.path.splitext(csv_file)[0]
-        friction_df = pd.read_csv(os.path.join(base_path, csv_file), comment='#').apply(pd.to_numeric)
+        friction_df = pd.read_csv(os.path.join(data_path, csv_file), comment='#').apply(pd.to_numeric)
         friction_df.sort_values(by=['Position (cm)'], ascending=True, inplace=True)
         friction_df.reset_index(drop=True, inplace=True)
         if X_MAX is not None and not baseline:
             friction_df = friction_df[friction_df['Position (cm)'] <= X_MAX]
-        background_df = pd.read_csv(os.path.join(base_path, baseline_csv), comment='#').apply(pd.to_numeric)
+        background_df = pd.read_csv(os.path.join(data_path, baseline_csv), comment='#').apply(pd.to_numeric)
         x_b = background_df['Position (cm)'].values
         f_b = background_df['Force (N)'].values
         f = interp1d(x_b, f_b, kind='linear')
@@ -165,7 +165,7 @@ if __name__ == "__main__":
             friction_baselined_df['Baselined Force (N)'] = force
             friction_baselined_df['Baselined Force Error (N)'] = force_err
             print(friction_baselined_df)
-            friction_baselined_df.to_csv(path_or_buf=os.path.join(base_path, file_tag + '_baselined.csv'), index=False)
+            friction_baselined_df.to_csv(path_or_buf=os.path.join(data_path, file_tag + '_baselined.csv'), index=False)
 
         # elapsed_time = elapsed_time[:-1]
         # position = position[:-1]
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         # ax1.yaxis.set_minor_locator(ticker.MaxNLocator(12))
 
         fig.tight_layout()
-        fig.savefig(os.path.join(base_path, file_tag + '.png'), dpi=600)
+        fig.savefig(os.path.join(data_path, file_tag + '.png'), dpi=600)
         plt.show()
     else:
         log = logging.getLogger(__name__)
@@ -245,7 +245,7 @@ if __name__ == "__main__":
         today = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
         sample = sample.upper()
         file_tag = f"FRICTION_{sample}_{temperature:>3.0f}C_{SPEED_CMS:3.2f}CMPS_{today}"
-        log_file = os.path.join(base_path, file_tag + '.csv')
+        log_file = os.path.join(data_path, file_tag + '.csv')
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(log_file)
         fh.setFormatter(formatter)
@@ -397,6 +397,6 @@ if __name__ == "__main__":
         })
 
         print(friction_df)
-        friction_df.to_csv(path_or_buf=os.path.join(base_path, file_tag + '.csv'), index=False)
+        friction_df.to_csv(path_or_buf=os.path.join(data_path, file_tag + '.csv'), index=False)
         print('Path of the results file:')
-        print(os.path.join(base_path, file_tag + '.csv'))
+        print(os.path.join(data_path, file_tag + '.csv'))

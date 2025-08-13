@@ -16,7 +16,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations'
+data_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations'
 
 simulated_db = [
     {'lbl': 'Simulation $f_{\mathrm{t}}$ = 60 KPa', 'file': 'Ben_Fig10_dt_sim_ft_60.csv', 'marker': 's', 'ft': 60},
@@ -49,7 +49,7 @@ def load_plot_style():
 
 
 def main():
-    global base_path, simulated_db, experimental_csv
+    global data_path, simulated_db, experimental_csv
     base_path = normalize_path(base_path)
     load_plot_style()
 

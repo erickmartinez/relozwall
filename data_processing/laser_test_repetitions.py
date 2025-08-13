@@ -9,7 +9,7 @@ from matplotlib import ticker
 
 from utils import get_experiment_params
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\REPETITIONS'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\REPETITIONS'
 files = [
     'GT001688_050PCT_30X_5.0s_2022-07-15_1',
     'GT001688_050PCT_5X_5.0s_2022-07-16_1'
@@ -29,8 +29,8 @@ if __name__ == '__main__':
     colors = ['C0', 'C1']
 
     for i, fn in enumerate(files):
-        ffn = os.path.join(base_path, fn + '.csv')
-        params = get_experiment_params(relative_path=base_path, filename=fn)
+        ffn = os.path.join(data_path, fn + '.csv')
+        params = get_experiment_params(relative_path=data_path, filename=fn)
         pulse_length = float(params['Pulse length']['value'])
         pulse_delay = float(params['Pulse delay']['value'])
         lbl = f'Pulse: {pulse_length:.1f} s, Period: {pulse_delay:.1f} s'
@@ -67,6 +67,6 @@ if __name__ == '__main__':
     ax[1].xaxis.set_minor_locator(ticker.MultipleLocator(50))
 
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, 'repeated_firing_test.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, 'repeated_firing_test.png'), dpi=600)
     plt.show()
 

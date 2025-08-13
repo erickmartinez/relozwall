@@ -12,7 +12,7 @@ import platform
 import json
 import re
 
-base_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations/nu_vs_t_sim'
+data_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations/nu_vs_t_sim'
 inl_sim = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/INL/ucsd'
 dt = 0.01
 fit_min = 0.6
@@ -57,7 +57,7 @@ def jac(b, t, r):
 
 
 def main():
-    global base_path, inl_sim
+    global data_path, inl_sim
     base_path = normalize_path(base_path)
     inl_path = normalize_path(inl_sim)
     # file_list = [fn for fn in os.listdir(base_path) if fn.endswith('.csv')]

@@ -14,7 +14,7 @@ from data_processing.utils import get_experiment_params
 
 chamber_volume = 31.57  # L
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\laser_degassing'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\laser_degassing'
 csv_filelist = 'filelist.csv'
 sample_id = 'R4N11'
 
@@ -95,11 +95,11 @@ if __name__ == "__main__":
     # pressure_data = pressure_data.apply(pd.to_numeric)
     # # pressure_data['Pressure (Torr)'] = pressure_data['Pressure (Torr)']/1000
     # pressure_data.to_csv(os.path.join(base_path, pressure_csv), index=False)
-    file_list = get_file_list(csv_file=csv_filelist, base_dir=base_path)
+    file_list = get_file_list(csv_file=csv_filelist, base_dir=data_path)
     n = len(file_list)
     legends = []
     for i, f in enumerate(file_list):
-        params = get_experiment_params(relative_path=base_path, filename=f)
+        params = get_experiment_params(relative_path=data_path, filename=f)
         laser_power = float(params['Laser Power Setpoint']['value'])
         legends.append(f'Shot {i + 1}/{n}, {laser_power:.0f} %')
         if i == 0:
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     fig.set_size_inches(4.5, 3.0)
     ax_pulse = ax.twinx()
 
-    plot_pressure(base_dir=base_path, filelist=file_list, legends=legends, output_filename=sample_id, ax=ax)
+    plot_pressure(base_dir=data_path, filelist=file_list, legends=legends, output_filename=sample_id, ax=ax)
     ax.set_ylim(1, 5.0)
     color_laser = 'tab:green'
     ax_pulse.plot(time_s, laser_pulse1, c=color_laser, ls='--', lw=1.25)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     ax_pulse.tick_params(axis='y', labelcolor=color_laser)
     ax_pulse.set_ylabel('Laser pulse', color=color_laser)
     # fig.tight_layout()
-    fig.savefig(os.path.join(base_path, f'{sample_id}_OUTGASSING.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{sample_id}_OUTGASSING.png'), dpi=600)
     # fig.savefig(os.path.join(base_path, f'{output_filename}_OUTGASSING.svg'), dpi=600)
     # fig.savefig(os.path.join(base_path, f'{output_filename}_OUTGASSING.eps'), dpi=600)
     plt.show()

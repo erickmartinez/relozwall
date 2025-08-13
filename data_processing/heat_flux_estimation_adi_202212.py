@@ -20,7 +20,7 @@ from scipy.linalg import svd
 from scipy import interpolate
 
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
 data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\IR Thermography Calibration'
 # data_file = 'LT_GR008G_6mTorr-contact-shield_100PCT_50GAIN 2022-05-04_1'
 data_file = 'LT_GRAPHITE_ROD_030PCT_2022-12-13_2'
@@ -144,7 +144,7 @@ def get_pcov(res: OptimizeResult) -> np.ndarray:
 
 
 if __name__ == "__main__":
-    adi_data_dir = os.path.join(os.path.join(base_path, 'adi_data'))
+    adi_data_dir = os.path.join(os.path.join(data_path, 'adi_data'))
 
     with open('plot_style.json', 'r') as file:
         json_file = json.load(file)
@@ -354,8 +354,8 @@ if __name__ == "__main__":
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(50))
 
     fig.tight_layout()
-    fig.savefig(os.path.join(base_path, f'{data_filetag}_adi_raw_fit.eps'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{data_filetag}_adi_raw_fit.svg'), dpi=600)
-    fig.savefig(os.path.join(base_path, f'{data_filetag}_adi_raw_fit.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_filetag}_adi_raw_fit.eps'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_filetag}_adi_raw_fit.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, f'{data_filetag}_adi_raw_fit.png'), dpi=600)
     print(f"Filename: {hf_file}")
     plt.show()

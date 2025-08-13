@@ -12,7 +12,7 @@ from scipy.special import erf, erfinv
 SQRT2P = 1. / np.sqrt(2. * np.pi)
 SQRT2 = 1. / np.sqrt(2.)
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC' \
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC' \
             r'\LCT_R4N55_100PCT_2023-03-16_1_fitting_results'
 velocity_csv = 'fitted_params.csv'
 
@@ -68,7 +68,7 @@ def fobj_sk(b, x, y):
 
 
 def main():
-    fitting_params_df = pd.read_csv(os.path.join(base_path, velocity_csv)).apply(pd.to_numeric)
+    fitting_params_df = pd.read_csv(os.path.join(data_path, velocity_csv)).apply(pd.to_numeric)
     v0 = fitting_params_df['v0 lq (cm/s)'].values
 
     with open('../plot_style.json', 'r') as file:
@@ -179,9 +179,9 @@ def main():
     print(f'STD:\t{stdev:.3E} cm/s')
     # print(f'r1:\t{r1:.1f} cm/s')
     file_tag = 'v0_lognorm_stats'
-    fig.savefig(os.path.join(base_path, file_tag + '.png'), dpi=600)
-    fig.savefig(os.path.join(base_path, file_tag + '.eps'), dpi=600)
-    fig.savefig(os.path.join(base_path, file_tag + '.svg'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '.png'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '.eps'), dpi=600)
+    fig.savefig(os.path.join(data_path, file_tag + '.svg'), dpi=600)
     plt.show()
 
 

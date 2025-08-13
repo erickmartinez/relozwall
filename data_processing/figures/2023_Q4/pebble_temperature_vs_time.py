@@ -19,7 +19,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/pebble temperature'
+data_path = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/pebble temperature'
 tracking_csv = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/Firing Tests - Mass Loss - Tracking_gsr_20231128_mod.csv'
 laser_power_dir = r'Documents\ucsd\Postdoc\research\data\firing_tests\MATERIAL_SCAN\laser_output'
 deposition_rates_csv = r'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/deposition_rates_20231128.csv'
@@ -202,7 +202,7 @@ def get_img_msk(signal, threshold=0) -> np.ndarray:
 
 
 def main():
-    global base_path, deposition_rates_csv, laser_power_dir, tracking_csv, firing_csv, path_to_tracking_data
+    global data_path, deposition_rates_csv, laser_power_dir, tracking_csv, firing_csv, path_to_tracking_data
     global calibration_path
     base_path = normalize_path(base_path)
     deposition_rates_csv = normalize_path(deposition_rates_csv)

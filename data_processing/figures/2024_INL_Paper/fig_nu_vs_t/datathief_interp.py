@@ -12,7 +12,7 @@ import platform
 import json
 import re
 
-base_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations/nu_vs_t_sim'
+data_path = 'Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations/nu_vs_t_sim'
 dt = 0.01
 fit_min = 0.6
 
@@ -56,7 +56,7 @@ def jac(b, t, r):
 
 
 def main():
-    global base_path
+    global data_path
     base_path = normalize_path(base_path)
     file_list = [fn for fn in os.listdir(base_path) if fn.endswith('.csv')]
     pattern = re.compile(r'.*?q(\d+).csv')

@@ -17,7 +17,7 @@ import json
 from scipy import interpolate
 import data_processing.confidence as cf
 
-base_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\thermocouple time constant'
+data_path = r'G:\Shared drives\ARPA-E Project\Lab\Data\thermocouple time constant'
 # base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration'
 tc_id = 'TCE01'
 
@@ -135,13 +135,13 @@ if __name__ == '__main__':
         tc_data: pd.DataFrame = tc_logger.read_temperature_log()
         today = datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')
         file_tag = f"CAL_{tc_id.upper()}_{today}"
-        full_file_name = os.path.join(base_path, file_tag + '.csv')
+        full_file_name = os.path.join(data_path, file_tag + '.csv')
         tc_data.to_csv(full_file_name, index=False)
         print(f'Data saved in:')
         print(f'{full_file_name}')
 
     else:
-        tc_data = pd.read_csv(os.path.join(base_path, csv_file + '.csv'))
+        tc_data = pd.read_csv(os.path.join(data_path, csv_file + '.csv'))
         measured_time = tc_data['Time (s)'].values
         tc1 = tc_data['TC1 (C)'].values
         tc2 = tc_data['TC2 (C)'].values
@@ -200,14 +200,14 @@ if __name__ == '__main__':
             }
         )
 
-        model_results_df.to_csv(os.path.join(base_path, csv_file + '_model_results.csv'), index=False)
+        model_results_df.to_csv(os.path.join(data_path, csv_file + '_model_results.csv'), index=False)
         prediction_df = pd.DataFrame(data={
             'Time (s)': xpred,
             'Temperature (°C)': ypred,
             'Lower Prediction Band (°C)': lpb,
             'Upper Prediction Band (°C)': upb
         })
-        prediction_df.to_csv(os.path.join(base_path, csv_file + '_prediction.csv'), index=False)
+        prediction_df.to_csv(os.path.join(data_path, csv_file + '_prediction.csv'), index=False)
 
         model_txt = f'$\\tau$ = {time_constant:.3f} s\n95% CI: [{ci[2][0]:.4f}, {ci[2][1]:.4f}] s'
         # model_txt += f'\n$\Delta T_{{\mathrm{{ss}}}} = {latex_float(tss,significant_digits=3)} °C 95% CI: [{ci[0][0]:.4f}, {ci[0][1]:.4f}] °C$'
@@ -264,7 +264,7 @@ if __name__ == '__main__':
         ax1.ticklabel_format(useMathText=True)
 
         fig.tight_layout()
-        fig.savefig(os.path.join(base_path, csv_file + '.png'), dpi=600)
-        fig.savefig(os.path.join(base_path, csv_file + '.eps'), dpi=600)
-        fig.savefig(os.path.join(base_path, csv_file + '.svg'), dpi=600)
+        fig.savefig(os.path.join(data_path, csv_file + '.png'), dpi=600)
+        fig.savefig(os.path.join(data_path, csv_file + '.eps'), dpi=600)
+        fig.savefig(os.path.join(data_path, csv_file + '.svg'), dpi=600)
         plt.show()

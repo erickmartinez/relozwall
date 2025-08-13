@@ -18,7 +18,7 @@ Particles tracked with MTracJ:
 https://imagescience.org/meijering/software/mtrackj/manual/
 """
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
 info_csv = r'LCT_R4N55_100PCT_2023-03-16_1.csv'
 tracking_points_csv = r'LCT_R4N55_100PCT_2023-03-16_1_trackpoints_revised.csv'
 frame_rate = 200.
@@ -61,7 +61,7 @@ class DictClass:
 
 def load_tracking_data():
     df = pd.read_csv(
-        os.path.join(base_path, tracking_points_csv), usecols=['TID', 'PID', 'x [pixel]', 'y [pixel]', 't [sec]']
+        os.path.join(data_path, tracking_points_csv), usecols=['TID', 'PID', 'x [pixel]', 'y [pixel]', 't [sec]']
     )
     return df.apply(pd.to_numeric)
 
@@ -223,7 +223,7 @@ def fit_trajectory(t: np.ndarray, x: np.ndarray, y: np.ndarray) -> OptimizeResul
 
 
 def main():
-    experiment_params = get_experiment_params(relative_path=base_path, filename=os.path.splitext(info_csv)[0])
+    experiment_params = get_experiment_params(relative_path=data_path, filename=os.path.splitext(info_csv)[0])
     sample_id = experiment_params['Sample Name']['value']
     img_prefix = sample_id + '_IMG'
     trajectories_df = load_tracking_data()
@@ -241,7 +241,7 @@ def main():
     tid_list = []
     dt = 1. / frame_rate
     file_tag = os.path.splitext(info_csv)[0]
-    base_dir = os.path.join(base_path, file_tag + '_images')
+    base_dir = os.path.join(data_path, file_tag + '_images')
     list_of_files = get_file_list(base_dir=base_dir, tag=img_prefix)
     t_from_timestamp = frame_id_time(list_of_files=list_of_files)
     # print('t_from_timestamp', t_from_timestamp.T)
@@ -354,7 +354,7 @@ def main():
     })
     print(fitted_params_df)
 
-    save_path = os.path.join(base_path, file_tag + '_fitting_results')
+    save_path = os.path.join(data_path, file_tag + '_fitting_results')
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     fitted_trajectories_df['x (px)'] = fitted_trajectories_df['x (cm)'] * 10. * pixel_size + center_mm[0] * pixel_size

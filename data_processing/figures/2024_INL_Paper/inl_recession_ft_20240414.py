@@ -16,7 +16,7 @@ if platform_system != 'Windows':
 else:
     drive_path = r'C:\Users\erick\OneDrive'
 
-base_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations'
+data_path = '/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Postdoc/research/manuscripts/paper2/figure_prep/simulations'
 
 simulated_db = [
     {'lbl': 'Simulation ($F_{\mathrm{b}}$= 1.3 N)', 'file': 'Ben_Fig10_dt_sim_ft_60.csv', 'marker': 's', 'ft': 60, 'ls':'-'},
@@ -69,7 +69,7 @@ def jac(b, x, y):
     return r
 
 def main():
-    global base_path, simulated_db, experimental_csv, ft_scale
+    global data_path, simulated_db, experimental_csv, ft_scale
     base_path = normalize_path(base_path)
     load_plot_style()
 

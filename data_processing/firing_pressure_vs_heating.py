@@ -9,7 +9,7 @@ import utils
 
 
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SPHERE_DIAMETER'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SPHERE_DIAMETER'
 base_filename = 'LT_R3N05_005PCT_2022-10-11'
 
 n = 9
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
 
     for i in range(n):
-        csv = os.path.join(base_path, f'{base_filename}_{i+1}.csv')
+        csv = os.path.join(data_path, f'{base_filename}_{i + 1}.csv')
         print(f'Opening {csv}')
         df = pd.read_csv(csv, comment='#').apply(pd.to_numeric)
         ax.plot(
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(1.0))
 
     fig.savefig(
-        os.path.join(base_path, 'laser_heating.png'),
+        os.path.join(data_path, 'laser_heating.png'),
         dpi=600
     )
     plt.show()

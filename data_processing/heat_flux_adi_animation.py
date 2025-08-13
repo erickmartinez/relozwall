@@ -10,7 +10,7 @@ from matplotlib.animation import FFMpegWriter
 import matplotlib.animation as manimation
 
 
-base_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
+data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\heat_flux_calibration\results'
 load_model = True
 saved_h5 = 'ADI_k1_7.41E-01_chi_0.60_P4.70E+03'
 
@@ -76,7 +76,7 @@ rho_2 = rho_ss304l(T_a + 273.15)
 kappa_2 = k0_2 / (cp_2 * rho_2)
 
 if __name__ == "__main__":
-    adi_data_dir = os.path.join(os.path.join(base_path, 'adi_data'))
+    adi_data_dir = os.path.join(os.path.join(data_path, 'adi_data'))
 
     with open('plot_style.json', 'r') as file:
         json_file = json.load(file)

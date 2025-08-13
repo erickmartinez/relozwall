@@ -10,7 +10,7 @@ import re
 
 import numpy as np
 
-base_path = r"C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests"
+data_path = r"C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests"
 ir_file = 'LT_R3N21_100PCT_40GAIN 2022-03-17_1.csv'
 
 color_voltage = 'tab:red'
@@ -52,10 +52,10 @@ def get_experiment_params(base_path: str, filename: str, debug: bool = False):
 if __name__ == "__main__":
     thermometry = irt.PDThermometer()
     file_tag = os.path.splitext(ir_file)[0]
-    ir_df = pd.read_csv(os.path.join(base_path, ir_file), comment='#').apply(pd.to_numeric)
+    ir_df = pd.read_csv(os.path.join(data_path, ir_file), comment='#').apply(pd.to_numeric)
     ir_df = ir_df[ir_df['Measurement Time (s)'] <= 2.0]
     ir_df = ir_df[ir_df['Photodiode Voltage (V)'] > 0.0]
-    params = get_experiment_params(base_path=base_path, filename=file_tag)
+    params = get_experiment_params(base_path=data_path, filename=file_tag)
     pd_gain = int(params['Photodiode Gain']['value'])
     print(pd_gain)
     thermometry.gain = int(pd_gain)
@@ -99,5 +99,5 @@ if __name__ == "__main__":
     ax2.set_ylim(bottom=20)
 
     fig1.tight_layout()
-    fig1.savefig(os.path.join(base_path, file_tag + '.png'), dpi=600)
+    fig1.savefig(os.path.join(data_path, file_tag + '.png'), dpi=600)
     plt.show()
