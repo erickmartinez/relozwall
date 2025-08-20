@@ -26,7 +26,7 @@ Density: 2.1 ± 0.1 g/cm³
 """
 
 
-TRANSMISSION_XLS = r'./data/Optical transmission measurements.xlsx'
+TRANSMISSION_XLS = r'./data/2025-S0803.xlsx'
 SUBSTRATE_SOURCE_DISTANCE_CM = 3.8 # cm
 EXPOSURE_TIME = 1.0 # In seconds
 BORON_DENSITY, BORON_DENSITY_DELTA = 2.1, 0.1
