@@ -1,0 +1,14 @@
+ T -> B  flux=5E20                                                               
+time for proj     :    2612.80  s      28.7  %
+time for recoil   :    6504.51  s      71.3  %
+time for gsum/hist:       0.10  s       0.0  %
+time for part/hist:       0.89  s       0.0  %
+time for diff/hist:       0.00  s       0.0  %
+time for out/hist :       0.04  s       0.0  %
+time for out/hist :       0.01  s       0.0  %
+  time for history:       0.14  s       0.0  %
+time for gsum/SDTr:       0.00  s
+time for SDTrimSP :    9118.54  s
+time for SDTrimSP :     151.98 min
+time for SDTrimSP :       2.53  h
+number of PEs:    1 NH=      4000 NR= 640 NH*NR=        2560000

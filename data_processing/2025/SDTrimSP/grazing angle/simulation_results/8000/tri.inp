@@ -1,0 +1,52 @@
+T -> B  flux=5E20
+&TRI_INP
+
+text='---elements---'
+     ncp = 2,
+     symbol ="D","B"
+
+text='---beam---'
+     qubeam = 1.00, 0.00
+     flux = 5
+     number_calc=1
+     case_e0=0
+     e0  =   8000.0, 0.0
+
+     case_alpha=0
+     alpha0 = 78.50, 0.00
+
+ text='---control--- 1:4000 1000'
+
+     flc      =      500
+     nh       =      4000
+     idout    =      1000
+     nr_pproj =      640
+
+     idrel = 0
+
+     isbv  = 1
+     ipot  = 1
+
+
+text='---target---'
+     ttarget =  10000,
+     nqx     =  500,
+     qu      =  0.00, 1.00
+     qumax   =  0.00, 1.00
+     iq0     =  0
+
+
+     qu_int  = .false.
+     case_layer_thick=2
+     !lmatrices = .true.
+     lparticle_r = .true.
+
+
+
+     !lterm_dif=.true.
+
+text='---tables-----'
+     tableinp = '/Users/erickmartinez/Documents/trimsp/tables'
+
+/
+

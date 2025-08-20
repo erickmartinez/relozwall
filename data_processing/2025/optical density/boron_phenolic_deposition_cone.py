@@ -4,22 +4,54 @@ from scipy.optimize import least_squares, OptimizeResult, differential_evolution
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-import json
 import pickle
 import os
 import data_processing.confidence as cf
 from data_processing.utils import latex_float, lighten_color
 from data_processing.misc_utils.plot_style import load_plot_style
 
+"""
+Modified Knudsen model reference:
+V. E. de Matos Loureiro da Silva Pereira, J. R. Nicholls, and R. Newton, Surf. Coat. Technol. 311, 307 (2017).
+https://doi.org/10.1016/j.surfcoat.2016.12.054
+DOI: 10.1016/j.surfcoat.2016.12.054
+
+Boron density reference:
+Mónica Fernández-Perea, Juan I. Larruquert, José A. Aznárez, José A. Méndez, Manuela Vidal-Dasilva, Eric Gullikson, 
+Andy Aquila, Regina Soufli, and J. L. G. Fierro, "Optical constants of electron-beam evaporated boron films in the 
+6.8-900 eV photon energy range," J. Opt. Soc. Am. A 24, 3800-3807 (2007)
+DOI: 10.1364/JOSAA.24.003800
+
+Density: 2.1 ± 0.1 g/cm³
+"""
+
 
 TRANSMISSION_XLS = r'./data/Optical transmission measurements.xlsx'
 SUBSTRATE_SOURCE_DISTANCE_CM = 3.8 # cm
 EXPOSURE_TIME = 1.0 # In seconds
+BORON_DENSITY, BORON_DENSITY_DELTA = 2.1, 0.1
+BORON_MOLAR_MASS = 10.811 # g / mol
+ROD_DIAMETER = 1.0 # cm
+
+
 
 
 def modified_knudsen(r_, h0_, n_):
     cos_q = h0_ / np.sqrt(r_ ** 2. + h0_ ** 2.)
     return np.power(cos_q, n_ + 2.)
+
+def deposit_rate_knudsen(
+    density, h0, d0, n, molar_mass, sublimation_time, delta_density=0, delta_h0=0, delta_d0=0, delta_n=0
+):
+    rate_g_s = 2E-7 * np.pi * density * (h0 ** 2) * d0 / n / sublimation_time
+    rate_mol_s = 2E-7 * np.pi * density * (h0 ** 2) * d0 / n / molar_mass / sublimation_time
+    rate_mol_s_uncertainty = rate_mol_s * np.linalg.norm(np.array([
+        delta_density / density, delta_h0 / h0, delta_d0 / d0, delta_n / n
+    ]))
+    rate_atom_s = 6.02214076e+23 * rate_mol_s
+    rate_atom_s_uncertainty = rate_mol_s_uncertainty * 6.02214076e+23
+    return rate_atom_s, rate_atom_s_uncertainty, rate_g_s
+
 
 
 def fobj(b, r_, h0_, d_, w_=1.):
@@ -36,100 +68,54 @@ def jac(b, r_, h0_, d_, w_=1.0):
     jj[:, 0] = np.log(cos_q) * modified_knudsen(r_, h0_, b[0]) * w_
     return jj
 
-def pseudo_voigt(x, fwhm, mixing):
-    """Calculate pseudo-Voigt profile"""
-    sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
-    center, amplitude = 0., 1.
-    # Gaussian component
-    gaussian = amplitude * np.exp(-(x - center) ** 2 / (2 * sigma ** 2))
-    # Lorentzian component
-    lorentzian = amplitude * (fwhm ** 2 / 4) / ((x - center) ** 2 + (fwhm ** 2 / 4))
-    # Pseudo-Voigt is a weighted sum
-    return mixing * lorentzian + (1 - mixing) * gaussian
+def knudsen_2mix(r, h0, n1, n2, mixing):
+    """
+    Calculate the mix of multiple `modified knudsen` models
+    Parameters
+    ----------
+    r: np.ndarray
+        The radius
+    h0: float
+        The value of h0
+    n1: float
+        The value of n for the first Knudsen model
+    n2: float
+        The value of n for the second Knudsen model
+    mixing: float
+        The mixing coefficient for the two models
 
-def pseudo_voigt_derivatives(x, fwhm, mixing):
-    """Calculate partial derivatives of pseudo-Voigt function with respect to parameters"""
-    center, amplitude = 0., 1.
-    sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
-    gamma = fwhm / 2
+    Returns
+    -------
+    np.ndarray
 
-    # Precomputed terms for Gaussian
-    diff_squared = (x - center) ** 2
-    exp_term = np.exp(-diff_squared / (2 * sigma ** 2))
-    gaussian = amplitude * exp_term
+    """
+    y1 = modified_knudsen(r, h0, n1)
+    y2 = modified_knudsen(r, h0, n2)
+    return mixing * y1 + (1. - mixing) * y2
 
-    # Precomputed terms for Lorentzian
-    denom = diff_squared + gamma ** 2
-    lorentzian = amplitude * gamma ** 2 / denom
+def residuals_knudsen_2mix(b, r, h0, d, weights=1):
+    r = weights * (knudsen_2mix(r, h0, b[0], b[1], b[2]) - d)
+    return r
 
-    # Derivative with respect to fwhm
-    # For Gaussian part
-    d_sigma_d_fwhm = 1 / (2 * np.sqrt(2 * np.log(2)))
-    d_gaussian_d_sigma = gaussian * diff_squared / (sigma ** 3)
-    d_gaussian_d_fwhm = d_gaussian_d_sigma * d_sigma_d_fwhm
+def residuals_knudsen_2mix_de(b, r, h0, d, weights=1):
+    r = residuals_knudsen_2mix(b, r, h0, d, weights)
+    return 0.5 * np.linalg.norm(r)
 
-    # For Lorentzian part
-    d_gamma_d_fwhm = 0.5
-    d_lorentzian_d_gamma = lorentzian * (2 * gamma / denom - 2 * gamma ** 3 / denom ** 2)
-    d_lorentzian_d_fwhm = d_lorentzian_d_gamma * d_gamma_d_fwhm
-
-    d_fwhm = mixing * d_lorentzian_d_fwhm + (1 - mixing) * d_gaussian_d_fwhm
-
-    # Derivative with respect to mixing
-    d_mixing = lorentzian - gaussian
-
-    return d_fwhm, d_mixing
-
-def model_function(x, params):
-    """Calculate the sum of multiple pseudo-Voigt profiles plus baseline"""
-    # Extract baseline parameters (last two values in params)
-
-    # Calculate baseline
-    y_model = np.zeros_like(x)
-
-    # Add peaks
-    n_peaks = (len(params)) // 2  # Subtract 2 for baseline params
-
-    for i in range(n_peaks):
-        fwhm = params[i * 2]
-        mixing = params[i * 2 + 1]
-        y_model += pseudo_voigt(x, fwhm, mixing)
-
-    return y_model
-
-def jacobian(params, x_data, y_data, weights=1):
-    """Calculate the Jacobian matrix for the residuals function"""
-    n_params = len(params)
-    n_peaks = n_params // 2
-    n_points = len(x_data)
-
-    # Initialize Jacobian matrix
-    jac = np.zeros((n_points, n_params))
-
-    # Calculate derivatives for each peak
-    for i in range(n_peaks):
-        fwhm = params[i * 2 ]
-        mixing = params[i * 2 + 1]
-
-        # Get partial derivatives for this peak
-        d_fwhm, d_mixing = pseudo_voigt_derivatives(
-            x_data, fwhm, mixing
-        )
-
-        # Fill the Jacobian matrix for peak parameters
-        jac[:, i * 2] = d_fwhm * weights
-        jac[:, i * 2 + 1] = d_mixing * weights
+def jacobian_knudsen_2mix(b, r, h0, d, weights=1):
+    jacobian = np.empty((len(r), 3))
+    j1 = jac([b[0]], r, h0, d, weights)
+    j2 = jac([b[1]], r, h0, d, weights)
+    jacobian[:, 0] = j1[:, 0] * b[2]
+    jacobian[:, 1] = j2[:, 0] * (1 - b[2])
+    jacobian[:, 2] = modified_knudsen(r, h0, b[0]) - modified_knudsen(r, h0, b[1])
+    return jacobian
 
 
-    return jac
 
-def residuals(params, x_data, y_data, weights=1):
-    """Calculate residuals for least-squares fitting"""
-    y_model = model_function(x_data, params)
-    return (y_model - y_data) * weights
-
-
-def main(transmission_xls, substrate_source_distance_cm):
+def main(
+    transmission_xls, substrate_source_distance_cm, boron_density, boron_density_error, boron_molar_mass, exposure_time,
+    rod_diameter_cm
+):
     df = pd.read_excel(
         transmission_xls, sheet_name='Deposition cone', usecols=['x (mm)', 'Thickness (nm)', 'Thickness error (nm)']
     )
@@ -153,35 +139,72 @@ def main(transmission_xls, substrate_source_distance_cm):
     all_tol = np.finfo(np.float64).eps
     nn = len(r)
 
-    res_de: OptimizeResult = differential_evolution(
-        func=fobj_de,
-        args=(r, h0, dn, 1),
-        x0=[10],
-        bounds=[(-1000, 1000)],
-        maxiter=nn * 1000000,
-        tol=all_tol,
-        atol=all_tol,
-        workers=-1,
-        updating='deferred',
-        recombination=0.5,
-        strategy='best1bin',
-        mutation=(0.5, 1.5),
-        init='sobol',
-        polish=False,
-        disp=True
-    )
+    # res_de: OptimizeResult = differential_evolution(
+    #     func=fobj_de,
+    #     args=(r, h0, dn, 1),
+    #     x0=[10],
+    #     bounds=[(-1000, 1000)],
+    #     maxiter=nn * 1000000,
+    #     tol=all_tol,
+    #     atol=all_tol,
+    #     workers=-1,
+    #     updating='deferred',
+    #     recombination=0.5,
+    #     strategy='best1bin',
+    #     mutation=(0.5, 1.5),
+    #     init='sobol',
+    #     polish=False,
+    #     disp=True
+    # )
+    #
+    # res = least_squares(
+    #     fobj,
+    #     res_de.x,
+    #     loss='soft_l1', f_scale=0.1,
+    #     jac=jac,
+    #     args=(r, h0, dn, 1),
+    #     bounds=([-1000, ], [1000.]),
+    #     xtol=all_tol,
+    #     ftol=all_tol,
+    #     gtol=all_tol,
+    #     diff_step=all_tol**0.5,
+    #     max_nfev=1000 * nn,
+    #     method='trf',
+    #     x_scale='jac',
+    #     tr_solver='exact',
+    #     verbose=2
+    # )
+
+    # res_de: OptimizeResult = differential_evolution(
+    #     func=residuals_knudsen_2mix_de,
+    #     args=(r, h0, dn, 1.),
+    #     x0=[10., 10., 0.5],
+    #     bounds=[(-1000, 1000), (-1000, 1000), (0, 1)],
+    #     maxiter=nn * 1000000,
+    #     tol=all_tol,
+    #     atol=all_tol,
+    #     workers=-1,
+    #     updating='deferred',
+    #     recombination=0.5,
+    #     strategy='best1bin',
+    #     mutation=(0.5, 1.5),
+    #     init='sobol',
+    #     polish=False,
+    #     disp=True
+    # )
 
     res = least_squares(
-        fobj,
-        res_de.x,
+        residuals_knudsen_2mix,
+        # res_de.x,
+        [10., 10., 0.5],
         loss='soft_l1', f_scale=0.1,
-        jac=jac,
-        args=(r, h0, dn, 1),
-        bounds=([-1000, ], [1000.]),
+        jac=jacobian_knudsen_2mix,
+        args=(r, h0, dn, weigths),
+        bounds=([-1000, -1000, 0], [1000., 1000, 1]),
         xtol=all_tol,
         ftol=all_tol,
         gtol=all_tol,
-        diff_step=all_tol**0.5,
+        diff_step=all_tol ** 0.5,
         max_nfev=1000 * nn,
         method='trf',
         x_scale='jac',
@@ -192,56 +215,43 @@ def main(transmission_xls, substrate_source_distance_cm):
     # print("res_de.x:", res_de.x)
     # print("res_ls.x:", res.x)
 
-    # Perform the least-squares fitting
-    tol = float(np.finfo(np.float64).eps)
-    initial_params = [r.max()*0.5, 1.]
-    lower_bounds = [1E-3, 0.]
-    upper_bounds = [2*r.max(), 1.]
-    # try:
-    #     res = least_squares(
-    #         residuals,
-    #         initial_params,
-    #         args=(r, dn, weigths),
-    #         bounds=(lower_bounds, upper_bounds),
-    #         method='trf',
-    #         jac=jacobian,
-    #         ftol=tol,
-    #         xtol=tol,
-    #         gtol=tol,
-    #         loss='soft_l1',
-    #         f_scale=1.0,
-    #         max_nfev=1000 * len(initial_params),
-    #         verbose=2
-    #     )
-    # except ValueError as e:
-    #     for lb, ip, ub in zip(lower_bounds, initial_params, upper_bounds):
-    #         print(f"{lb:.3E}, {ip:.3E}, {ub:.3E}")
-    #     raise (e)
 
     popt = res.x
     n_opt = popt[0]
     ci = cf.confidence_interval(res=res)
+
+    delta_popt = ci[:,1] - popt
     dn_opt = np.max(np.abs(ci - n_opt), axis=1)[0]
-    # dmixing_opt = np.max(np.abs(ci - popt[1]), axis=1)[1]
-    print(f'n = {n_opt:.3f}±{dn_opt}')
     xp = np.linspace(r.min(), r.max(), 500)
 
-    print(popt)
-    print(ci)
+    # print(popt)
+    # print(ci)
+
+    # def model_restricted(x, b):
+    #     return modified_knudsen(x, h0, b[0])
 
     def model_restricted(x, b):
-        return modified_knudsen(x, h0, b[0])
+        return knudsen_2mix(r=x, h0=h0, n1=b[0], n2=b[1], mixing=b[2])
 
     # yp, lpb, upb = cf.predint(x=xp, xd=r, yd=dn, func=model_restricted, res=res, mode='observation', )
-    yp, delta = cf.prediction_intervals(model=model_restricted, x_pred=xp, jac=jac, new_observation=True, ls_res=res)
-    # yp, delta = cf.prediction_intervals(model=model_function, x_pred=xp, jac=jacobian, new_observation=True, ls_res=res)
+    # yp, delta = cf.prediction_intervals(model=model_restricted, x_pred=xp, jac=jac, new_observation=True, ls_res=res)
+    yp, delta = cf.prediction_intervals(
+        model=model_restricted, x_pred=xp, jac=jacobian_knudsen_2mix, new_observation=True, ls_res=res,
+    )
     # yp = modified_knudsen(xp, h0, popt[0])
 
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
     fig.set_size_inches(4.0, 3.0)
 
-    model_str = r"$\dfrac{d}{d_0} = \dfrac{h_0^2}{h^2}\cos^n(\theta)$"
-    # model_str = r"Pseudo-voigt"
+    # model_str = r"$\dfrac{d}{d_0} = \dfrac{h_0^2}{h^2}\cos^n(\theta)$"
+    model_str = r"$\dfrac{d}{d_0} = \eta\dfrac{h_0^2}{h^2}\cos^{n_1}\theta + (1-\eta)\dfrac{h_0^2}{h^2}\cos^{n_2}\theta$"
+    ax.text(
+        x=0.2, y=0.95,
+        s=model_str, ha='left', va='top',
+        transform=ax.transAxes,
+        usetex=True,
+        color='k'
+    )
 
 
     # ax.fill_between(xp, lpb, upb, color=lighten_color('C0', 0.5), zorder=0)
@@ -251,7 +261,10 @@ def main(transmission_xls, substrate_source_distance_cm):
         fillstyle='none',
         capsize=2.75, elinewidth=1.25, zorder=2
     )
-    ax.plot(xp, yp, ls='-', color='k', label=model_str, zorder=10)
+    ax.plot(xp, yp, ls='-', color='k', label='2-Source Knudsen', zorder=10)
+
+    ax.plot(xp,  popt[2]*modified_knudsen(xp, h0, popt[0]), color='C3', lw=1.)
+    ax.plot(xp, (1-popt[2]) * modified_knudsen(xp, h0, popt[1]), color='C4', lw=1.)
 
     [bar.set_alpha(0.75) for bar in bars_p]
     [cap.set_alpha(0.75) for cap in caps_p]
@@ -268,22 +281,30 @@ def main(transmission_xls, substrate_source_distance_cm):
     ax.yaxis.set_major_locator(ticker.MultipleLocator(0.2))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
-    model_str = f"$n = {popt[0]:.3f}\pm{dn_opt:.3f}$"
-    # model_str = (f"FWHM: ${popt[0]:.3f}\pm{dn_opt:.3f}$\n"
-    #              f"MIXING: ${popt[1]:.3f}\pm{dmixing_opt:.3f}$")
+    # model_str = (f"$n_1 = {popt[0]:.1f}\pm{delta_popt[0]:.1f}$\n"
+    #              f"$n_2 = {popt[1]:.1f}\pm{delta_popt[1]:.1f}$\n"
+    #              f"$\eta = {popt[2]:.2f}\pm{delta_popt[2]:.2f}$\n")
 
+    text1 = r'\begin{align*} '
+    text2 = r'n_1 &= ' + f'{popt[0]:.1f} \pm {delta_popt[0]:.1f}' + '\\\\'
+    text3 = r'n_1 &= ' + f'{popt[1]:.1f} \pm {delta_popt[1]:.1f}' + '\\\\'
+    text4 = r'\eta &= ' + f'{popt[2]:.2f} \pm {delta_popt[2]:.2f}'
+    text5 = r'\end{align*}'
+    fit_results_str = text1 + text2 + text3 + text4 + text5
+    # plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
     ax.text(
-        0.95, 0.95,
-        model_str,
-        va='top',
-        ha='right',
+        0.67, 0.07,
+        fit_results_str,
+        va='bottom',
+        ha='left',
         transform=ax.transAxes,
         color='k',
-        fontsize=11
+        fontsize=11,
+        usetex=True
     )
 
     ax.legend(
-        loc='center right', fontsize=11, frameon=True
+        loc='center right', fontsize=10, frameon=True
     )
 
     fig.savefig('boron_deposition_profile_cosine_law.png', dpi=600)
@@ -298,7 +319,25 @@ def main(transmission_xls, substrate_source_distance_cm):
     # fig = pickle.load(open("figure.pickle", "rb"))
 
     # Estimate the total sublimated boron
-    # rate =
+    rate1, rate1_delta, rate1_gs = deposit_rate_knudsen(
+        density=boron_density, h0=h0, d0=d0, n=popt[0], molar_mass=boron_molar_mass, sublimation_time=exposure_time,
+        delta_density=boron_density_error, delta_h0=0.1, delta_d0=d_err[0], delta_n=delta_popt[0],
+    )
+
+    rate2, rate2_delta, rate2_gs = deposit_rate_knudsen(
+        density=boron_density, h0=h0, d0=d0, n=popt[0], molar_mass=boron_molar_mass, sublimation_time=exposure_time,
+        delta_density=boron_density_error, delta_h0=0.1, delta_d0=d_err[0], delta_n=delta_popt[0]
+    )
+
+    area = 0.25E-4 * np.pi * rod_diameter_cm ** 2.
+    print(f"SAMPLE AREA: {area*1E4:.2f} cm²")
+
+    total_rate = (popt[2]*rate1 + (1-popt[2]) * rate2) / area
+    total_rate_delta = np.linalg.norm([(rate1 - rate2)*delta_popt[2], popt[2]*rate1_delta, popt[2]*rate2_delta]) / area
+    total_rate_gs = (popt[2]*rate1_gs + (1-popt[2]) * rate2_gs)
+
+    print(f"TOTAL SUBLIMATED BORON: {total_rate:.3E} ± {total_rate_delta:.3E} B atoms/m²/s")
+    print(f"TOTAL SUBLIMATED BORON (G/S): {total_rate_gs:.3E} g/s")
 
 
     plt.show()
@@ -306,4 +345,8 @@ def main(transmission_xls, substrate_source_distance_cm):
 
 if __name__ == '__main__':
     load_plot_style()
-    main(TRANSMISSION_XLS, SUBSTRATE_SOURCE_DISTANCE_CM)
+    main(
+        transmission_xls=TRANSMISSION_XLS, substrate_source_distance_cm=SUBSTRATE_SOURCE_DISTANCE_CM,
+        boron_density=BORON_DENSITY, boron_density_error=BORON_DENSITY_DELTA, boron_molar_mass=BORON_MOLAR_MASS,
+        exposure_time=EXPOSURE_TIME, rod_diameter_cm=ROD_DIAMETER
+    )
