@@ -9,6 +9,7 @@ import os
 import data_processing.confidence as cf
 from data_processing.utils import latex_float, lighten_color
 from data_processing.misc_utils.plot_style import load_plot_style
+from pathlib import Path
 
 """
 Modified Knudsen model reference:
@@ -307,9 +308,14 @@ def main(
         loc='center right', fontsize=10, frameon=True
     )
 
-    fig.savefig('boron_deposition_profile_cosine_law.png', dpi=600)
+    output_path = Path(transmission_xls).parent.parent / 'figures' / Path(transmission_xls).stem
+    output_path.mkdir(exist_ok=True, parents=True)
+
+    path_to_figure = output_path / 'boron_deposition_profile'
+
+    fig.savefig(path_to_figure.with_suffix('.png'), dpi=600)
     # fig.savefig('deposition_profile_cosine_law.svg', dpi=600)
-    fig.savefig('boron_deposition_profile_cosine_law.pdf', dpi=600)
+    fig.savefig(path_to_figure.with_suffix('.pdf'), dpi=600)
     # fig.savefig('deposition_profile_cosine_law.eps', dpi=600)
 
     # save whole figure
@@ -338,6 +344,16 @@ def main(
 
     print(f"TOTAL SUBLIMATED BORON: {total_rate:.3E} ± {total_rate_delta:.3E} B atoms/m²/s")
     print(f"TOTAL SUBLIMATED BORON (G/S): {total_rate_gs:.3E} g/s")
+
+    path_to_fit_data = output_path / 'fit_results.txt'
+
+    with open(path_to_fit_data, 'w') as f:
+        f.write(f"n_1    = {popt[0]:>6.2f} -/+ {delta_popt[0]:>4.2f}\n")
+        f.write(f"n_2    = {popt[1]:>6.2f} -/+ {delta_popt[1]:>4.2f}\n")
+        f.write(f"mixing = {popt[2]:>6.2f} -/+ {delta_popt[2]:>4.2f}\n")
+        f.write(f"SAMPLE AREA: {area * 1E4:.2f} cm²\n")
+        f.write(f"TOTAL SUBLIMATED BORON (B atoms/m²/s): {total_rate:.3E} ± {total_rate_delta:.3E}\n")
+        f.write(f"TOTAL SUBLIMATED BORON (G/S): {total_rate_gs:.3E} g/s\n")
 
 
     plt.show()
