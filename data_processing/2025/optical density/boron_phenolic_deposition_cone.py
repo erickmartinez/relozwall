@@ -12,7 +12,7 @@ from data_processing.utils import latex_float, lighten_color
 from data_processing.misc_utils.plot_style import load_plot_style
 
 
-TRANSMISSION_XLS = r'./data/Optical transmission measurements.xlsx'
+TRANSMISSION_XLS = r'./data/2025-S0803.xlsx'
 SUBSTRATE_SOURCE_DISTANCE_CM = 3.8 # cm
 EXPOSURE_TIME = 1.0 # In seconds
 
