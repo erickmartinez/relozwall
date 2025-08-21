@@ -27,8 +27,9 @@ Density: 2.1 ± 0.1 g/cm³
 """
 
 
-TRANSMISSION_XLS = r'./data/2025-S0803.xlsx'
-SUBSTRATE_SOURCE_DISTANCE_CM = 3.8 # cm
+TRANSMISSION_XLS = r'./data/2025-S0804.xlsx'
+SUBSTRATE_SOURCE_DISTANCE_CM = 3.8 # cm < For 0803
+SUBSTRATE_SOURCE_DISTANCE_CM = 6.5 # cm <- for 0804
 EXPOSURE_TIME = 1.0 # In seconds
 BORON_DENSITY, BORON_DENSITY_DELTA = 2.1, 0.1
 BORON_MOLAR_MASS = 10.811 # g / mol
@@ -121,17 +122,20 @@ def main(
         transmission_xls, sheet_name='Deposition cone', usecols=['x (mm)', 'Thickness (nm)', 'Thickness error (nm)']
     )
     df['r (mm)'] = df['x (mm)'] - df['x (mm)'].min()
-    # df = df[df['r (mm)'] <= 25.]
+    df = df[df['x (mm)'] >= 167]
     df = df.reset_index(drop=True)
     print(df)
 
     r = df['r (mm)'].values * 0.1
+
+    r -= r.min()
+
     d = df['Thickness (nm)'].values
     d_err = df['Thickness error (nm)'].values
 
-    d0 = d[0]
+    d0 = np.max(d)
     dn = d / d0
-    yerr = dn*np.linalg.norm([np.ones_like(d)*d_err[0]/d[0], d_err/d], axis=0)
+    yerr = np.abs(dn)*np.linalg.norm([np.ones_like(d)*d_err[0]/d[0], d_err/d], axis=0)
 
     weigths = 1. / ((yerr/dn) ** 2. + np.median(yerr/dn))
     # weigths /= weigths.max()
@@ -179,8 +183,8 @@ def main(
     # res_de: OptimizeResult = differential_evolution(
     #     func=residuals_knudsen_2mix_de,
     #     args=(r, h0, dn, 1.),
-    #     x0=[10., 10., 0.5],
-    #     bounds=[(-1000, 1000), (-1000, 1000), (0, 1)],
+    #     x0=[10., 10., 0.0],
+    #     bounds=[(-10000, 100000), (-10000, 100000), (0, 1)],
     #     maxiter=nn * 1000000,
     #     tol=all_tol,
     #     atol=all_tol,
@@ -197,11 +201,11 @@ def main(
     res = least_squares(
         residuals_knudsen_2mix,
         # res_de.x,
-        [10., 10., 0.5],
+        [10., 10., 0.0],
         loss='soft_l1', f_scale=0.1,
         jac=jacobian_knudsen_2mix,
         args=(r, h0, dn, weigths),
-        bounds=([-1000, -1000, 0], [1000., 1000, 1]),
+        bounds=([-10000, -100000, 0], [10000., 100000, 1]),
         xtol=all_tol,
         ftol=all_tol,
         gtol=all_tol,
@@ -294,10 +298,10 @@ def main(
     fit_results_str = text1 + text2 + text3 + text4 + text5
     # plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
     ax.text(
-        0.67, 0.07,
+        0.95, 0.07,
         fit_results_str,
         va='bottom',
-        ha='left',
+        ha='right',
         transform=ax.transAxes,
         color='k',
         fontsize=11,
