@@ -27,9 +27,9 @@ Density: 2.1 ± 0.1 g/cm³
 """
 
 
-TRANSMISSION_XLS = r'./data/2025-S0804.xlsx'
+TRANSMISSION_XLS = r'./data/2025-S0803.xlsx'
 SUBSTRATE_SOURCE_DISTANCE_CM = 3.8 # cm < For 0803
-SUBSTRATE_SOURCE_DISTANCE_CM = 6.5 # cm <- for 0804
+# SUBSTRATE_SOURCE_DISTANCE_CM = 6.5 # cm <- for 0804
 EXPOSURE_TIME = 1.0 # In seconds
 BORON_DENSITY, BORON_DENSITY_DELTA = 2.1, 0.1
 BORON_MOLAR_MASS = 10.811 # g / mol
@@ -347,6 +347,7 @@ def main(
     total_rate_gs = (popt[2]*rate1_gs + (1-popt[2]) * rate2_gs)
 
     print(f"TOTAL SUBLIMATED BORON: {total_rate:.3E} ± {total_rate_delta:.3E} B atoms/m²/s")
+    print(f"TOTAL SUBLIMATED BORON: {(popt[2]*rate1 + (1-popt[2]) * rate2):.3E} B atoms/s")
     print(f"TOTAL SUBLIMATED BORON (G/S): {total_rate_gs:.3E} g/s")
 
     path_to_fit_data = output_path / 'fit_results.txt'
