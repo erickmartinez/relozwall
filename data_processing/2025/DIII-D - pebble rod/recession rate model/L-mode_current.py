@@ -10,7 +10,7 @@ from data_processing.utils import latex_float_with_error
 
 DATA_DIR = r'./data/integrated_current'
 FIGURES_DIR = r'./figures/integrated_current'
-SHOTS = [203780, 203781, 203782, 203783]
+SHOTS = [203780, 203781]
 THETA_BEAM = 1.5 # DEG
 
 PEBBLE_ROD_DETAILS_XLS = r'./pebble_rod_exposure.xlsx'
@@ -119,7 +119,7 @@ def model(t ,b, diameter, theta_degrees, h0, nu):
     b0, b1 = b
     qi = (b0 * 0.25 * np.pi * (diameter ** 2) * abs(np.cos(theta)) * t
           + b1 * 0.5 * np.pi * diameter * abs(np.sin(theta)) * h0  * t
-          - b1 * 0.5 * np.pi * diameter * abs(np.sin(theta)) * nu * t ** 2)
+          - b1 * 0.5 * np.pi * diameter * abs(np.sin(theta)) * nu * 0.5 * t ** 2)
     return qi
 
 def residual(b, t, q, diameter, theta_degrees, h0, nu):
@@ -132,7 +132,7 @@ def jacobian(b, t, q, diameter, theta_degrees, h0, nu):
     jac = np.zeros((m, n))
 
     jac[:, 0] =  0.25 * np.pi * (diameter ** 2) * abs(np.cos(theta)) * t
-    jac[:, 1] =  0.5 * np.pi * diameter * abs(np.sin(theta)) * (h0 * t - nu * t ** 2 )
+    jac[:, 1] =  0.5 * np.pi * diameter * abs(np.sin(theta)) * (h0 * t - nu * 0.5 *  t ** 2 )
 
     return jac
 
@@ -161,6 +161,7 @@ def main(shots, data_dir, fig_dir):
     pebble_rod_details = get_pebble_rod_details(shots[0])
     diameter = pebble_rod_details.loc[0, 'diameter (cm)']
     protrusion = pebble_rod_details.loc[0, 'protrusion (mm)']
+    experiment_id = pebble_rod_details.loc[0, 'experiment id']
 
 
     for shot in shots:
@@ -238,13 +239,13 @@ def main(shots, data_dir, fig_dir):
     ax.set_ylabel('$q(t) = \int_0^t I dt$ ($\\times 10^{-3}$ C)', usetex=True)
     ax.set_xlim(round_for_lim(t_ms.min(), factor=5), round_for_lim(t_ms.max(), factor=5))
     ax.set_ylim(round_for_lim(qi.min()*1E3, factor=5), round_for_lim(qi.max()*1.2*1E3, factor=5))
-    ax.set_title(rf'L-mode charge')
+    ax.set_title(rf'L-mode charge (sample {experiment_id})')
 
     ax.legend(loc='lower right', frameon=True)
     path_to_fig = Path(fig_dir)
     path_to_fig.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(path_to_fig / f'L-mode_current.png', dpi=600)
+    fig.savefig(path_to_fig / f'L-mode_current_#{experiment_id}.png', dpi=600)
 
     plt.show()
 
