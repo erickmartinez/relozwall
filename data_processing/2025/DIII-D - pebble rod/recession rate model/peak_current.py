@@ -17,7 +17,7 @@ FIGURES_DIR = r'./figures/model'
 MEAN_CURRENT_DIR = r'./data/mean_current'
 INTEGRATED_CURRENT_DIR = r'./data/integrated_current'
 
-SHOT = 203784
+SHOT = 203780
 DiMES_R = 1.48 # m
 T_RANGE = [1200, 4000]
 TAU = 10
@@ -128,7 +128,7 @@ def find_current_peaks(t_ms, signal, height_threshold=None, prominence_factor=0.
 
     # Calculate peak widths
     widths, width_heights, left_ips, right_ips = peak_widths(
-        signal, peaks, rel_height=0.93
+        signal, peaks, rel_height=0.92
         # signal, peaks, rel_height=0.98
     )
 
@@ -327,12 +327,12 @@ def main(shot, dimes_r, t_range, data_dir, fig_dir, mean_current_dir, integrated
         t_peak_range = t_ms[msk_range]
         c_peak_range = current_baselined[msk_range]
         mean_current = np.mean(c_peak_range)
-        charge = integrate.simpson(y=c_peak_range, x=t_peak_range) * 1E-3
+        total_charge = integrate.simpson(y=c_peak_range, x=t_peak_range) * 1E-3
 
         t_integrand =  (t_peak_range - x_l) * 1E-3
         t_integrand -= t_integrand.min()
         t_integrand += t0
-        q_integrated = compute_charge(time=t_integrand*1E-3, current=c_peak_range) + q0
+        q_integrated = compute_charge(time=t_integrand, current=c_peak_range) + q0
         time_integrated = np.hstack([time_integrated, t_integrand])
         current_integrated = np.hstack([current_integrated, q_integrated])
         t0 = t_integrand.max()
@@ -346,7 +346,7 @@ def main(shot, dimes_r, t_range, data_dir, fig_dir, mean_current_dir, integrated
                 'Peak right (ms)': [x_r],
                 'Peak current (A)': [current_peak],
                 'Mean current (A)': [mean_current],
-                'Charge (C)': [charge],
+                'Charge (C)': [total_charge],
 
             })
 
@@ -370,7 +370,7 @@ def main(shot, dimes_r, t_range, data_dir, fig_dir, mean_current_dir, integrated
 
 
     q_df = pd.DataFrame(data={
-        't (ms)': time_integrated*1E3,
+        't (s)': time_integrated,
         'q (A)': current_integrated,
     })
 
@@ -383,7 +383,7 @@ def main(shot, dimes_r, t_range, data_dir, fig_dir, mean_current_dir, integrated
     path_to_figures.mkdir(parents=True, exist_ok=True)
     path_to_baselined_dir = Path(data_dir) / 'baselined'
     path_to_baselined_dir.mkdir(parents=True, exist_ok=True)
-    path_to_baselined_current = path_to_baselined_dir / f'{shot}_voltage_and_rvsout.csv'
+    path_to_baselined_current = path_to_baselined_dir / f'{shot}_baselined_current.csv'
     path_to_mean_current_dir = Path(mean_current_dir)
     path_to_mean_current_dir.mkdir(parents=True, exist_ok=True)
     path_to_mean_current_csv = path_to_mean_current_dir / f'{shot}_mean_current.csv'

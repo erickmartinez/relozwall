@@ -7,6 +7,7 @@ from scipy.optimize import least_squares, OptimizeResult
 from pathlib import Path
 import data_processing.confidence as cf
 from data_processing.utils import latex_float_with_error
+from data_processing.misc_utils.latex_value import format_value_uncertainty_latex
 
 DATA_DIR = r'./data/integrated_current'
 FIGURES_DIR = r'./figures/integrated_current'
@@ -117,9 +118,10 @@ def compute_charge(time, current, min_points_simpson=5):
 def model(t ,b, diameter, theta_degrees, h0, nu):
     theta = np.radians(theta_degrees)
     b0, b1 = b
-    qi = (b0 * 0.25 * np.pi * (diameter ** 2) * abs(np.cos(theta)) * t
-          + b1 * 0.5 * np.pi * diameter * abs(np.sin(theta)) * h0  * t
-          - b1 * 0.5 * np.pi * diameter * abs(np.sin(theta)) * nu * 0.5 * t ** 2)
+    r = diameter / 2
+    qi = (b0 * np.pi * (r ** 2) * abs(np.cos(theta)) * t
+          + b1 *  np.pi * r * abs(np.sin(theta)) * h0  * t
+          - b1 *  np.pi * r * abs(np.sin(theta)) * (nu / 2) * t ** 2)
     return qi
 
 def residual(b, t, q, diameter, theta_degrees, h0, nu):
@@ -130,19 +132,20 @@ def jacobian(b, t, q, diameter, theta_degrees, h0, nu):
     theta = np.radians(theta_degrees)
     m, n = len(t), len(b)
     jac = np.zeros((m, n))
+    r = diameter / 2
 
-    jac[:, 0] =  0.25 * np.pi * (diameter ** 2) * abs(np.cos(theta)) * t
-    jac[:, 1] =  0.5 * np.pi * diameter * abs(np.sin(theta)) * (h0 * t - nu * 0.5 *  t ** 2 )
+    jac[:, 0] =  np.pi * (r ** 2) * abs(np.cos(theta)) * t
+    jac[:, 1] =  np.pi * r * abs(np.sin(theta)) * (h0 * t - nu * 0.5 *  t ** 2 )
 
     return jac
 
-def fit_charge(t_ms, current, diameter, theta_degrees, h0, nu, x0=(1E-3, 1E-3), loss='soft_l1', f_scale=0.1):
+def fit_charge(t_s, current, diameter, theta_degrees, h0, nu, x0=(1E-3, 1E-3), loss='soft_l1', f_scale=0.1):
     eps = np.finfo(np.float64).eps
-    tol = eps**0.75
+    tol = eps
     # tol = 1E-3
     fit_result = least_squares(
-        residual, x0=x0, args=(t_ms, current, diameter, theta_degrees, h0, nu), loss=loss, f_scale=f_scale, #jac='3-point',
-        max_nfev=10000,  xtol=tol, gtol=tol, ftol=tol, verbose=2, jac=jacobian,
+        residual, x0=x0, args=(t_s, current, diameter, theta_degrees, h0, nu), loss=loss, f_scale=f_scale, #jac='3-point',
+        max_nfev=100000,  xtol=tol, gtol=tol, ftol=tol, verbose=2, jac=jacobian,
     )
 
     return fit_result
@@ -154,41 +157,50 @@ def round_for_lim(value, factor):
 
 
 def main(shots, data_dir, fig_dir):
-    t_ms = np.array([])
+    t_s = np.array([])
     qi = np.array([])
     path_to_data = Path(data_dir)
     t0, q0 = 0, 0
     pebble_rod_details = get_pebble_rod_details(shots[0])
     diameter = pebble_rod_details.loc[0, 'diameter (cm)']
+    diameter_error = pebble_rod_details.loc[0, 'diameter error (cm)']
     protrusion = pebble_rod_details.loc[0, 'protrusion (mm)']
     experiment_id = pebble_rod_details.loc[0, 'experiment id']
+    density = pebble_rod_details.loc[0, 'density (g/cm3)']
+    density_error = pebble_rod_details.loc[0, 'density error (g/cm3)']
+    mass_loss = pebble_rod_details.loc[0, 'mass loss (g)']
+    mass_loss_error = pebble_rod_details.loc[0, 'mass loss error (g)']
+
+    shot_end_time = []
 
 
     for shot in shots:
         q_df = pd.read_csv(path_to_data / f'{shot}_integrated_current.csv').apply(pd.to_numeric)
-        t_shot =  q_df['t (ms)'].values + t0
+        t_shot =  q_df['t (s)'].values + t0
         q_shot = q_df['q (A)'].values + q0
-        t_ms = np.hstack((t_ms,t_shot))
+        t_s = np.hstack((t_s,t_shot))
         qi = np.hstack([qi, q_shot])
         t0, q0 = t_shot.max(), q_shot.max()
+        shot_end_time.append(t0)
 
-    t_fit = t_ms[::10]
-    qi_fit = qi[::10]
+    t_fit = t_s[::1]
+    qi_fit = qi[::1]
+    shot_end_time = np.array(shot_end_time)[:-1]
 
-    nu = protrusion / (t_fit.max() - t_fit.min()) * 1E3 * 1E-1
+    nu = protrusion / (t_fit.max() - t_fit.min()) * 0.1
     nu_error = np.abs(nu) * np.abs(pebble_rod_details.loc[0, 'protrusion error (mm)'] / protrusion)
+
+    # nu = 4*mass_loss / density / np.pi / diameter ** 2 /  (t_fit.max() - t_fit.min())
+    # nu_error = nu * np.linalg.norm([mass_loss_error/mass_loss, 2*diameter_error/diameter, density_error/density])
 
 
     fit_result : OptimizeResult = fit_charge(
-        t_ms=t_fit, current=qi_fit, diameter=diameter, theta_degrees=90 - THETA_BEAM, h0=protrusion*0.1, nu=nu,
+        t_s=t_fit, current=qi_fit, diameter=diameter, theta_degrees=(90 - THETA_BEAM), h0=protrusion*0.1, nu=nu,
         loss='soft_l1', f_scale=0.1
     )
     popt = fit_result.x
     ci = cf.confidence_interval(res=fit_result)
     popt_delta = np.abs(popt - ci[:, 0])
-
-    C = popt[1] / nu * 1E-3
-    C_err = C * np.linalg.norm([popt_delta[1] / popt[1], nu_error / nu])
 
     for i, popt_i in enumerate(popt):
         print(f'popt[{i}]: {popt_i:.4E} -/+ {popt_delta[i]:.5E}')
@@ -208,7 +220,7 @@ def main(shots, data_dir, fig_dir):
 
 
     print(f'Delta h = {protrusion:.2f} mm')
-    print(f't_max = {t_ms.max()*1E-3:.4E} s')
+    print(f't_max = {t_s.max():.4E} s')
 
     load_plot_style()
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
@@ -218,26 +230,29 @@ def main(shots, data_dir, fig_dir):
     ax.plot(t_fit, q_pred*1E3, color='r', label='Model')
     ax.fill_between(t_fit, (q_pred-delta)*1E3, (q_pred+delta)*1E3, color='r', alpha=0.1)
 
+    # for t_end_shot in shot_end_time:
+    #     print(f't_end = {t_end_shot:.4E} s')
+    #     ax.axvline(x=t_end_shot, color='k', linestyle='--', alpha=0.5)
+
     ax.text(
         0.05, 0.975, r'\begin{equation*}q(t) =\int_0^t  \left[ b_0 \pi r^2 \| \cos \theta \|  +  b_1 \pi r \| \sin\theta \|  (h_0 -\nu t) \right]dt\end{equation*}',
         ha='left', va='top', transform=ax.transAxes,
         fontsize=11, usetex=True
     )
 
-    rate_txt = (f'$h = \\nu t$\n'
-                f'$b_1 = {latex_float_with_error(popt[1], popt_delta[1])}$\n'
-                f'$\\nu = {latex_float_with_error(nu, nu_error)}$ cm/s\n'
-                f'$b_0 = {latex_float_with_error(popt[0], popt_delta[0])}$\n'
+    rate_txt = (f'$\Delta h = \\nu t, \\nu = {format_value_uncertainty_latex(nu, nu_error)}$ cm/s\n'
+                f'$b_0 = {format_value_uncertainty_latex(popt[0], popt_delta[0])}$\n'
+                f'$b_1 = {format_value_uncertainty_latex(popt[1], popt_delta[1])}$\n'
                 f'$\\theta = {90-THETA_BEAM:.1f}^{{\circ}}$')
     ax.text(
-        0.025, 0.35, rate_txt,
+        0.4, 0.2, rate_txt,
         ha='left', va='bottom', transform=ax.transAxes,
         fontsize=10, usetex=True
     )
 
-    ax.set_xlabel('Time (ms)', usetex=True)
+    ax.set_xlabel('Time (s)', usetex=False)
     ax.set_ylabel('$q(t) = \int_0^t I dt$ ($\\times 10^{-3}$ C)', usetex=True)
-    ax.set_xlim(round_for_lim(t_ms.min(), factor=5), round_for_lim(t_ms.max(), factor=5))
+    ax.set_xlim(round_for_lim(t_s.min(), factor=5), round_for_lim(t_s.max(), factor=5))
     ax.set_ylim(round_for_lim(qi.min()*1E3, factor=5), round_for_lim(qi.max()*1.2*1E3, factor=5))
     ax.set_title(rf'L-mode charge (sample {experiment_id})')
 
@@ -246,6 +261,27 @@ def main(shots, data_dir, fig_dir):
     path_to_fig.mkdir(parents=True, exist_ok=True)
 
     fig.savefig(path_to_fig / f'L-mode_current_#{experiment_id}.png', dpi=600)
+
+    # Save fit results
+    path_to_fit_results_folder = path_to_data / 'fit_results'
+    path_to_fit_results_folder.mkdir(parents=True, exist_ok=True)
+    path_tof_fit_results_file = path_to_fit_results_folder / f'L-mode_current_#{experiment_id}.txt'
+
+    with open(path_tof_fit_results_file, 'w') as f:
+        f.write(r'#'*40)
+        f.write("\n")
+        f.write(f"# L-mode charge\n")
+        f.write(f"# Experiment id: {experiment_id}\n")
+        f.write(f'# theta: {90 - THETA_BEAM:.1f} deg\n')
+        f.write(f'# Shots in experiment:\n')
+        for shot in shots:
+            f.write(f'# \tShot #: {shot}\n')
+        f.write(r'#' * 40)
+        f.write("\n")
+        for i in range(len(popt)):
+            f.write(f'b_{i} = {popt[i]:.4E} -/+ {popt_delta[i]:.4E} C/cm^2/s\n')
+        f.write(r'#' * 40)
+        f.write("\n")
 
     plt.show()
 
