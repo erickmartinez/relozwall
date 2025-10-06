@@ -9,8 +9,8 @@ from scipy import ndimage
 
 DATA_DIR = r'./data'
 FIGURES_DIR = r'./figures'
-SHOT = 203780
-T_RANGE = [1500, 3500]
+SHOT = 203783
+T_RANGE = [0, 5000]
 DT_LP = 1 # time step size for LP data [ms]
 R_PLOT = 1.485 # major radius to look at [m]
 
@@ -163,10 +163,10 @@ def main(shot, data_dir, figures_dir, t_range, dt_lp, r_plot):
     fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True, sharex=True)
     fig.set_size_inches(6, 5)
 
-    axes[0, 0].plot(t_int_V, qparaV,  color='C0', alpha=0.5, label='Raw')
-    axes[0, 1].plot(t_int_V, qperpV, color='C1', alpha=0.5, label='Raw')
-    axes[1, 0].plot(t_int_V, TeV, color='C2', label='Raw', alpha=0.5)
-    axes[1, 1].plot(t_int_V, neV, color='C3', label='Raw', alpha=0.5)
+    axes[0, 0].plot(t_int_V, qparaV,  color='C0', alpha=0.35, label='Raw')
+    axes[0, 1].plot(t_int_V, qperpV, color='C1', alpha=0.35, label='Raw')
+    axes[1, 0].plot(t_int_V, TeV, color='C2', label='Raw', alpha=0.35)
+    axes[1, 1].plot(t_int_V, neV, color='C3', label='Raw', alpha=0.35)
 
     axes[0, 0].plot(t_int_V, qparaV_despiked,color='C0', label='De-spiked')
     axes[0, 1].plot(t_int_V, qperpV_despiked, color='C1', label='De-spiked')

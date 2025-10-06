@@ -43,7 +43,8 @@ class DictClass:
 
 
 def perspective(x, y, z, f: float) -> DictClass:
-    pc = 10. * pixel_size
+    # pc = 10. * pixel_size
+    pc = pixel_size * 0.1
     ps = 1. / sensor_pixel_size_cm
     dz = f * (1. + ps / pc)
     # m = f / (dz - f - z)
@@ -172,7 +173,7 @@ def main():
     for i, ax in enumerate(axes):
         ax.axis('equal')
 
-    fig.savefig(os.path.join(data_path, file_tag + '.svg'), dpi=600)
+    # fig.savefig(os.path.join(data_path, file_tag + '.svg'), dpi=600)
     plt.show()
 
 
