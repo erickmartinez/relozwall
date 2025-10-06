@@ -17,8 +17,10 @@ Particles tracked with MTracJ:
 
 https://imagescience.org/meijering/software/mtrackj/manual/
 """
-
-data_path = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
+import platform
+from pathlib import Path
+drive_path = r'~/OneDrive' if platform.system() == 'Darwin' else r'C:\Users\erick\OneDrive'
+data_path = r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC'
 info_csv = r'LCT_R4N55_100PCT_2023-03-16_1.csv'
 tracking_points_csv = r'LCT_R4N55_100PCT_2023-03-16_1_trackpoints_revised.csv'
 frame_rate = 200.
@@ -30,7 +32,7 @@ px2mm = 1. / pixel_size
 px2cm = 0.1 * px2mm
 center_mm = np.array([18.41, 26.77])
 just_plot = True
-data_dir = r'C:\Users\erick\OneDrive\Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC\LCT_R4N55_100PCT_2023-03-16_1_fitting_results'
+data_dir = r'Documents\ucsd\Postdoc\research\data\firing_tests\SS_TUBE\GC\LCT_R4N55_100PCT_2023-03-16_1_fitting_results'
 parameters_csv = r'fitted_params.csv'
 trajectories_csv = r'fitted_trajectories.csv'
 
@@ -59,7 +61,8 @@ class DictClass:
         self.__dict__.update(kwargs)
 
 
-def load_tracking_data():
+def load_tracking_data(path_to_data=drive_path):
+    data_path = Path(drive_path).joinpath(path_to_data)
     df = pd.read_csv(
         os.path.join(data_path, tracking_points_csv), usecols=['TID', 'PID', 'x [pixel]', 'y [pixel]', 't [sec]']
     )
@@ -109,13 +112,15 @@ def rotation_y(x: float, y: float, z: float, angle: float, radians: bool = True)
     return DictClass(x=zx[1, 0], y=y, z=zx[0, 0])
 
 
-def perspective(x, y, z, f: float) -> DictClass:
-    pc = 10. * pixel_size
-    ps = 1. / sensor_pixel_size_cm
-    pspc = ps/pc
+def perspective(x, y, z, f: float, wd=WD_CM) -> DictClass:
+    pc = 10. * pixel_size # Multiply px/mm x 10 to get px/cm
+    ps = 1. / sensor_pixel_size_cm # <  2898.6 /cm
+    pspc = ps/pc # This is 1/M (M: magnification)
+    # M = pixel_size * 10 * sensor_pixel_size_cm
     wd = f * (1. + pspc)
     # m = f / (wd - f - z)
     m = f / (f*pspc - z) * pspc
+    # m = -f / (f*(1/M - 1) - z)
     return DictClass(x=m * x, y=m * y, z=z)
 
 def inverse_perspective(x, y, z, f) -> DictClass:
@@ -359,8 +364,8 @@ def main():
         os.makedirs(save_path)
     fitted_trajectories_df['x (px)'] = fitted_trajectories_df['x (cm)'] * 10. * pixel_size + center_mm[0] * pixel_size
     fitted_trajectories_df['y (px)'] = 1080 - (10. * pixel_size * fitted_trajectories_df['y (cm)'])
-    fitted_trajectories_df.to_csv(os.path.join(save_path, 'fitted_trajectories.csv'), index=False)
-    fitted_params_df.to_csv(os.path.join(save_path, 'fitted_params.csv'), index=False)
+    fitted_trajectories_df.to_csv(os.path.join(save_path, 'fitted_trajectories.20250929.csv'), index=False)
+    fitted_params_df.to_csv(os.path.join(save_path, 'fitted_params.20250929.csv'), index=False)
 
     fig, axes = plt.subplots(ncols=3, nrows=1, constrained_layout=True, frameon=True)
     fig.set_size_inches(8., 2.5)
@@ -448,13 +453,13 @@ def main():
         bbox=props
     )
 
-    fig.savefig(os.path.join(save_path, file_tag + '_velocity_histogram.png'), dpi=600)
-    fig.savefig(os.path.join(save_path, file_tag + '_velocity_histogram.svg'), dpi=600)
+    fig.savefig(os.path.join(save_path, file_tag + '_velocity_histogram.20250929.png'), dpi=600)
+    fig.savefig(os.path.join(save_path, file_tag + '_velocity_histogram.20250929.svg'), dpi=600)
     fig.savefig(os.path.join(save_path, file_tag + '_velocity_histogram.pdf'), dpi=600)
 
-    fig_t.savefig(os.path.join(save_path, file_tag + '_particle_trajectories.png'), dpi=600)
-    fig_t.savefig(os.path.join(save_path, file_tag + '_particle_trajectories.svg'), dpi=600)
-    fig_t.savefig(os.path.join(save_path, file_tag + '_particle_trajectories.pdf'), dpi=600)
+    fig_t.savefig(os.path.join(save_path, file_tag + '_particle_trajectories.20250929.png'), dpi=600)
+    fig_t.savefig(os.path.join(save_path, file_tag + '_particle_trajectories.20250929.svg'), dpi=600)
+    fig_t.savefig(os.path.join(save_path, file_tag + '_particle_trajectories.20250929.pdf'), dpi=600)
     plt.show()
 
 

@@ -178,13 +178,13 @@ def main(n_particles: int, t_max: float, w: int, h: float):
     axes[2].set_ylabel('Counts')
     axes[2].set_title('Pebble ejection polar angle')
     axes[2].set_xlim(0, 360.)
-    fig_h.savefig(os.path.join(data_path, file_tag + '_histograms.png'), dpi=600)
+    # fig_h.savefig(os.path.join(data_path, file_tag + '_histograms.png'), dpi=600)
 
     plt.show()
 
     ft = file_tag + '_movie.mp4'
     save_dir = data_path  # os.path.dirname(base_path)
-    ani.save(os.path.join(save_dir, ft), writer=writer, dpi=200)  # dpi=pixel_size*25.4)
+    # ani.save(os.path.join(save_dir, ft), writer=writer, dpi=200)  # dpi=pixel_size*25.4)
 
 
 if __name__ == '__main__':
