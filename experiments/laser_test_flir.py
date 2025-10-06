@@ -328,7 +328,7 @@ class LaserProcedure(Procedure):
 
         flir_trigger.join()
 
-        self.save_pressure()
+        # self.save_pressure()
         # t2 = time.time()
 
         # dt = t2 - t1
@@ -401,7 +401,7 @@ class LaserProcedure(Procedure):
             raise ex
 
         filename = f'{os.path.splitext(self.__unique_filename)[0]}_tcdata.csv'
-        tc_data.to_csv(filename, index=False)
+        # tc_data.to_csv(filename, index=False)
 
         """
         DATA_COLUMNS = ["Measurement Time (s)", "Pressure (Torr)", "TC1 (C)", "TC2 (C)", "Trigger (V)",
