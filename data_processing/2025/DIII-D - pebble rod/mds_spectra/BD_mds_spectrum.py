@@ -10,7 +10,7 @@ from scipy.interpolate import make_smoothing_spline
 import matplotlib.animation as animation
 
 
-SHOT = 203783
+SHOT = 203784
 WL_SUM_RANGE = [4324, 4329] # < BD
 # WL_SUM_RANGE = [8194, 8196] # < B-I
 # WL_SUM_RANGE = [4120, 4123] # < B-II
@@ -327,7 +327,7 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
 
     ax3.tick_params(axis='y', colors=p1.get_color())
     ax3_twin.tick_params(axis='y', colors=p2.get_color())
-    ax3_twin.set_ylim(bottom=0, top=3)
+    ax3_twin.set_ylim(bottom=0, top=np.ceil(np.max(sxb_bd)/5)*5)
 
     ax3.legend(loc='upper right', fontsize='9', frameon=True, handles=[p1, p2])
 
@@ -347,7 +347,9 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
     msk_t_gt_0 = time_s >= 0. # Only positive time
     line_brightness_df = pd.DataFrame(data={
         'time (s)': time_s[msk_t_gt_0],
-        'Line brightness (a.u.)': line_brightness[msk_t_gt_0],
+        'Line brightness (photons/cm^2/ster/s)': line_brightness[msk_t_gt_0],
+        'SX/B': sxb_bd[msk_t_gt_0],
+        'Flux BD (molecules/s)': flux_bd[msk_t_gt_0],
     })
     path_to_data_out = path_to_data / 'line_brightness'
     path_to_data_out.mkdir(parents=True, exist_ok=True)

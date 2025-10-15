@@ -32,19 +32,32 @@ Avoid removing the camera flare for which there are plenty of particle trajector
 To remove the camera flare, create a mask which would prevent subtraction of the background. The mask is defined
 by looking for signal > 300 K around a cirlce of diameter 468 px, centered around FLARE_CENTER
 """
-REFLECTIONS_FRAME_REF = 32 # The number of the frame containing strong spurious reflections but no particles
-BEAM_CENTER = [1006, 416] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
-BEAM_DIAMETER = 448 # The beam diameter in pixels.
-FLARE_CENTER = [625, 608] # The center of the 468 px diameter circle around which we want to avoid the flare
+
 MAKE_MOVIE = True # If true, make an animation and save it as an mp4 movie
 
+""" Uncomment for grazing incidence tests """
 REFERENCE_ROD_DIAMETER = 1.27 # cm
-MEASURED_ECLLIPSE_RADII = [85.37, 155.85] # minor and major radius in pixels The major radius should be vertical
+MEASURED_ELLIPSE_RADII = [85.37, 155.85] # minor and major radius in pixels The major radius should be vertical
+# BEAM_CENTER = [1006, 416] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
+BEAM_CENTER = [1000, 436] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
+BEAM_DIAMETER = 448 # The beam diameter in pixels.
+REFLECTIONS_FRAME_REF = 59 # The number of the frame containing strong spurious reflections but no particles
+FLARE_CENTER = [625, 608] # The center of the 468 px diameter circle around which we want to avoid the flare
+
+""" Uncomment for normal incidence """
+# REFERENCE_ROD_DIAMETER = 1.0 # cm
+# MEASURED_ELLIPSE_RADII = [184*0.5, 202*0.5] # minor and major radius in pixels The major radius should be vertical
+# BEAM_CENTER = [446, 432] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
+# BEAM_DIAMETER = 600 # The beam diameter in pixels.
+# REFLECTIONS_FRAME_REF = 175 # The number of the frame containing strong spurious reflections but no particles
+# FLARE_CENTER = [889, 628] # The center of the 468 px diameter circle around which we want to avoid the flare
 
 
 
-STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0912_100PCT_2025-09-15_1/LCT_R5N16-0912_100PCT_2025-09-15_1_temperature_stack.tif'
+STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0905_080PCT_2025-09-11_1/LCT_R5N16-0905_080PCT_2025-09-11_1_temperature_stack.tif'
+# STACK_FILE = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0914_060PCT_2025-09-15_1/LCT_R5N16-0914_060PCT_2025-09-15_1_temperature_stack.tif'
 COLOR_MAP = 'viridis'
+
 def load_times_from_json(json_file):
     with open(json_file) as json_file:
         data = json.load(json_file)
@@ -144,7 +157,7 @@ def get_distance_calibration(reference_diameter, ellipse_radii):
 
 def main(
     reflections_frame, beam_center, beam_diameter, stack_file=None, color_map='viridis', flare_center=FLARE_CENTER,
-    make_movie=MAKE_MOVIE, reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ECLLIPSE_RADII
+    make_movie=MAKE_MOVIE, reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ELLIPSE_RADII
 ):
     pixels_per_cm, angle = get_distance_calibration(reference_diameter, ellipse_radii)
     print(f'Pixels per cm: {pixels_per_cm:.2f} cm, angle: {angle:.2f} degrees')
@@ -239,7 +252,7 @@ if __name__ == '__main__':
     main(
         reflections_frame=REFLECTIONS_FRAME_REF, beam_center=BEAM_CENTER, beam_diameter=BEAM_DIAMETER,
         stack_file=STACK_FILE, color_map=COLOR_MAP, flare_center=FLARE_CENTER, make_movie=MAKE_MOVIE,
-        reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ECLLIPSE_RADII
+        reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ELLIPSE_RADII
     )
 
 

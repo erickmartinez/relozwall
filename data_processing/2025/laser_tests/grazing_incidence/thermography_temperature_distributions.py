@@ -29,8 +29,8 @@ STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Docu
 METADATA_FILE = 'LCT_R5N16-0912_100PCT_2025-09-15_1_temperature_stack_metadata.json'
 DIMES_DIAMETER = 4.8 # cm
 REFERENCE_ROD_DIAMETER = 1.27 # cm
-MEASURED_ECLLIPSE_RADII = [85.37, 155.85] # minor and major radius in pixels The major radius should be vertical
-BEAM_CENTER = [1006, 416] # The beam center in pixels (measured in imageJ). Sample distribution around this point
+MEASURED_ELLIPSE_RADII = [85.37, 155.85] # minor and major radius in pixels The major radius should be vertical
+BEAM_CENTER = [1022, 417] # The beam center in pixels (measured in imageJ). Sample distribution around this point
 COLOR_MAP = 'viridis'
 SHOW_FRAME = 32 # The number of the frame over which to plot the sampling area (though all frames will be processed)
 EXPERIMENT_DATA_PATH = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/GRAZING_INCIDENCE/'
@@ -177,7 +177,7 @@ def load_calibration(file_tag, base_path=EXPERIMENT_DATA_PATH, calibration_path=
     return df['Temperature [K]'].values, exposure_time
 
 def main(
-    stack_file=None, metadata_file=None, reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ECLLIPSE_RADII,
+    stack_file=None, metadata_file=None, reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ELLIPSE_RADII,
     color_map=COLOR_MAP, show_frame=SHOW_FRAME, beam_center=BEAM_CENTER, dimes_diameter=DIMES_DIAMETER,
 ):
     if stack_file is None:
@@ -318,7 +318,7 @@ def main(
 
 if __name__ == '__main__':
     main(
-        stack_file=STACK_FILE,metadata_file=METADATA_FILE, reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ECLLIPSE_RADII,
+        stack_file=STACK_FILE,metadata_file=METADATA_FILE, reference_diameter=REFERENCE_ROD_DIAMETER, ellipse_radii=MEASURED_ELLIPSE_RADII,
         color_map=COLOR_MAP, show_frame=SHOW_FRAME, beam_center=BEAM_CENTER, dimes_diameter=DIMES_DIAMETER
     )
 

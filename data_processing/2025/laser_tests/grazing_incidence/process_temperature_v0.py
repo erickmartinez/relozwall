@@ -8,12 +8,13 @@ import json
 from data_processing.utils import get_experiment_params
 import re
 import cv2
+from time import sleep
 
 CALIBRATION_PATH = '../calibration/CALIBRATION_20231010_boron'
 DEPOSITION_RATE = 0.  # nm/s
 ABSORPTION_COEFFICIENT = 1E-3
-INFO_CSV = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/GRAZING_INCIDENCE/LCT_R5N16-0912_100PCT_2025-09-15_1'
-
+INFO_CSV = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/GRAZING_INCIDENCE/LCT_R5N16-0905_080PCT_2025-09-11_1.csv'
+# INFO_CSV = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/BORON_PHENOLIC/LCT_R5N15_0602_020PCT_2025-06-03_2'
 LN10 = np.log(10.)
 def correct_for_window_deposit_intensity(img: np.ndarray, t, deposition_rate=DEPOSITION_RATE, absorption_coefficient=ABSORPTION_COEFFICIENT):
     global LN10
@@ -90,7 +91,7 @@ def main(calibration_path, info_csv=None):
 
     img0 = cv2.imread(str(images_path / list_of_files[0]), 0)
 
-    with tifffile.TiffWriter(str(output_tif), bigtiff=True, imagej=False) as tif, tifffile.TiffWriter(str(output_grayscale_tif), bigtiff=True, imagej=False) as grayscale_tif:
+    with tifffile.TiffWriter(str(output_tif), bigtiff=False, imagej=False) as tif, tifffile.TiffWriter(str(output_grayscale_tif), bigtiff=False, imagej=False) as grayscale_tif:
         for i, t, fn in zip(range(len(time_s)), time_s, list_of_files):
             print(f'Processing frame {i+1:>3d}/{len(list_of_files)}')
             img = cv2.imread(str(images_path / fn), 0)
@@ -100,7 +101,9 @@ def main(calibration_path, info_csv=None):
                 temp_im,
                 compression='zlib',
                 # contiguous=True
+                # photometric='minisblack'
             )
+            sleep(0.01)
             grayscale_tif.write(
                 img, compression='zlib', photometric='minisblack'
             )

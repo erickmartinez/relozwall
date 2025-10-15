@@ -9,7 +9,7 @@ from scipy import ndimage
 
 DATA_DIR = r'./data'
 FIGURES_DIR = r'./figures'
-SHOT = 203783
+SHOT = 203785
 T_RANGE = [0, 5000]
 DT_LP = 1 # time step size for LP data [ms]
 R_PLOT = 1.485 # major radius to look at [m]

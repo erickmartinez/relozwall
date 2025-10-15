@@ -204,7 +204,7 @@ def format_latex_with_bounds(value, lower_bound, upper_bound, usetex=True):
 def main(sublimation_rate_csv_list, target_temperature, pisces_a_d_flux_mean, pisces_y_d):
     load_plot_style()
     fig, axes = plt.subplots(2, 1, sharex=False, constrained_layout=True, height_ratios=[1, 0.15])
-    fig.set_size_inches(4.5, 6.5)
+    fig.set_size_inches(6.5, 6.5)
 
     axes[0].set_yscale('log')
     axes[0].set_xlabel('T (K)')
@@ -321,13 +321,13 @@ def main(sublimation_rate_csv_list, target_temperature, pisces_a_d_flux_mean, pi
     axes[1].plot(x, chi_poly(popt, x, y), color='0.5')
     axes[1].set_title('Log residuals')
 
-    axes[0].legend(loc='upper left', frameon=True, fontsize=10)
+    axes[0].legend(loc='lower right', frameon=True, fontsize=10)
 
     extrapolated_txt = f"${target_temperature:.0f}\;\mathrm{{K}}$ \n"
     y_t_str, y_t_ci_str = format_latex_with_bounds(y_t, f_lb(target_temperature), f_ub(target_temperature))
     extrapolated_txt += r"{\sffamily Rate:} " +f"${y_t_str}$" + r" {\sffamily B/cm\textsuperscript{2}-s}" + "\n"
     extrapolated_txt += f"{y_t_ci_str}"
-    connectionstyle = "angle,angleA=0,angleB=60,rad=0"
+    connectionstyle = "angle,angleA=0,angleB=-60,rad=0"
     bbox = dict(boxstyle="round", fc="wheat")
     arrowprops = dict(
         arrowstyle="->", color="k",
@@ -339,7 +339,7 @@ def main(sublimation_rate_csv_list, target_temperature, pisces_a_d_flux_mean, pi
         extrapolated_txt,
         xy=(target_temperature, y_t), xycoords='data',  # 'figure pixels', #data',
         # transform=axes[1].transAxes,
-        xytext=(200, 60), textcoords='offset pixels',
+        xytext=(-200, 60), textcoords='offset pixels',
         ha='left', va='bottom',
         fontsize=11,
         arrowprops=arrowprops,
