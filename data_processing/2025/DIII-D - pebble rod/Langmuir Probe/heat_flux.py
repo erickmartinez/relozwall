@@ -9,7 +9,7 @@ from scipy import ndimage
 
 DATA_DIR = r'./data'
 FIGURES_DIR = r'./figures'
-SHOT = 203785
+SHOT = 203784
 T_RANGE = [0, 5000]
 DT_LP = 1 # time step size for LP data [ms]
 R_PLOT = 1.485 # major radius to look at [m]
@@ -183,6 +183,7 @@ def main(shot, data_dir, figures_dir, t_range, dt_lp, r_plot):
     axes[1, 0].set_ylabel(r'{\sffamily T\textsubscript{e} (eV)}', usetex=True)
     axes[1, 1].set_ylabel(r'{\sffamily n\textsubscript{e} (x10\textsuperscript{13}/cm\textsuperscript{3})}',
                           usetex=True)
+
 
     axes[0, 0].set_ylim(0, 100)
     axes[0, 1].set_ylim(0, 3)

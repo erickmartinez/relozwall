@@ -148,10 +148,10 @@ def main(
         histogram = histogram_matrix[i, 1:] # < remove data close to 300 K
         n_pixels_sum = np.sum(histogram)
         histogram /= n_pixels_sum # <- convert to pdf
-        evaporation_rates, lb, ub = evaporation_rate_model(bin_centers[1:]) * histogram
-        evaporation_rate[i] = np.sum(evaporation_rates)
-        evaporation_lb[i] = np.sum(lb)
-        evaporation_ub[i] = np.sum(ub)
+        evaporation_rates, lb, ub = evaporation_rate_model(bin_centers[1:])
+        evaporation_rate[i] = np.sum(evaporation_rates* histogram)
+        evaporation_lb[i] = np.sum(lb * histogram)
+        evaporation_ub[i] = np.sum(ub * histogram)
 
     evaporation_rate *= pebble_rod_area
     evaporation_rate *= 1E-16

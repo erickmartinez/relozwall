@@ -157,7 +157,7 @@ def remove_spikes_zscore(spectrum, threshold=3, window_size=5):
 
 def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_max):
     path_to_h5 = Path(path_to_data) / f'{shot}_mdspec.h5'
-    spot_area = 0.25 * (diameter_mds_spot ** 2)
+    spot_area = 0.25 * np.pi * (diameter_mds_spot ** 2)
 
     # Create a folder (if it does not exist) to save the generated figures
     path_to_figures = Path("figures")
@@ -233,7 +233,7 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
         baseline_fitter_i = Baseline()
         bgd_i, params_i = baseline_fitter_i.arpls(bi, lam=1e6)
         # Remove baseline and integrate
-        line_brightness[i] = simpson(y=(bi[msk_wl_sum] - bgd_i[msk_wl_sum]), x=wavelength[msk_wl_sum]) # photons/s/ster/cm^2
+        line_brightness[i] = simpson(y=(bi[msk_wl_sum] - bgd_i[msk_wl_sum])) # photons/s/ster/cm^2
         flux_bd[i] = 4 * np.pi * line_brightness[i] * sxb * spot_area
         if line_brightness[i] > line_brightness_max:
             line_brightness_max = line_brightness[i]
@@ -277,8 +277,10 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
     ax1.plot(wavelength, b_max, label='Data', color='C0')
     ax1.set_title('B-D band')
     ax1.plot(wavelength, bgd_max, ls='--', color='r', lw=1.2, label='Baseline')
-    ax1.fill_between(wavelength[msk_wl_sum], bgd_max[msk_wl_sum], b_max[msk_wl_sum], color='C0', ls='None',
-                     alpha=0.3)
+    ax1.fill_between(
+        wavelength[msk_wl_sum], bgd_max[msk_wl_sum], b_max[msk_wl_sum], color='C0', ls='None',
+        alpha=0.3
+    )
     ax1.set_xlim(4322, 4330) # <- BD range
     # ax1.set_xlim(8175, 8240)  # <- B-I range
     # ax1.set_xlim(4113, 4130)  # <- B-II range
@@ -345,23 +347,22 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
 
     # Save the data
     msk_t_gt_0 = time_s >= 0. # Only positive time
-    line_brightness_df = pd.DataFrame(data={
+    emission_flux_df = pd.DataFrame(data={
         'time (s)': time_s[msk_t_gt_0],
         'Line brightness (photons/cm^2/ster/s)': line_brightness[msk_t_gt_0],
         'SX/B': sxb_bd[msk_t_gt_0],
         'Flux BD (molecules/s)': flux_bd[msk_t_gt_0],
     })
-    path_to_data_out = path_to_data / 'line_brightness'
+    path_to_data_out = path_to_data / 'emission_flux'
     path_to_data_out.mkdir(parents=True, exist_ok=True)
-    path_to_csv_out = path_to_data_out / f'{shot}_line_brightness_{line_label}.csv'
+    path_to_csv_out = path_to_data_out / f'{shot}_emission_flux_{line_label}.csv'
     with open(path_to_csv_out, 'w') as f:
         f.write("# " + "*"*20 + "\n")
-        f.write(line_brightness_df.to_csv(index=False))
         f.write(f"# Shot #{shot}\n")
         f.write(f"# {line_label} line brightness\n")
         f.write(f"# Wavelength range (Å): [{wl_sum_range[0]}, {wl_sum_range[1]}] \n")
         f.write("# " + "*" * 20 + "\n")
-        line_brightness_df.to_csv(f, index=False)
+        emission_flux_df.to_csv(f, index=False)
 
     # Save the figure
     path_to_figure = path_to_figures / f'{shot}_{line_label}_flux.png'

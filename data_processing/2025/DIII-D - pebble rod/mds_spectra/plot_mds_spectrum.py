@@ -8,14 +8,14 @@ from matplotlib.gridspec import GridSpec
 from scipy.integrate import simpson
 
 
-SHOT = 203785
+SHOT = 203780
 # WL_SUM_RANGE = [4324, 4329] # < BD
-# WL_SUM_RANGE = [8194, 8196] # < B-I
-WL_SUM_RANGE = [4120, 4123] # < B-II
+WL_SUM_RANGE = [8194, 8196] # < B-I
+# WL_SUM_RANGE = [4120, 4123] # < B-II
 PATH_TO_DATA = Path("data")
 # LINE_LABEL = 'BD'
-# LINE_LABEL = 'B-I'
-LINE_LABEL = 'B-II'
+LINE_LABEL = 'B-I'
+# LINE_LABEL = 'B-II'
 
 def main(shot, wl_sum_range, path_to_data, line_label):
     path_to_h5 = Path(path_to_data) / f'{shot}_mdspec.h5'
@@ -58,15 +58,15 @@ def main(shot, wl_sum_range, path_to_data, line_label):
         baseline_fitter_i = Baseline()
         bgd_i, params_i = baseline_fitter_i.arpls(bi, lam=1e6)
         # Remove baseline and integrate
-        line_brightness[i] = simpson(y=(bi[msk_wl_sum] - bgd_i[msk_wl_sum]), x=wl_range)
+        line_brightness[i] = simpson(y=(bi[msk_wl_sum] - bgd_i[msk_wl_sum]))
 
     ax1.plot(wavelength, brightness_wl, label='Data')
     ax1.set_title('Survey')
     ax1.plot(wavelength, bkgd_1, ls='--', color='r', lw=1.2, label='Baseline')
     ax1.axvspan(xmin=wl_sum_range[0], xmax=wl_sum_range[1], color='gray', alpha=0.3, lw=0, label=f'{line_label} range')
     # ax1.set_xlim(4270, 4345) # <- BD range
-    # ax1.set_xlim(8175, 8240)  # <- B-I range
-    ax1.set_xlim(4113, 4130)  # <- B-II range
+    ax1.set_xlim(8175, 8240)  # <- B-I range
+    # ax1.set_xlim(4113, 4130)  # <- B-II range
     # ax1.set_ylim(0, 2E6)  # <- BD range
     ax1.set_xlabel('$\lambda$ {\sffamily (\AA)}', usetex=True)
     ax1.set_ylabel('$\sum_{t} B_t(\lambda)$ {\sffamily (a.u.)}', usetex=True)
