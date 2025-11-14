@@ -30,7 +30,7 @@ class BaseSerial:
             "rtscts": False,
             "dsrdtr": False,
             "exclusive": None,
-            "timeout": 0.1,
+            "timeout": 0.2,
             "write_timeout": 0.1,
         }
 

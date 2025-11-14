@@ -25,7 +25,7 @@ from instruments.mx200 import MX200
 from instruments.IPG import YLR3000, LaserException
 from instruments.tektronix import TBS2000
 from instruments.inhibitor import WindowsInhibitor
-from instruments.flir import Camera, TriggerType
+from instruments.flir42 import Camera, TriggerType
 import PySpin
 from scipy import interpolate
 import threading
