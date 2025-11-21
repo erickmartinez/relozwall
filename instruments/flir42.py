@@ -1,10 +1,11 @@
 import time
-
+import json
 import PySpin
 import os
 import logging
 from exif import Image as ImageInfo
 import tifffile
+import numpy as np
 
 """
 See Also
@@ -92,6 +93,7 @@ class Camera:
         self._cam_list: PySpin.CameraList = self._system.GetCameras()
         self._cam: PySpin.Camera = self._cam_list[0]
         self.__deleted = False
+        self._timestamps = None
         try:
             self._cam.Init()
             self._nodemap: PySpin.NodeMap = self._cam.GetNodeMap()
@@ -651,57 +653,72 @@ class Camera:
                     return False
 
             else:
-                t0 = 0
-                for i in range(self._number_of_images):
-                    try:
-                        # self.grab_next_image_by_trigger()
-                        if i == 0:
-                            timeout = 500
-                        else:
-                            timeout = fast_timeout
-                        image_result = self._cam.GetNextImage(timeout)
-                        if image_result.IsIncomplete():
-                            self.log('Image incomplete with image status %d...' % image_result.GetImageStatus(),
-                                     logging.WARNING)
-
-                        else:
-                            chunk_data = image_result.GetChunkData()
-                            # frame_id = chunk_data.GetFrameID()
-                            timestamp = chunk_data.GetTimestamp()
+                self._timestamps = []
+                self._image_stack = []
+                tif_file_name = os.path.join(self._path_to_images, image_prefix + '.tiff')
+                with tifffile.TiffWriter(str(tif_file_name), imagej=False) as tif:
+                    for i in range(self._number_of_images):
+                        try:
+                            # self.grab_next_image_by_trigger()
                             if i == 0:
-                                t0 = float(timestamp)*1E-9
-                            # Print image information
-                            if self.debug:
-                                width = image_result.GetWidth()
-                                height = image_result.GetHeight()
-                                self.log(
-                                    'Grabbed Image %d/%d, width = %d, height = %d' % (
-                                    i+1, self._number_of_images, width, height))
+                                timeout = 500
+                            else:
+                                timeout = fast_timeout
+                            image_result = self._cam.GetNextImage(timeout)
+                            if image_result.IsIncomplete():
+                                self.log('Image incomplete with image status %d...' % image_result.GetImageStatus(),
+                                         logging.WARNING)
 
-                            # Convert image to Mono8
-                            image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
+                            else:
+                                chunk_data = image_result.GetChunkData()
+                                # frame_id = chunk_data.GetFrameID()
+                                timestamp = chunk_data.GetTimestamp()
+                                self._timestamps.append(timestamp)
+                                # Print image information
+                                if self.debug:
+                                    width = image_result.GetWidth()
+                                    height = image_result.GetHeight()
+                                    self.log(
+                                        'Grabbed Image %d/%d, width = %d, height = %d' % (
+                                        i+1, self._number_of_images, width, height))
 
-                            # Create a unique filename
-                            # filename = '%s-%d.jpg' % (image_prefix, i+1)
-                            filename = '%s-%d-%s.tiff' % (image_prefix, i+1, timestamp)
-                            full_filename = os.path.join(self._path_to_images, filename)
+                                # Convert image to Mono8
+                                image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
 
-                            # Save image
-                            image_converted.Save(full_filename)
+                                # Create a unique filename
+                                # filename = '%s-%d.jpg' % (image_prefix, i+1)
+                                # filename = '%s-%d-%s.tiff' % (image_prefix, i+1, timestamp)
+                                # full_filename = os.path.join(self._path_to_images, filename)
 
-                            # if self.debug:
-                            self.log('(%d/%d) Image saved at %s' % (i+1, self._number_of_images, filename) )
+                                # Save image
+                                # image_converted.Save(full_filename)
 
-                            # Release image
-                            image_result.Release()
-                            # self.log(f'Released image {i}')
-                            i += 1
-                    except PySpin.SpinnakerException as ex:
-                        self.log(f'Error acquiring image {i+1}/{self._number_of_images}: {ex}', logging.ERROR)
-                        self.__busy = False
-                        # return False
-                        # break
+                                image_array = image_converted.GetNDArray()
+                                # self._image_stack.append(image_array.copy())
+                                tif.write(
+                                    image_array.copy(), contiguous=True, photometric='minisblack',
+                                    metadata={
+                                        'timestamp': timestamp,
+                                    }
+                                )
+
+                                # if self.debug:
+                                # self.log('(%d/%d) Image saved at %s' % (i+1, self._number_of_images, filename) )
+                                self.log(f'Saved image {i+1:>03d}/{self._number_of_images:>03d}')
+
+                                # Release image
+                                image_result.Release()
+                                # self.log(f'Released image {i}')
+                                i += 1
+                        except PySpin.SpinnakerException as ex:
+                            self.log(f'Error acquiring image {i+1}/{self._number_of_images}: {ex}', logging.ERROR)
+                            self.__busy = False
+                            # return False
+                            # break
             self._cam.EndAcquisition()
+
+            self.compress_tiff_stack(tif_file_name)
+            self.save_time_stamp_metadata(tif_file_name)
             time.sleep(0.1)
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}', logging.ERROR)
@@ -736,6 +753,23 @@ class Camera:
             self.log(f'Error: {ex}', logging.ERROR)
             return ''
         return device_serial_number
+
+    def compress_tiff_stack(self, full_filename):
+        if os.path.exists(full_filename):
+            data = tifffile.imread(full_filename)
+            tifffile.imwrite(full_filename, data, compression='zlib', compressionargs={'level': 9})
+
+    def save_time_stamp_metadata(self, full_filename):
+        metadata_file = str(full_filename).replace('.tiff', '_metadata.json')
+        print(f'Writing metadata to {metadata_file}')
+        time_stamps = np.array([float(ti)*1E-9 for ti in self._timestamps])
+        time_stamps -= time_stamps[0]
+        with open(metadata_file, 'w') as f:
+            json.dump({
+                't (s)': time_stamps.tolist(),
+                'TIMESTAMPS': time_stamps.tolist(),
+            }, f, indent=2)
+
 
     def set_logger(self, log: logging.Logger):
         if isinstance(log, logging.Logger):

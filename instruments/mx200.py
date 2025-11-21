@@ -18,7 +18,7 @@ class MX200(BaseSerial):
     """
 
     __timeout = 0.05
-    __delay = 0.005
+    __delay = 0.01
     _log: logging.Logger = None
 
     units_mapping = {
@@ -147,8 +147,7 @@ class MX200(BaseSerial):
                     return pressure
             except SerialTimeoutException as e:
                 self._log.error(f"Serial timeout error: {e}")
-                self._serial.close()
-                self.auto_connect()
+                self._serial.flush()
                 return self._previous_pressures[gauge_number]
         else:
             msg = "Invalid gauge number ({0:d}). Valid gauges are 1-2.".format(gauge_number)
