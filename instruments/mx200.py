@@ -5,6 +5,7 @@ import numpy as np
 import serial
 from time import sleep
 import re
+from serial import SerialTimeoutException
 
 from serial import SerialException
 
@@ -16,8 +17,8 @@ class MX200(BaseSerial):
     Represents the Televac MX200 Controller
     """
 
-    __timeout = 0.01
-    __delay = 0.002
+    __timeout = 0.05
+    __delay = 0.01
     _log: logging.Logger = None
 
     units_mapping = {
@@ -133,16 +134,21 @@ class MX200(BaseSerial):
         if 1 <= gauge_number <= 2:
             q = 'S1{0:02d}'.format(gauge_number)
             # pressure = self.query(q)
-            self._serial.write(f"{q}\r".encode('utf-8'))
-            time.sleep(self.__delay)
-            pressure = self._serial.read(7).decode('utf-8').rstrip("\r\n")
-            if self._ppsee_pattern.match(pressure) is not None:
-                pressure = self.ppsee(pressure)
-                self._previous_pressures[gauge_number] = pressure
-                return pressure
-            elif use_previous:
-                pressure = self._previous_pressures[gauge_number]
-                return pressure
+            try:
+                self._serial.write(f"{q}\r".encode('utf-8'))
+                time.sleep(self.__delay)
+                pressure = self._serial.read(7).decode('utf-8').rstrip("\r\n")
+                if self._ppsee_pattern.match(pressure) is not None:
+                    pressure = self.ppsee(pressure)
+                    self._previous_pressures[gauge_number] = pressure
+                    return pressure
+                elif use_previous:
+                    pressure = self._previous_pressures[gauge_number]
+                    return pressure
+            except SerialTimeoutException as e:
+                self._log.error(f"Serial timeout error: {e}")
+                self._serial.flush()
+                return self._previous_pressures[gauge_number]
         else:
             msg = "Invalid gauge number ({0:d}). Valid gauges are 1-2.".format(gauge_number)
             raise ValueError(msg)
