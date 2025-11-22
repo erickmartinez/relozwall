@@ -4,15 +4,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from data_processing.misc_utils.plot_style import load_plot_style
-from scipy.interpolate import PPoly, make_smoothing_spline
+from scipy.interpolate import PPoly, make_smoothing_spline, CubicSpline
 from typing import Union, Tuple, Callable, Dict
 from scipy import ndimage
 import matplotlib.ticker as ticker
+from scipy.ndimage import gaussian_filter1d
 
 
-SHOT = 203783
+SHOT = 203780
 PATH_TO_DATA = r'./data'
-PATH_TO_AVERAGED_TEMPERATURE_DISTRIBUTIONS_H5 = r'./data/dimes_averaged_temperature_distributions_from_laser_tests.h5'
+PATH_TO_AVERAGED_TEMPERATURE_DISTRIBUTIONS_H5 = r'./data/dimes_averaged_temperature_distributions.h5'
 PATH_TO_PPPL_EVAPORATION_MODEL = r'./data/boron_evaporation_model.hdf5'
 PATH_TO_LP_DATA = r'../Langmuir Probe/data/dimes_lp'
 PEBBLE_ROD_DIAMETER = 0.95 # cm
@@ -150,6 +151,42 @@ def load_lp_data(shot, path_to_folder) -> Dict[str, np.ndarray]:
     }
     return data
 
+
+def gaussian_broadening(signal, sigma, mode='reflect', preserve_height=True):
+    """
+    Apply Gaussian broadening to a signal.
+
+    Parameters:
+    -----------
+    signal : array-like
+        Input signal to be broadened
+    sigma : float
+        Standard deviation of the Gaussian kernel (controls broadening width)
+    mode : str, optional
+        How to handle boundaries. Options: 'reflect', 'constant', 'nearest', 'mirror', 'wrap'
+        Default is 'reflect'
+    preserve_height : bool, optional
+        If True, normalize to preserve the maximum peak height. Default is True
+
+    Returns:
+    --------
+    broadened_signal : ndarray
+        The broadened signal
+    """
+    if sigma == 0:
+        return np.array(signal)
+
+    broadened = gaussian_filter1d(signal, sigma=sigma, mode=mode)
+
+    if preserve_height:
+        # Normalize to preserve peak height
+        original_max = np.max(signal)
+        broadened_max = np.max(broadened)
+        if broadened_max > 0:
+            broadened = broadened * (original_max / broadened_max)
+
+    return broadened
+
 def main(
     shot, path_to_data=PATH_TO_DATA, path_to_averaged_distributions=PATH_TO_AVERAGED_TEMPERATURE_DISTRIBUTIONS_H5,
     path_to_pppl_fit=PATH_TO_PPPL_EVAPORATION_MODEL, pebble_rod_diameter=PEBBLE_ROD_DIAMETER,
@@ -172,17 +209,18 @@ def main(
     heat_load = lp_data['qpara'][msk_ir_tv]
     time_lp = time_lp[msk_ir_tv]
     heat_load_despiked, _ = remove_spikes_zscore(spectrum=heat_load, threshold=5, window_size=50)
-    spl_heat_load= make_smoothing_spline(x=time_lp, y=heat_load_despiked, lam=0.0025)
+    spl_heat_load= make_smoothing_spline(x=time_lp, y=heat_load_despiked, lam=1E-5)
 
     with h5py.File(str(path_to_averaged_distributions), 'r') as f:
         histograms = np.array(f['/histograms'])
         bin_centers = np.array(f['/bin_centers'])
         dimes_mean_temperatures = np.array(f['/DiMES_mean_temperature'])
 
+    cs_histogram = CubicSpline(dimes_mean_temperatures, histograms, axis=0, bc_type='clamped')
 
     def load_histrogram_at_temperature(ir_temperature):
-        idx_bin = np.argmin(np.abs(dimes_mean_temperatures - ir_temperature))
-        return histograms[idx_bin]
+        # idx_bin = np.argmin(np.abs(dimes_mean_temperatures - ir_temperature))
+        return cs_histogram(ir_temperature)
 
 
 
@@ -191,16 +229,18 @@ def main(
     evaporation_lb = np.full_like(time_s, fill_value=1E-20)
     evaporation_ub = np.full_like(time_s, fill_value=1E-20)
     pebble_rod_area = 0.25 * np.pi * pebble_rod_diameter ** 2  # cm^2
+    pebble_mean_temperature = np.full_like(time_s, fill_value=1E-20)
 
-    for i, ti in enumerate(time_s):
-        histogram = load_histrogram_at_temperature(temperature_k[i])[1:]
+    for i, tk in enumerate(temperature_k):
+        histogram = load_histrogram_at_temperature(tk)[1:]
         n_pixels_sum = np.sum(histogram)
         if n_pixels_sum > 0:
-            histogram /= n_pixels_sum # <- convert to pdf
-        evaporation_rates, lb, ub = evaporation_rate_model(bin_centers[1:]) * histogram
-        evaporation_rate[i] = np.sum(evaporation_rates)
-        evaporation_lb[i] = np.sum(lb)
-        evaporation_ub[i] = np.sum(ub)
+            histogram /= n_pixels_sum
+        evaporation_rates, lb, ub = evaporation_rate_model(bin_centers[1:])
+        evaporation_rate[i] = np.sum(evaporation_rates * histogram)
+        evaporation_lb[i] = np.sum(lb * histogram)
+        evaporation_ub[i] = np.sum(ub * histogram)
+        pebble_mean_temperature[i] = np.sum(histogram * bin_centers[1:])
 
     evaporation_rate *= pebble_rod_area
     evaporation_rate *= 1E-16
@@ -210,42 +250,62 @@ def main(
     evaporation_lb *= 1E-16
     evaporation_ub *= 1E-16
 
-    # spl_evaporation_rate = make_smoothing_spline(x=time_s, y=evaporation_rate, lam=0.00005)
+    spl_evaporation_rate = make_smoothing_spline(x=time_s, y=evaporation_rate, lam=1E-6)
+    evaporation_broadened = gaussian_broadening(evaporation_rate, mode='reflect', preserve_height=True, sigma=5)
+    evaporation_lb_broadened = gaussian_broadening(evaporation_lb, mode='reflect', sigma=5)
+    evaporation_ub_broadened = gaussian_broadening(evaporation_ub, mode='reflect', sigma=5)
 
     load_plot_style()
-    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, constrained_layout=True, sharex=True, height_ratios=[1.5, 1])
-    fig.set_size_inches(4.5, 5.)
-    ax1.plot(time_s, evaporation_rate)
-    # markers_p, caps_p, bars_p = ax1.errorbar(
-    #     time_s, evaporation_rate, yerr=(evaporation_lb, evaporation_ub),
-    #     marker='o', ms=9, mew=1.25, mfc='none',  # label=f'{lbl}',
-    #     capsize=2.75, elinewidth=1.25, lw=1.5, c='C0', ls='none'
-    # )
-    #
-    # [bar.set_alpha(0.35) for bar in bars_p]
-    # [cap.set_alpha(0.35) for cap in caps_p]
-
-    ax1.fill_between(time_s, evaporation_lb, evaporation_ub, alpha=0.25, color='C0', ec='None')
-    # ax1.set_yscale('log')
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, constrained_layout=True, sharex=True, height_ratios=[2, 1, 1])
+    fig.set_size_inches(4.5, 6.)
+    # ax1.plot(time_s, evaporation_rate)
+    ax1.plot(time_s, evaporation_broadened)
+    # ax1.fill_between(time_s, evaporation_lb_broadened, evaporation_ub_broadened, alpha=0.25, color='C0', ec='None')
 
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel(r'{\sffamily Evaporation rate (x10\textsuperscript{16} atoms/s)}', usetex=True)
 
-    # ax2.plot(time_lp, spl_heat_load(time_lp), label='Heat load')
-    ax2.plot(time_lp, heat_load, color='tab:red')
+
+    ax2.plot(time_lp, spl_heat_load(time_lp), color='tab:red')
     ax2.set_xlabel('Time (s)')
-    ax2.set_ylabel(r'{\sffamily Heat load (MW/m\textsuperscript{2})}', usetex=True)
-    # ax2.set_xlim(1.5, 3)
+    ax2.set_ylabel(r'{\sffamily q (MW/m\textsuperscript{2})}', usetex=True)
 
     ax1.set_title(f'Shot #{shot}')
     ax1.set_xlim(left=1.5, right=t_max)
-    ax1.set_ylim(bottom=0, top=2.5)
+    ax1.set_ylim(bottom=0, top=0.8)
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(0.25))
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(0.05))
+
+
+    line_dimes_temp, = ax3.plot(time_s, temperature_k, color='C1', label='IR periscope')
+    ax3p = ax3.twinx()
+    line_pebble_temp, = ax3p.plot(time_s, pebble_mean_temperature, color='C2', label='Pebble rod mean')
+    ax3.set_ylabel('T (K)', usetex=False)
+    ax3.set_xlabel('Time (s)')
+    ax3.legend(loc='best', handles=[line_dimes_temp, line_pebble_temp])
+    ax3.tick_params(axis='y', labelcolor='C1')
+    ax3p.tick_params(axis='y', labelcolor='C2')
+
+
 
     output_file_tag = f'{shot}_evaporation_rate'
     path_to_figures = Path('./figures/evaporation_rates')
     path_to_figures.mkdir(parents=True, exist_ok=True)
+
+    path_to_evporation_rates = path_to_data / 'evaporation_rates'
+    path_to_evporation_rates.mkdir(parents=True, exist_ok=True)
+    path_to_evaporation_rate_csv = path_to_evporation_rates / f'{output_file_tag}.csv'
+    evaporation_rate_df = pd.DataFrame(data={
+        'Time (s)': time_s,
+        'Evaporation rate (atoms/s)': evaporation_rate*1E16,
+        'Evaporation rate lb (atoms/s)': evaporation_lb*1E16,
+        'Evaporation rate ub (atoms/s)': evaporation_ub*1E16,
+        'DiMES temperature (K)': temperature_k,
+        'Pebble rod temperature (K)': pebble_mean_temperature
+    })
+
+    evaporation_rate_df.to_csv(path_to_evaporation_rate_csv, index=False)
+
 
     fig.savefig(f'{path_to_figures}/{output_file_tag}.png', dpi=600)
     plt.show()

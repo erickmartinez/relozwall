@@ -2,18 +2,18 @@ import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
-
+from scipy.signal import find_peaks
 from matplotlib import ticker
 from pybaselines import Baseline
 import numpy as np
 from scipy.integrate import simpson
 from scipy import ndimage
-from scipy.interpolate import make_smoothing_spline
+from scipy.interpolate import make_smoothing_spline, CubicSpline
 import matplotlib.animation as animation
 from typing import Union
 
 
-SHOT = 203785
+SHOT = 203782
 # WL_SUM_RANGE = [4324, 4329] # < BD
 # WL_SUM_RANGE = [8194, 8196] # < B-I
 WL_SUM_RANGE = [4119.5, 4123] # < B-II
@@ -27,6 +27,8 @@ R_DIMES = 1.485 #  DiMES major radius (m)
 LP_FOLDER = r'../Langmuir Probe/data/dimes_lp'
 PIXEL_WIDTH_UM = 12.8
 TIME_MAX = 5 # s
+PATH_TO_DFLUX_FOLDER = r'../D_flux/data'
+MAKE_MOVIE = False
 
 def sxb_412(T_e: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
     """
@@ -84,7 +86,8 @@ def load_lp_data(shot, path_to_folder=LP_FOLDER):
         dimes_gp = h5['/LANGMUIR_DIMES']
         t_s = np.array(dimes_gp.get('time')) * 1E-3
         T_eV = np.array(dimes_gp.get('TeV'))
-    return t_s, T_eV
+        qpara = np.array(dimes_gp.get('qpara'))
+    return t_s, T_eV, qpara
 
 def remove_spikes_zscore(spectrum, threshold=3, window_size=5):
     """
@@ -125,8 +128,14 @@ def remove_spikes_zscore(spectrum, threshold=3, window_size=5):
 
     return cleaned_spectrum, spike_mask
 
+def load_d_flux(shot, path_to_folder=PATH_TO_DFLUX_FOLDER):
+    path_to_folder = Path(path_to_folder)
+    path_to_csv = path_to_folder / f'{shot}_d_flux.csv'
+    df = pd.read_csv(path_to_csv)
+    return 1E-3 * df['time_ms'].values, df['D_flux (D/cm^2/s)'].values
 
-def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_max):
+
+def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_max, make_movie=MAKE_MOVIE):
     path_to_h5 = Path(path_to_data) / f'{shot}_mdspec.h5'
     spot_area = 0.25 * np.pi * (diameter_mds_spot ** 2)
 
@@ -134,18 +143,22 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
     path_to_figures = Path("figures")
     path_to_figures.mkdir(parents=True, exist_ok=True)
 
-    t_lp, T_e = load_lp_data(shot)
+    t_lp, T_e, qpara = load_lp_data(shot)
     # There is an unphysical peak at t<0.1 s. Replace with T_e with value at t=0.1 for t < 0.1
     idx_0 = np.argmin(np.abs(t_lp - 0.1))
     T_e[0:idx_0] = T_e[idx_0]
+    qpara[0:idx_0] = qpara[idx_0]
     # There is an unphysical peak at t>4.631 s. Replace with T_e with value at t=0.1 for t < 0.1
     idx_1 = np.argmin(np.abs(t_lp[idx_0:] - 4.631))
     if shot == 203785:
         idx_1 = np.argmin(np.abs(t_lp[idx_0:] - 3.2239))
     T_e[idx_1:] = T_e[idx_1]
+    qpara[idx_1:] = qpara[idx_1]
     T_eV_despiked, _ = remove_spikes_zscore(spectrum=T_e, threshold=1, window_size=50)
     spl_TeV = make_smoothing_spline(x=t_lp, y=T_eV_despiked, lam=None)
+    qpara_despiked, _ = remove_spikes_zscore(spectrum=qpara, threshold=1, window_size=50)
     T_eV_smooth = spl_TeV(t_lp)
+
 
     try:
         from data_processing.misc_utils.plot_style import load_plot_style
@@ -159,8 +172,7 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
 
     ax1, ax2, ax3, ax4 = axes.flatten()
 
-    fig_animation, ax_animation = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
-    fig_animation.set_size_inches(4., 3.)
+
     # gs = GridSpec(nrows=2, ncols=2, figure=fig)
     # ax1 = fig.add_subplot(gs[0, 0])
     # ax2 = fig.add_subplot(gs[0, 1])
@@ -215,36 +227,65 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
     baseline_fitter_max = Baseline()
     bgd_max, params_max = baseline_fitter_max.arpls(b_max, lam=1e6)
 
+    # Find the peaks for Te and the corresponding times at the peaks to get the peak heat loads and emission rates
+    t_peak_min, t_peak_max = 1.5, 3
+    peak_distance = 50
+    prominence = 8
+    if shot == 203785:
+        peak_distance = 500
+        prominence = 80
+        t_peak_min, t_peak_max = 2, 3
+    idx_peaks_te, _ = find_peaks(T_eV_smooth, prominence=prominence, distance=peak_distance)
+    # reduce the search for times between 1 and 3 seconds
+    idx_peaks_te = np.array([id_peak for id_peak in idx_peaks_te if (t_peak_min <= t_lp[id_peak]) & (t_lp[id_peak] <= t_peak_max)])
+    # Get qpara at these times
+    qpara_osp_hits = qpara[idx_peaks_te]
+    # Find the peaks for the ionized emission flux
+    idx_peaks_bii, _ = find_peaks(flux_bii, distance=50, prominence=20)
+    idx_peaks_bii = np.array([id_peak for id_peak in idx_peaks_bii if (t_peak_min <= time_s[id_peak]) & (time_s[id_peak] <= t_peak_max)])
+    flux_bii_osp_hits = flux_bii[idx_peaks_bii]
 
 
-    line_data, = ax_animation.plot(wavelength, intensities[0], label='Data', color='C0')
-    line_baseline, = ax_animation.plot(wavelength, bgd_max, ls='--', color='r', lw=1.2, label='Baseline')
-    ax_animation.fill_between(
-        wavelength[msk_wl_sum], bgd_max[msk_wl_sum], b_max[msk_wl_sum], color='C0', ls='None',
-        alpha=0.3
-    )
-    ax_animation.set_xlim(4113, 4130)
-    ax_animation.set_ylim(top=np.ceil(b_max[msk_wl_sum].max()*1.2/1E15)*1E15, bottom=0)
-    ax_animation.set_xlabel('$\lambda$ {\sffamily (\AA)}', usetex=True)
-    ax_animation.set_ylabel(r'$I_{\lambda}$ {\sffamily (photons/s/pixel/cm\textsuperscript{2}/ster)}', usetex=True)
-    ax_animation.xaxis.set_major_locator(ticker.MultipleLocator(5))
-    ax_animation.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    # Load D_flux
+    time_flux, D_flux = load_d_flux(shot)
 
-    ax_animation.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
-    ax_animation.axvspan(xmin=wl_sum_range[0], xmax=wl_sum_range[1], facecolor='gray', alpha=0.25, label='Integration range')
-    ax_animation.legend(loc='upper right', fontsize='9', frameon=True)
+    cs_dflux = CubicSpline(time_flux, D_flux)
+    pebble_rod_diameter = 1.
+    pebble_rod_area = 0.25 * np.pi * (pebble_rod_diameter ** 2) * 1.5
+    sputtering_yield = flux_bii / spot_area / cs_dflux(time_s)
 
-    clock_text = ax_animation.text(
-        0.05, 0.95, f't = {time_s[0]*1000:>4.0f} ms', transform=ax_animation.transAxes,
-        ha='left', va='top', fontsize='9', color='black'
-    )
+    if make_movie:
+        fig_animation, ax_animation = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
+        fig_animation.set_size_inches(4., 3.)
 
-    ani = animation.FuncAnimation(
-        fig=fig_animation, func=update_frame, frames=np.arange(0, len(time_s), 1), interval=30,
-        fargs=(line_data, line_baseline, clock_text, ax_animation, intensities, msk_wl_sum, time_s)
-    )
-    path_to_ani = path_to_figures / f'{shot}_BII_band_animation.mp4'
-    ani.save(filename=path_to_ani, dpi=100, writer='ffmpeg')
+        line_data, = ax_animation.plot(wavelength, intensities[0], label='Data', color='C0')
+        line_baseline, = ax_animation.plot(wavelength, bgd_max, ls='--', color='r', lw=1.2, label='Baseline')
+        ax_animation.fill_between(
+            wavelength[msk_wl_sum], bgd_max[msk_wl_sum], b_max[msk_wl_sum], color='C0', ls='None',
+            alpha=0.3
+        )
+        ax_animation.set_xlim(4113, 4130)
+        ax_animation.set_ylim(top=np.ceil(b_max[msk_wl_sum].max()*1.2/1E15)*1E15, bottom=0)
+        ax_animation.set_xlabel('$\lambda$ {\sffamily (\AA)}', usetex=True)
+        ax_animation.set_ylabel(r'$I_{\lambda}$ {\sffamily (photons/s/pixel/cm\textsuperscript{2}/ster)}', usetex=True)
+        ax_animation.xaxis.set_major_locator(ticker.MultipleLocator(5))
+        ax_animation.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+
+        ax_animation.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+        ax_animation.axvspan(xmin=wl_sum_range[0], xmax=wl_sum_range[1], facecolor='gray', alpha=0.25, label='Integration range')
+        ax_animation.legend(loc='upper right', fontsize='9', frameon=True)
+
+        clock_text = ax_animation.text(
+            0.05, 0.95, f't = {time_s[0]*1000:>4.0f} ms', transform=ax_animation.transAxes,
+            ha='left', va='top', fontsize='9', color='black'
+        )
+
+        ani = animation.FuncAnimation(
+            fig=fig_animation, func=update_frame, frames=np.arange(0, len(time_s), 1), interval=30,
+            fargs=(line_data, line_baseline, clock_text, ax_animation, intensities, msk_wl_sum, time_s)
+        )
+        path_to_ani = path_to_figures / f'{shot}_BII_band_animation.mp4'
+        ani.save(filename=path_to_ani, dpi=100, writer='ffmpeg')
 
     ax1.plot(wavelength, b_max, label='Data', color='C0')
     ax1.set_title('BII band')
@@ -272,17 +313,18 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
     ax3.plot(t_lp, T_e, color='C0', alpha=0.25, label='Probe')
     # ax3.plot(t_lp, T_eV_despiked, color='C1', alpha=0.5, label='De-spiked')
     p1, = ax3.plot(time_s, spl_TeV(time_s), color='C0', label='Smoothed')
+    ax3.plot(t_lp[idx_peaks_te], spl_TeV(t_lp)[idx_peaks_te], color='red', marker='x', ls='none', label='OSP at DiMES')
     ax3.set_xlabel('$t$ {\sffamily (s)}', usetex=True)
     ax3.set_ylabel(r'$T_e$ {\sffamily (eV)}', usetex=True)
     ax3.set_xlim(0, 4.5)
     ax3.set_ylim(bottom=0, top=100)
-    if shot == 203785:
-        ax3.set_ylim(bottom=0, top=140)
+
 
     gamma_lbl = r'\begin{equation}\Gamma = 4\pi A_{\mathrm{spot}} \frac{S}{XB} I_{\mathrm{BII}}\end{equation}'
     ax4.plot(time_s, flux_bii, label=gamma_lbl)
+    ax4.plot(time_s[idx_peaks_bii], flux_bii[idx_peaks_bii], label='OSP at DiMES', marker='x', ls='none')
     ax4.set_xlabel('$t$ {\sffamily (s)}', usetex=True)
-    ax4.set_ylabel(r'$\Gamma_{\mathrm{BII}}$ {\sffamily (molecules/s)}', usetex=True)
+    ax4.set_ylabel(r'$\Gamma_{\mathrm{BII}}$ {\sffamily (atoms/s)}', usetex=True)
     ax4.set_xlim(0, 4.5)
     # legend_4 = ax4.legend(loc='upper left', fontsize='9', frameon=True)
     # for text in legend_4.get_texts():
@@ -304,6 +346,10 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
     ax3_twin.set_ylabel('SX/B')
     ax3.yaxis.label.set_color(p1.get_color())
     ax3_twin.yaxis.label.set_color(p2.get_color())
+
+    if shot == 203785:
+        ax3.set_ylim(bottom=0, top=160)
+        ax3_twin.set_ylim(bottom=0, top=300)
 
     ax3.tick_params(axis='y', colors=p1.get_color())
     ax3_twin.tick_params(axis='y', colors=p2.get_color())
@@ -342,9 +388,36 @@ def main(shot, wl_sum_range, path_to_data, line_label, diameter_mds_spot, time_m
         f.write("# " + "*" * 20 + "\n")
         emission_flux_df.to_csv(f, index=False)
 
+
+    # Save qpara vs flux
+    emission_flux_vs_qpara_df = pd.DataFrame(data={
+        'time (s)': time_s[idx_peaks_bii],
+        'qpara (MW/m2)': qpara_despiked[idx_peaks_te],
+        'Flux (molecules/s)': flux_bii[idx_peaks_bii],
+    })
+
+    path_to_data_out_qpara = path_to_data_out / 'qpara'
+    path_to_data_out_qpara.mkdir(parents=True, exist_ok=True)
+    path_to_csv_out = path_to_data_out_qpara / f'{shot}_emission_flux_vs_qpara_{line_label}.csv'
+    with open(path_to_csv_out, 'w') as f:
+        f.write("# " + "*" * 20 + "\n")
+        f.write(f"# Shot #{shot}\n")
+        f.write(f"# {line_label} line brightness\n")
+        f.write(f"# Wavelength range (Å): [{wl_sum_range[0]}, {wl_sum_range[1]}] \n")
+        f.write("# " + "*" * 20 + "\n")
+        emission_flux_vs_qpara_df.to_csv(f, index=False)
+
     # Save the figure
     path_to_figure = path_to_figures / f'{shot}_{line_label}_flux.png'
     fig.savefig(path_to_figure, dpi=600)
+
+    fig_flux, ax_flux = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
+    fig_flux.set_size_inches(4., 3.)
+    ax_flux.plot(time_s, sputtering_yield, color='C0')
+    ax_flux.set_xlabel('Time (s)')
+    ax_flux.set_ylabel('Sputtering yield (B/D)')
+
+
 
     plt.show()
 

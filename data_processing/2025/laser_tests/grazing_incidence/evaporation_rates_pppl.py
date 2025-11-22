@@ -142,16 +142,15 @@ def main(
     evaporation_lb = np.zeros_like(time_s)
     evaporation_ub = np.zeros_like(time_s)
     pebble_rod_area = 0.25 * np.pi * pebble_rod_diameter ** 2 # cm^2
-
+    bin_centers_delta = bin_centers[1] - bin_centers[0]
 
     for i, ti in enumerate(time_s):
-        histogram = histogram_matrix[i, 1:] # < remove data close to 300 K
-        n_pixels_sum = np.sum(histogram)
-        histogram /= n_pixels_sum # <- convert to pdf
-        evaporation_rates, lb, ub = evaporation_rate_model(bin_centers[1:])
-        evaporation_rate[i] = np.sum(evaporation_rates* histogram)
-        evaporation_lb[i] = np.sum(lb * histogram)
-        evaporation_ub[i] = np.sum(ub * histogram)
+        n_pixels = histogram_matrix[i]
+        n_pixels_sum = np.sum(n_pixels)
+        evaporation_rates, lb, ub = evaporation_rate_model(bin_centers)
+        evaporation_rate[i] = np.sum(evaporation_rates * n_pixels / n_pixels_sum)
+        evaporation_lb[i] = np.sum(lb * n_pixels / n_pixels_sum)
+        evaporation_ub[i] = np.sum(ub * n_pixels / n_pixels_sum)
 
     evaporation_rate *= pebble_rod_area
     evaporation_rate *= 1E-16

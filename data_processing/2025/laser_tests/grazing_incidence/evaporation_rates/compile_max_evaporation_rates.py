@@ -118,6 +118,16 @@ def main(path_to_evaporation_rates=PATH_TO_EVAPORATION_RATES, beam_radius=BEAM_R
         evaporation_rate['Evaporation rate max ub (atoms/s)'][i] = data['evaporation_rate_max_ub']
         evaporation_rate['Pebble rod diameter (cm)'][i] = data['pebble_rod_diameter_cm']
 
+    results_df = pd.DataFrame(evaporation_rate).sort_values('Heat load (MW/m^2)', ascending=True)
+    path_to_output = path_to_evaporation_rates / 'compiled'
+    path_to_output.mkdir(parents=True, exist_ok=True)
+    path_to_csv = path_to_output / 'evaporation_rates.csv'
+    with open(str(path_to_csv), 'w') as csvfile:
+        csvfile.write('#'*40 + '\n')
+        csvfile.write('# '+f'Laser beam diameter: {beam_radius*2.:.3f} cm\n')
+        csvfile.write('#'*40 + '\n')
+        results_df.to_csv(csvfile, index=False)
+
     load_plot_style()
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
     fig.set_size_inches(4, 3)

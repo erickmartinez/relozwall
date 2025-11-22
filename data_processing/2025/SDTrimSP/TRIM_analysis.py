@@ -129,7 +129,7 @@ def main():
     """Main function to run the analysis."""
 
     # Default filename - can be changed or passed as argument
-    filename = "./grazing angle/erosion_simulation_results/1000/output.dat"
+    filename = "grazing_incidence/erosion_simulation_results/1000/output.dat"
 
     # Allow filename as command line argument
     if len(sys.argv) > 1:

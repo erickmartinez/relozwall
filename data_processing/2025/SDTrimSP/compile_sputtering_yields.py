@@ -5,7 +5,7 @@ import os
 from typing import Dict
 from TRIM_analysis import parse_sdtrimsp_output
 
-PATH_TO_SIMULATION_RESULTS = r'./grazing angle/erosion_simulation_results'
+PATH_TO_SIMULATION_RESULTS = r'grazing_incidence/erosion_simulation_results'
 
 
 
@@ -47,7 +47,7 @@ def main(path_to_simulation_results):
         sputtering_results[i] = (e0, total_sputtering_yield, total_energy_per_sputtered)
 
     results_df = pd.DataFrame(data=sputtering_results).sort_values(by=["E0 (eV)"]).reset_index(drop=True)
-    results_df.to_csv(r'grazing angle/erosion_simulations.csv', index=False)
+    results_df.to_csv(r'grazing_incidence/erosion_simulations.csv', index=False)
 
 if __name__ == '__main__':
     main(path_to_simulation_results=PATH_TO_SIMULATION_RESULTS)

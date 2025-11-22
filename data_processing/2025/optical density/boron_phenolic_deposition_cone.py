@@ -27,7 +27,7 @@ Density: 2.1 ± 0.1 g/cm³
 """
 
 
-TRANSMISSION_XLS = r'./data/2025-S0803.xlsx'
+TRANSMISSION_XLS = r'./data/2025-S0804.xlsx'
 SUBSTRATE_SOURCE_DISTANCE_CM = 3.8 # cm < For 0803
 # SUBSTRATE_SOURCE_DISTANCE_CM = 6.5 # cm <- for 0804
 EXPOSURE_TIME = 1.0 # In seconds
@@ -292,7 +292,7 @@ def main(
 
     text1 = r'\begin{align*} '
     text2 = r'n_1 &= ' + f'{popt[0]:.1f} \pm {delta_popt[0]:.1f}' + '\\\\'
-    text3 = r'n_1 &= ' + f'{popt[1]:.1f} \pm {delta_popt[1]:.1f}' + '\\\\'
+    text3 = r'n_2 &= ' + f'{popt[1]:.1f} \pm {delta_popt[1]:.1f}' + '\\\\'
     text4 = r'\eta &= ' + f'{popt[2]:.2f} \pm {delta_popt[2]:.2f}'
     text5 = r'\end{align*}'
     fit_results_str = text1 + text2 + text3 + text4 + text5
@@ -358,6 +358,7 @@ def main(
         f.write(f"mixing = {popt[2]:>6.2f} -/+ {delta_popt[2]:>4.2f}\n")
         f.write(f"SAMPLE AREA: {area * 1E4:.2f} cm²\n")
         f.write(f"TOTAL SUBLIMATED BORON (B atoms/m²/s): {total_rate:.3E} ± {total_rate_delta:.3E}\n")
+        f.write(f"TOTAL SUBLIMATED BORON: {(popt[2] * rate1 + (1 - popt[2]) * rate2):.3E} B atoms/s\n")
         f.write(f"TOTAL SUBLIMATED BORON (G/S): {total_rate_gs:.3E} g/s\n")
 
 

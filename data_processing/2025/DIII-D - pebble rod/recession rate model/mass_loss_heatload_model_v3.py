@@ -22,9 +22,8 @@ FIGURES_FOLDER = r'./figures'
 
 SHOTS = [203780, 203781]
 T_RANGE = [1500, 3500]
-TAU = 10 # Time constant for the RC filter (ms)
+TAU = 20 # Time constant for the RC filter (ms)
 PLASMA_ANGLE = 1.5 # deg
-BORON_MOLAR_MASS = 10.811 # g / mol
 
 
 def load_lp_data(shot, path_to_folder):
@@ -33,7 +32,8 @@ def load_lp_data(shot, path_to_folder):
         dimes_gp = h5['/LANGMUIR_DIMES']
         t_ms = np.array(dimes_gp.get('time')) * 1E-3
         T_eV = np.array(dimes_gp.get('TeV'))
-    return t_ms, T_eV
+        qpara = np.array(dimes_gp.get('qpara'))
+    return t_ms, T_eV, qpara
 
 def load_pebble_rod_details(shot, xlsx=PEBBLE_ROD_DETAILS_XLS) -> Dict[str, float]:
     """
@@ -178,20 +178,28 @@ def main(
     t_shots = []
     T_eV_shots = []
     current_shots = []
+    qpara_shots = []
     t0_shots = []
     for i, shot in enumerate(shots):
         print(f'Loading shot {shot}...')
         t0_shots.append(t0)
         t_left, t_right = 1E-3*t_range[0], 1E-3*t_range[1]
-        t_lp, T_eV = load_lp_data(shot, lp_folder)
+        t_lp, T_eV, qpara = load_lp_data(shot, lp_folder)
         msk_time = (t_left <= t_lp) & (t_lp <= t_right)
         t_lp = t_lp[msk_time] #+ t0
         T_eV = T_eV[msk_time]
+        qpara = qpara[msk_time]
+
         T_eV_despiked, _ = remove_spikes_zscore(spectrum=T_eV, threshold=5, window_size=50)
-        spl_TeV = make_smoothing_spline(x=t_lp, y=T_eV_despiked, lam=None)
+        spl_TeV = make_smoothing_spline(x=t_lp, y=T_eV_despiked, lam=0.00025)
         T_eV_smooth = spl_TeV(t_lp)
 
+        qpara_despiked, _ = remove_spikes_zscore(spectrum=qpara, threshold=5, window_size=50)
+        spl_qpara = make_smoothing_spline(x=t_lp, y=qpara, lam=None)
+        qpara_smooth = spl_qpara(t_lp)
+
         T_eV_shots.append(T_eV_smooth)
+        qpara_shots.append(qpara_smooth)
 
         current_df = load_current_data(shot)
         t_current = (current_df['t_ms'].values) * 1E-3  # + t0
@@ -211,7 +219,7 @@ def main(
         current_rcsmooth = rc_smooth(t_current, current, tau*1E-3)
         current_baselined = current_rcsmooth - bkgd_1.mean()
 
-        cs_current = CubicSpline(t_current, current_baselined)
+        cs_current = make_smoothing_spline(t_current, current_baselined, lam=0.0075)
         current_interp = cs_current(t_lp)
 
         current_shots.append(current_interp)
@@ -382,10 +390,11 @@ def main(
     for i in range(2):
         axes_h[0, i].set_ylim(0, 0.08)
 
+    shots_txt = '-'.join([str(shot) for shot in shots])
     path_to_figures = Path(path_to_figures) / 'heatload_model_v2'
     path_to_figures.mkdir(parents=True, exist_ok=True)
-    path_to_fig1 = path_to_figures / 'current_and_Te.png'
-    path_to_fig2 = path_to_figures / 'height_model.png'
+    path_to_fig1 = path_to_figures / f'{shots_txt}_current_and_Te.png'
+    path_to_fig2 = path_to_figures / f'{shots_txt}_height_model.png'
 
     fig.savefig(path_to_fig1, dpi=600)
     fig_h.savefig(path_to_fig2, dpi=600)
@@ -393,7 +402,6 @@ def main(
     # Save the model data
     path_to_model_results_folder = Path(current_folder) / 'model_results'
     path_to_model_results_folder.mkdir(parents=True, exist_ok=True)
-    shots_txt = '-'.join([str(shot) for shot in shots])
     path_to_model_folder = path_to_model_results_folder / f'{shots_txt}_mass_loss_model.h5'
     with h5py.File(str(path_to_model_folder), 'w') as f:
         for i, shot in enumerate(shots):
@@ -408,6 +416,8 @@ def main(
             mass_loss_rate_ds = shot_group.create_dataset('mass_loss_rate', data=dm_dt, compression='gzip')
             mass_loss_rate_error_ds = shot_group.create_dataset('mass_loss_error', data=dm_dt_error, compression='gzip')
             mass_loss_rate_ds.attrs['units'] = 'atoms/s'
+            heat_load_ds = shot_group.create_dataset('qpara', data=qpara_shots[i], compression='gzip')
+            heat_load_ds.attrs['units'] = 'MW/m^2'
 
 
     plt.show()

@@ -1,10 +1,9 @@
-import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.integrate as integrate
 from scipy.integrate import simpson, trapezoid
-from scipy.interpolate import make_smoothing_spline, CubicSpline
+from scipy.interpolate import make_smoothing_spline, CubicSpline, interp1d
 from scipy import ndimage
 from pathlib import Path
 from pybaselines import Baseline
@@ -22,7 +21,7 @@ FIGURES_FOLDER = r'./figures'
 
 SHOTS = [203782, 203783, 203784]
 T_RANGE = [1500, 3500]
-TAU = 10 # Time constant for the RC filter (ms)
+TAU = 15 # Time constant for the RC filter (ms)
 PLASMA_ANGLE = 1.5 # deg
 BORON_MOLAR_MASS = 10.811 # g / mol
 
@@ -33,7 +32,8 @@ def load_lp_data(shot, path_to_folder):
         dimes_gp = h5['/LANGMUIR_DIMES']
         t_ms = np.array(dimes_gp.get('time')) * 1E-3
         T_eV = np.array(dimes_gp.get('TeV'))
-    return t_ms, T_eV
+        qpara = np.array(dimes_gp.get('qpara'))
+    return t_ms, T_eV, qpara
 
 def load_pebble_rod_details(shot, xlsx=PEBBLE_ROD_DETAILS_XLS) -> Dict[str, float]:
     """
@@ -172,26 +172,34 @@ def main(
 ):
     load_plot_style()
     fig, axes = plt.subplots(nrows=3, ncols=3, constrained_layout=True, sharex=False)
-    fig.set_size_inches(8, 6)
+    fig.set_size_inches(8.5, 6)
     t0 = 0
     total_int = 0
     t_shots = []
     T_eV_shots = []
     current_shots = []
+    qpara_shots = []
     t0_shots = []
     for i, shot in enumerate(shots):
         print(f'Loading shot {shot}...')
         t0_shots.append(t0)
-        t_left, t_right = 1E-3*t_range[0], 1E-3*t_range[1]
-        t_lp, T_eV = load_lp_data(shot, lp_folder)
+        t_left, t_right = 1E-3 * t_range[0], 1E-3 * t_range[1]
+        t_lp, T_eV, qpara = load_lp_data(shot, lp_folder)
         msk_time = (t_left <= t_lp) & (t_lp <= t_right)
-        t_lp = t_lp[msk_time] #+ t0
+        t_lp = t_lp[msk_time]  # + t0
         T_eV = T_eV[msk_time]
+        qpara = qpara[msk_time]
+
         T_eV_despiked, _ = remove_spikes_zscore(spectrum=T_eV, threshold=5, window_size=50)
-        spl_TeV = make_smoothing_spline(x=t_lp, y=T_eV_despiked, lam=None)
+        spl_TeV = make_smoothing_spline(x=t_lp, y=T_eV_despiked, lam=0.0005)
         T_eV_smooth = spl_TeV(t_lp)
 
+        qpara_despiked, _ = remove_spikes_zscore(spectrum=qpara, threshold=5, window_size=50)
+        spl_qpara = make_smoothing_spline(x=t_lp, y=qpara, lam=None)
+        qpara_smooth = spl_qpara(t_lp)
+
         T_eV_shots.append(T_eV_smooth)
+        qpara_shots.append(qpara_smooth)
 
         current_df = load_current_data(shot)
         t_current = (current_df['t_ms'].values) * 1E-3  # + t0
@@ -211,7 +219,8 @@ def main(
         current_rcsmooth = rc_smooth(t_current, current, tau*1E-3)
         current_baselined = current_rcsmooth - bkgd_1.mean()
 
-        cs_current = CubicSpline(t_current, current_baselined)
+        cs_current = interp1d(t_current, current_baselined, kind='cubic', fill_value='extrapolate')
+        cs_current = make_smoothing_spline(x=t_current, y=current_baselined, lam=0.0075)
         current_interp = cs_current(t_lp)
 
         current_shots.append(current_interp)
@@ -219,6 +228,8 @@ def main(
 
 
         I_x_TeV = current_interp * T_eV_despiked
+        spl_I_x_TeV = make_smoothing_spline(x=t_lp, y=I_x_TeV, lam=None)
+        I_x_TeV = spl_I_x_TeV(t_lp)
         int_i_TeV = simpson(x=t_lp, y=I_x_TeV)
         total_int += int_i_TeV
 
@@ -230,8 +241,8 @@ def main(
         text_int = r'\begin{equation*}'
         text_int += f'\int_{{t={t_lp[0]+t0:.1f}}}^{{{t_lp[-1]+t0:.1f}}} I(t)T_e(t) dt = {latex_float(int_i_TeV)} '
         text_int += r'\end{equation*}'
-        if i == 0:
-            axes[0,i].set_title(f'Shot #{shot}')
+
+        axes[0,i].set_title(f'Shot #{shot}')
         axes[2, i].text(
             0.025, 0.975, text_int,
             ha='left',
@@ -264,7 +275,7 @@ def main(
     axes[2, 0].set_ylabel(r'{\sffamily I x T\textsubscript{e} (eV$\cdot$C/s)}', usetex=True)
 
     fig_h, axes_h = plt.subplots(nrows=3, ncols=3, constrained_layout=True, sharex=True)
-    fig_h.set_size_inches(8, 6.5)
+    fig_h.set_size_inches(9, 6.5)
 
     N_A = 6.02214076e+23
     N_A = 6.02214076E1
@@ -317,10 +328,10 @@ def main(
         for j in range(len(dm_dt)):
             if j < 5:
                 mass_loss_at_time[j] = trapezoid(y=dm_dt[0:j], x=t_shot[0:j])
-                h[j] = h0_i - 4 * mass_loss_at_time[j]/(rho * diameter ** 2)
+                h[j] = h0_i - 4 * mass_loss_at_time[j]/(np.pi * rho * diameter ** 2)
             else:
                 mass_loss_at_time[j] = simpson(y=dm_dt[0:j], x=t_shot[0:j])
-            h[j]= h0_i - 4 * mass_loss_at_time[j]/(rho * diameter ** 2)
+            h[j]= h0_i - 4 * mass_loss_at_time[j]/(np.pi * rho * diameter ** 2)
 
         mass_loss_at_time += m_loss_i
         m_loss_i = mass_loss_at_time[-1]
@@ -376,16 +387,23 @@ def main(
         grams_per_second_to_atoms_per_second, atoms_per_second_to_grams_per_second
     ))
 
-    for ax in [ax_g1, ax_g2]:
+    ax_g3 = axes_h[0, 2].secondary_yaxis('right', functions=(
+        grams_per_second_to_atoms_per_second, atoms_per_second_to_grams_per_second
+    ))
+
+    for ax in [ax_g1, ax_g2, ax_g3]:
         ax.set_ylabel(r'{\sffamily x10\textsuperscript{22} B atoms/s}', usetex=True)
 
-    for i in range(2):
-        axes_h[0, i].set_ylim(0, 1.2)
+    for i in range(3):
+        axes_h[0, i].set_ylim(0, 0.2)
 
+    shots_txt = f'{shots[0]}-{shots[-1]}'
     path_to_figures = Path(path_to_figures) / 'heatload_model_v2'
     path_to_figures.mkdir(parents=True, exist_ok=True)
-    path_to_fig1 = path_to_figures / 'current_and_Te.png'
-    path_to_fig2 = path_to_figures / 'height_model.png'
+    path_to_fig1 = path_to_figures / f'{shots_txt}_current_and_Te.png'
+    path_to_fig2 = path_to_figures / f'{shots_txt}_mass_model.png'
+    fig.align_labels()
+    fig_h.align_labels()
 
     fig.savefig(path_to_fig1, dpi=600)
     fig_h.savefig(path_to_fig2, dpi=600)
@@ -393,12 +411,11 @@ def main(
     # Save the model data
     path_to_model_results_folder = Path(current_folder) / 'model_results'
     path_to_model_results_folder.mkdir(parents=True, exist_ok=True)
-    shots_txt = f'{shots[0]}-{shots[-1]}'
+
     path_to_model_folder = path_to_model_results_folder / f'{shots_txt}_mass_loss_model.h5'
     with h5py.File(str(path_to_model_folder), 'w') as f:
         for i, shot in enumerate(shots):
             current_shot = current_shots[i]
-            t_shot = t_shots[i]
             T_ev_shot = T_eV_shots[i]
             dm_dt = grams_per_second_to_atoms_per_second(kappa * current_shot * T_ev_shot)*1E22
             dm_dt_error = grams_per_second_to_atoms_per_second(kappa_delta * current_shot * T_ev_shot)*1E22
@@ -408,6 +425,8 @@ def main(
             mass_loss_rate_ds = shot_group.create_dataset('mass_loss_rate', data=dm_dt, compression='gzip')
             mass_loss_rate_error_ds = shot_group.create_dataset('mass_loss_error', data=dm_dt_error, compression='gzip')
             mass_loss_rate_ds.attrs['units'] = 'atoms/s'
+            heat_load_ds = shot_group.create_dataset('qpara', data=qpara_shots[i], compression='gzip')
+            heat_load_ds.attrs['units'] = 'MW/m^2'
 
 
     plt.show()

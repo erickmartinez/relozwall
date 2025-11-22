@@ -1,0 +1,160 @@
+ start:
+ default_init_0
+ init_parallel_environment
+ title:T -> B  flux=5E20                                                               
+ ===read all table===
+   read:/Users/erickmartinez/Documents/trimsp/tables/table1
+    use inelastic (electronic) energy  model inel0(           1 )=4
+    read:/Users/erickmartinez/Documents/trimsp/tables/table3 forD         
+    use inelastic (electronic) energy  model inel0(           2 )=           7
+    read:/Users/erickmartinez/Documents/trimsp/tables/table6a
+    read:/Users/erickmartinez/Documents/trimsp/tables/table6b
+    read:/Users/erickmartinez/Documents/trimsp/tables/table7_ck
+    read:/Users/erickmartinez/Documents/trimsp/tables/table7_a3a4a5
+   ck_elec(i,j), ck: a2-a5
+    D    -> D         0.50000     0.50000    -1.00000    -1.00000    -1.00000
+    D    -> B         0.50000     0.50000    -1.00000    -1.00000    -1.00000
+    B    -> D         1.00000     0.50000    -1.00000    -1.00000    -1.00000
+    B    -> B         1.25000     0.50000    -1.00000    -1.00000    -1.00000
+  ===end table read===
+   EsEc:---USE-----  
+   EsEc:  ncp symb   e_surfb  e_cutoff   e_bulkb
+   EsEc:  1    D      1.10000   0.75300   0.00000
+   EsEc:  2    B      3.75000   1.24900   0.00000
+ ===Calculation of amplitude (Debye-Waller)
+    dx=f(T,bulk-debye-Temp(element)
+             Nr        Z     T [K] u_deb_wal [A] max(u_deb_wal)
+    u_deb_wal  1 D      1    300.00   1.46223
+    u_deb_wal  2 B      5    300.00   0.07320
+    max u_deb(   all target atoms):   0.07320
+ ---
+    start-seed:
+     pid          seed
+      0                        1                        1
+ --energy_init-------------------------
+ --target_init-------------------------
+ INFO:      allocate(part  ) memory:    0.08 MByt
+ INFO:  allocate(task_queue) memory:   16.02 MByt
+ start history ihist=           0
+ history: start time:14:17:57
+INFO: Fluence step:   0.1250000 [ions/A**2]  
+INFO: time    step:   0.0250000 [s]          
+           1 ihist:           0 %, time:14:17:57         640
+INFO   :  chamax:   1.57414 %   
+           2 ihist:           0 %, time:14:17:57         640
+           3 ihist:           0 %, time:14:17:57         640
+           4 ihist:           0 %, time:14:17:58         640
+           5 ihist:           0 %, time:14:17:58         640
+           6 ihist:           0 %, time:14:17:58         640
+           7 ihist:           0 %, time:14:17:58         640
+           8 ihist:           0 %, time:14:17:58         640
+           9 ihist:           0 %, time:14:17:58         640
+          40 ihist:           1 %, time:14:18:00         640
+          80 ihist:           2 %, time:14:18:03         640
+         120 ihist:           3 %, time:14:18:06         640
+         160 ihist:           4 %, time:14:18:09         640
+         200 ihist:           5 %, time:14:18:12         640
+         240 ihist:           6 %, time:14:18:15         640
+         280 ihist:           7 %, time:14:18:18         640
+         320 ihist:           8 %, time:14:18:21         640
+         360 ihist:           9 %, time:14:18:24         640
+         400 ihist:          10 %, time:14:18:27         640
+         440 ihist:          11 %, time:14:18:30         640
+         480 ihist:          12 %, time:14:18:33         640
+         520 ihist:          13 %, time:14:18:36         640
+         560 ihist:          14 %, time:14:18:39         640
+         600 ihist:          15 %, time:14:18:42         640
+         640 ihist:          16 %, time:14:18:45         640
+         680 ihist:          17 %, time:14:18:48         640
+         720 ihist:          18 %, time:14:18:52         640
+         760 ihist:          19 %, time:14:18:55         640
+         800 ihist:          20 %, time:14:18:58         640
+         840 ihist:          21 %, time:14:19:01         640
+         880 ihist:          22 %, time:14:19:04         640
+         920 ihist:          23 %, time:14:19:07         640
+         960 ihist:          24 %, time:14:19:10         640
+        1000 ihist:          25 %, time:14:19:13         640
+  1 flc:   125.0 E:   100. a: 45.0 dz:     89.26 dz/dt  88.90982 Ysum:  1.00000  0.09348 qumax  0.00000  1.00000
+        1040 ihist:          26 %, time:14:19:16         640
+        1080 ihist:          27 %, time:14:19:19         640
+        1120 ihist:          28 %, time:14:19:22         640
+        1160 ihist:          29 %, time:14:19:25         640
+        1200 ihist:          30 %, time:14:19:28         640
+        1240 ihist:          31 %, time:14:19:31         640
+        1280 ihist:          32 %, time:14:19:34         640
+        1320 ihist:          33 %, time:14:19:37         640
+        1360 ihist:          34 %, time:14:19:40         640
+        1400 ihist:          35 %, time:14:19:43         640
+        1440 ihist:          36 %, time:14:19:46         640
+        1480 ihist:          37 %, time:14:19:49         640
+        1520 ihist:          38 %, time:14:19:52         640
+        1560 ihist:          39 %, time:14:19:55         640
+        1600 ihist:          40 %, time:14:19:58         640
+        1640 ihist:          41 %, time:14:20:01         640
+        1680 ihist:          42 %, time:14:20:04         640
+        1720 ihist:          43 %, time:14:20:07         640
+        1760 ihist:          44 %, time:14:20:10         640
+        1800 ihist:          45 %, time:14:20:13         640
+        1840 ihist:          46 %, time:14:20:16         640
+        1880 ihist:          47 %, time:14:20:20         640
+        1920 ihist:          48 %, time:14:20:23         640
+        1960 ihist:          49 %, time:14:20:26         640
+        2000 ihist:          50 %, time:14:20:29         640
+  2 flc:   250.0 E:   100. a: 45.0 dz:    177.92 dz/dt  88.16734 Ysum:  1.00000  0.09284 qumax  0.00000  1.00000
+        2040 ihist:          51 %, time:14:20:32         640
+        2080 ihist:          52 %, time:14:20:35         640
+        2120 ihist:          53 %, time:14:20:38         640
+        2160 ihist:          54 %, time:14:20:41         640
+        2200 ihist:          55 %, time:14:20:44         640
+        2240 ihist:          56 %, time:14:20:47         640
+        2280 ihist:          57 %, time:14:20:50         640
+        2320 ihist:          58 %, time:14:20:53         640
+        2360 ihist:          59 %, time:14:20:56         640
+        2400 ihist:          60 %, time:14:21:00         640
+        2440 ihist:          61 %, time:14:21:03         640
+        2480 ihist:          62 %, time:14:21:06         640
+        2520 ihist:          63 %, time:14:21:09         640
+        2560 ihist:          64 %, time:14:21:12         640
+        2600 ihist:          65 %, time:14:21:15         640
+        2640 ihist:          66 %, time:14:21:18         640
+        2680 ihist:          67 %, time:14:21:21         640
+        2720 ihist:          68 %, time:14:21:24         640
+        2760 ihist:          69 %, time:14:21:27         640
+        2800 ihist:          70 %, time:14:21:30         640
+        2840 ihist:          71 %, time:14:21:33         640
+        2880 ihist:          72 %, time:14:21:36         640
+        2920 ihist:          73 %, time:14:21:39         640
+        2960 ihist:          74 %, time:14:21:42         640
+        3000 ihist:          75 %, time:14:21:45         640
+  3 flc:   375.0 E:   100. a: 45.0 dz:    267.01 dz/dt  88.56996 Ysum:  1.00000  0.09330 qumax  0.00000  1.00000
+        3040 ihist:          76 %, time:14:21:49         640
+        3080 ihist:          77 %, time:14:21:52         640
+        3120 ihist:          78 %, time:14:21:55         640
+        3160 ihist:          79 %, time:14:21:58         640
+        3200 ihist:          80 %, time:14:22:01         640
+        3240 ihist:          81 %, time:14:22:04         640
+        3280 ihist:          82 %, time:14:22:07         640
+        3320 ihist:          83 %, time:14:22:10         640
+        3360 ihist:          84 %, time:14:22:13         640
+        3400 ihist:          85 %, time:14:22:16         640
+        3440 ihist:          86 %, time:14:22:19         640
+        3480 ihist:          87 %, time:14:22:22         640
+        3520 ihist:          88 %, time:14:22:25         640
+        3560 ihist:          89 %, time:14:22:28         640
+        3600 ihist:          90 %, time:14:22:31         640
+        3640 ihist:          91 %, time:14:22:34         640
+        3680 ihist:          92 %, time:14:22:37         640
+        3720 ihist:          93 %, time:14:22:41         640
+        3760 ihist:          94 %, time:14:22:44         640
+        3800 ihist:          95 %, time:14:22:47         640
+        3840 ihist:          96 %, time:14:22:50         640
+        3880 ihist:          97 %, time:14:22:53         640
+        3920 ihist:          98 %, time:14:22:56         640
+        3960 ihist:          99 %, time:14:22:59         640
+        4000 ihist:         100 %, time:14:23:02         640
+  4 flc:   500.0 E:   100. a: 45.0 dz:    355.86 dz/dt  88.03129 Ysum:  1.00000  0.09305 qumax  0.00000  1.00000
+ ihist: end history of projectile_loop
+ end history
+ start gsum_stat
+ end gsum_stat
+ end outp

@@ -28,26 +28,25 @@ Using preprocessed images from 'thermography_make_video.py', which removed spuri
 """
 # STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N15_0602_020PCT_2025-06-03_2/LCT_R5N15_0602_020PCT_2025-06-03_2_grayscale_stack.tif'
 # METADATA_FILE = 'LCT_R5N15_0602_020PCT_2025-06-03_2_temperature_stack_metadata.json'
-STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0905_080PCT_2025-09-11_1/LCT_R5N16-0905_080PCT_2025-09-11_1_grayscale_stack.tif'
-METADATA_FILE = 'LCT_R5N16-0905_080PCT_2025-09-11_1_temperature_stack_metadata.json'
+STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0914_060PCT_2025-09-15_1/LCT_R5N16-0914_060PCT_2025-09-15_1_grayscale_stack.tif'
+METADATA_FILE = 'LCT_R5N16-0914_060PCT_2025-09-15_1_temperature_stack_metadata.json'
 # STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0903_040PCT_2025-09-11_1/LCT_R5N16-0903_040PCT_2025-09-11_1_grayscale_stack.tif'
 # METADATA_FILE = 'LCT_R5N16-0903_040PCT_2025-09-11_1_temperature_stack_metadata.json'
 
 DIMES_DIAMETER = 3.95 # cm
 COLOR_MAP = 'viridis'
-SHOW_FRAME = 65 # The number of the frame over which to plot the sampling area (though all frames will be processed)
+SHOW_FRAME = 95 # The number of the frame over which to plot the sampling area (though all frames will be processed)
 CAMERA_CALIBRATION_PATH = '../calibration/CALIBRATION_20231010_boron'
 
 
 """ Uncomment for grazing incidence tests """
 REFERENCE_ROD_DIAMETER = 1.27 # cm
 MEASURED_ELIPSE_RADII = [85.37, 155.85] # minor and major radius in pixels The major radius should be vertical
-# BEAM_CENTER = [1006, 416] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
-BEAM_CENTER = [1000, 436] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
+BEAM_CENTER = [1006, 436] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
 BEAM_DIAMETER = 448 # The beam diameter in pixels.
-REFLECTIONS_FRAME_REF = 59 # The number of the frame containing strong spurious reflections but no particles
+REFLECTIONS_FRAME_REF = 95 # The number of the frame containing strong spurious reflections but no particles
 FLARE_CENTER = [625, 608] # The center of the 468 px diameter circle around which we want to avoid the flare
-ROI_DIAMETER_PX = 190
+ROI_DIAMETER_PX = 196
 EXPERIMENT_DATA_PATH = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/GRAZING_INCIDENCE/'
 
 
@@ -58,7 +57,7 @@ EXPERIMENT_DATA_PATH = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Pers
 # BEAM_DIAMETER = 600 # The beam diameter in pixels.
 # REFLECTIONS_FRAME_REF = 175 # The number of the frame containing strong spurious reflections but no particles
 # FLARE_CENTER = [889, 628] # The center of the 468 px diameter circle around which we want to avoid the flare
-# ROI_DIAMETER_PX = 530 - 345
+# ROI_DIAMETER_PX = 184
 # EXPERIMENT_DATA_PATH = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/BORON_PHENOLIC'
 
 
@@ -318,6 +317,7 @@ def main(
     n_bins = int((temp_max - temp_min) // temperature_resolution)
 
     histrogram_matrix = np.zeros((total_frames, n_bins))
+    pdf_matrix = np.zeros((total_frames, n_bins))
     mean_brightness = np.zeros(total_frames)
     max_counts = 0
 
@@ -339,11 +339,13 @@ def main(
             mean_brightness[i] = np.mean(brightnesses.flatten())
             # Get the histogram over the temperatures
             temperature_rod = convert_to_temperature(signal=extended_img, cali=temperature_calibration)
-            temperature_rod_flat = temperature_rod.flatten()
+            temperature_rod_flat = temperature_rod[msk_rod].flatten()
             msk_gt_300 = temperature_rod_flat >= 300
 
             counts, bin_edges = np.histogram(temperature_rod_flat[msk_gt_300], bins=n_bins, density=False, range=(temp_min, temp_max))
+            pdf, _ = np.histogram(temperature_rod_flat[msk_gt_300], bins=n_bins, density=True, range=(temp_min, temp_max))
             histrogram_matrix[i, :] = counts
+            pdf_matrix[i, :] = pdf
             max_counts = max(np.max(counts), max_counts)
             if i == 0:
                 bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2 #- 0.5
@@ -366,6 +368,8 @@ def main(
         time_ds = hf.create_dataset('time', data=time_s, compression="gzip")
         time_ds.attrs['units'] = 's'
         histogram_ds = hf.create_dataset('histogram', data=histrogram_matrix, compression="gzip")
+        pdf_ds = hf.create_dataset('pdf', data=pdf_matrix, compression="gzip")
+        histogram_ds.attrs['type'] = 'counts'
         bin_centers_ds = hf.create_dataset('bin_centers', data=bin_centers)
         bin_centers_ds.attrs['units'] = 'Temperature (K)'
         calibration_ds = hf.create_dataset('calibration', data=temperature_cal, compression="gzip")

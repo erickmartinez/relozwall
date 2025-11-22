@@ -2,9 +2,10 @@ import h5py
 import numpy as np
 from pathlib import Path
 import os
-import pandas as pd
+import matplotlib.pyplot as plt
+from data_processing.misc_utils.plot_style import load_plot_style
 
-PATH_TO_DISTRIBUTIONS = r'./data'
+PATH_TO_DISTRIBUTIONS = r'./data/to_compile'
 
 
 def load_distribution(h5file):
@@ -59,6 +60,8 @@ def main(path_to_distributions):
     n_temps = len(mean_temperatures)
     # A matrix of histograms with a shape compatible with all files
     histograms = np.zeros((n_temps, n_bins))
+    # A matrix with the mean temperature at the pebble rod
+    pebble_rod_mean_surface_temperature = np.zeros(n_temps)
     print(f'n_bins: {n_bins}')
     # print(f'histograms.shape = {histograms.shape}')
     i0 = 0 # An offset equal to the number of histograms per file
@@ -73,6 +76,7 @@ def main(path_to_distributions):
         n_temps = len(mean_temperature)
         for j in range(n_temps):
             histograms[j+i0, idx1:idx2+1] = histogram_matrix[j]
+            pebble_rod_mean_surface_temperature[j+i0] = np.sum(bin_centers_i * histogram_matrix[j]) / np.sum(histogram_matrix[j])
         i0 = len(histogram_matrix)
 
 
@@ -82,7 +86,10 @@ def main(path_to_distributions):
     """
     # print('mean_temperatures', mean_temperatures)
     # Make an array of mean temperatures from min_temperature to max temperature
-    temperature_dimes_mean = np.arange(mean_temperature_min, mean_temperature_max+1, dtype=int)
+    dimes_delta_temp = 50
+    n_temps_dimes = (mean_temperature_max - mean_temperature_min) // dimes_delta_temp + 1
+    temperature_dimes_mean = mean_temperature_min + np.arange(n_temps_dimes) * dimes_delta_temp
+    temperature_dimes_mean = temperature_dimes_mean.astype(int)
     # print('temperature_dimes_mean', temperature_dimes_mean)
     # Count the number of repetead temperatures
     mean_temperature_repeats = np.zeros_like(temperature_dimes_mean)
@@ -93,19 +100,38 @@ def main(path_to_distributions):
 
     m = len(temperature_dimes_mean)
     histograms_mean = np.zeros((m, n_bins), dtype=float)
+    pebble_rod_mean_surface_temperature_mean = np.zeros(m, dtype=float)
 
     for i, temperature in enumerate(temperature_dimes_mean):
-        if temperature in mean_temperatures:
-            msk_mean_temperature = int(temperature) == mean_temperatures.astype(int)
-            counts = np.sum(msk_mean_temperature)
-            idx_temps = np.argwhere(msk_mean_temperature)[:,0]
+        # Select all temperatures in mean_temperatures that fall within the temperature and temperature + dT
+        msk_dimes_temp = (temperature <= mean_temperatures) & (mean_temperatures < temperature + dimes_delta_temp)
+        counts = np.sum(msk_dimes_temp)
+        if counts > 0:
+            idx_temps = np.argwhere(msk_dimes_temp)[:,0]
             histogram_i = np.zeros(n_bins, dtype=float)
+            pebble_mean_i = 0
             # print(f'Counts: {temperature}: {counts}')
             for j, idx_temp in enumerate(idx_temps):
                 # print(f'idx_temp: {idx_temp}')
                 histogram_i += histograms[idx_temp]
+                h_sum = np.sum(histograms[idx_temp])
+                if h_sum > 0:
+                    pebble_mean_i += np.sum(histograms[idx_temp] * bin_centers) / h_sum
             histogram_i /= counts
             histograms_mean[i, :] = histogram_i
+
+    for i, temperature in enumerate(temperature_dimes_mean):
+        histogram = histograms_mean[i, :]
+        counts = np.sum(histogram)
+        if counts > 0:
+            pebble_rod_mean_surface_temperature_mean[i] = np.sum(histogram * bin_centers) / counts
+
+    # Remove empty distributions
+    msk_mean_zero = pebble_rod_mean_surface_temperature_mean <= 0
+    print(f'Distirbutions with mean surface temperature zero: {np.sum(msk_mean_zero)}')
+    histograms_mean = histograms_mean[~msk_mean_zero,:]
+    temperature_dimes_mean = temperature_dimes_mean[~msk_mean_zero]
+    pebble_rod_mean_surface_temperature_mean = pebble_rod_mean_surface_temperature_mean[~msk_mean_zero]
 
     with h5py.File(path_to_output_data / 'dimes_averaged_temperature_distributions.h5', 'w') as f:
         histograms_ds = f.create_dataset('histograms', data=histograms_mean, compression='gzip')
@@ -114,10 +140,21 @@ def main(path_to_distributions):
         histograms_ds.attrs['units'] = '# of pixels'
         bin_centers_ds.attrs['units'] = 'K'
         dimes_mean_temperatures_ds.attrs['units'] = 'K'
+        pebble_rod_mean_surface_temperature_ds = f.create_dataset(
+            'pebble_rod_mean_surface_temperature', data=pebble_rod_mean_surface_temperature_mean, compression='gzip')
 
 
+    load_plot_style()
 
+    fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True)
+    fig.set_size_inches(4, 3)
 
+    ax.plot(temperature_dimes_mean, pebble_rod_mean_surface_temperature_mean, marker='o', ls='None', mfc='none')
+
+    ax.set_xlabel('DiMES averaged T (K)')
+    ax.set_ylabel('Pebble rod T (K)')
+
+    plt.show()
 
 
 

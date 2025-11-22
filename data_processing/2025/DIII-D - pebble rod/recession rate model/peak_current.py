@@ -17,7 +17,7 @@ FIGURES_DIR = r'./figures/model'
 MEAN_CURRENT_DIR = r'./data/mean_current'
 INTEGRATED_CURRENT_DIR = r'./data/integrated_current'
 
-SHOT = 203780
+SHOT = 203782
 DiMES_R = 1.48 # m
 T_RANGE = [1200, 4000]
 TAU = 10

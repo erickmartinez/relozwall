@@ -5,11 +5,10 @@ from scipy.optimize import least_squares, OptimizeResult
 import matplotlib.pyplot as plt
 from data_processing.misc_utils.plot_style import load_plot_style
 import matplotlib.ticker as ticker
-from scipy.interpolate import interp1d, CubicSpline, PPoly
+from scipy.interpolate import CubicSpline, PPoly
 import h5py
+from typing import Tuple, Union, Callable
 from pathlib import Path
-
-from experiments.thermocouple_timeconstant_calibration import model
 
 """
 This fits boron evaporation data as a function of temperature from 
@@ -255,9 +254,6 @@ def main(sublimation_rate_csv_list, target_temperature, pisces_a_d_flux_mean, pi
     y_extra = np.exp(y_extra_log)
     lb, ub = np.exp(y_extra_log - ydelta_log), np.exp(y_extra_log + ydelta_log)
 
-    f_y_log = interp1d(x_extra, y_extra_log)
-    f_lb_log = interp1d(x_extra, y_extra_log - ydelta_log)
-    f_ub_log = interp1d(x_extra, y_extra_log + ydelta_log)
 
     cs_lb = CubicSpline(x_extra, y_extra_log - ydelta_log)
     cs_ub = CubicSpline(x_extra, y_extra_log + ydelta_log)
@@ -265,9 +261,6 @@ def main(sublimation_rate_csv_list, target_temperature, pisces_a_d_flux_mean, pi
     pp_lb = PPoly(cs_lb.c, cs_ub.x)
     pp_ub = PPoly(cs_ub.c, cs_lb.x)
 
-    f_y = interp1d(x_extra, y_extra)
-    f_lb = interp1d(x_extra, lb)
-    f_ub = interp1d(x_extra, ub)
 
     with h5py.File('boron_evaporation_model.hdf5', 'w') as hf:
         model_poly_log_gp = hf.create_group('model')
@@ -299,37 +292,79 @@ def main(sublimation_rate_csv_list, target_temperature, pisces_a_d_flux_mean, pi
 
     axes[0].legend(loc='lower right', frameon=True, fontsize=10)
 
-    # extrapolated_txt = f"${target_temperature:.0f}\;\mathrm{{K}}$ \n"
-    # y_t_str, y_t_ci_str = format_latex_with_bounds(y_t, f_lb(target_temperature), f_ub(target_temperature))
-    # extrapolated_txt += r"{\sffamily Rate:} " +f"${y_t_str}$" + r" {\sffamily B/cm\textsuperscript{2}-s}" + "\n"
-    # extrapolated_txt += f"{y_t_ci_str}"
-    # connectionstyle = "angle,angleA=0,angleB=-60,rad=0"
-    # bbox = dict(boxstyle="round", fc="wheat")
-    # arrowprops = dict(
-    #     arrowstyle="->", color="k",
-    #     shrinkA=5, shrinkB=5,
-    #     patchA=None, patchB=None,
-    #     connectionstyle=connectionstyle
-    # )
-    # axes[0].annotate(
-    #     extrapolated_txt,
-    #     xy=(target_temperature, y_t), xycoords='data',  # 'figure pixels', #data',
-    #     xytext=(-220, 10), textcoords='offset points',
-    #     ha='left', va='bottom',
-    #     fontsize=11,
-    #     arrowprops=arrowprops,
-    #     bbox=bbox,
-    #     usetex=True
-    # )
-
-
+    fig.savefig('boron_evaporation_rates.png', dpi=600)
     plt.show()
 
+
+def load_model(path_to_pppl_fit) \
+        -> Callable[[Union[float, np.ndarray]], Union[Tuple[float, float, float], Tuple[np.ndarray, np.ndarray, np.ndarray]]]:
+    """
+    Load the fit from
+
+    H.W. Kugel, Y. Hirooka, J. Timberlake et al., Initial boronization of PB-X using ablation of solid boronized probes.
+    PPL-2903 (1993)
+
+    Figure 16
+
+    to estimate the evaporation rate at each time
+
+    Parameters
+    ----------
+    path_to_pppl_fit: str, pathlib.Path
+
+    Returns
+    -------
+    callable:
+        The evaporation model
+    """
+    path_to_pppl_fit = Path(path_to_pppl_fit)
+    with h5py.File(str(path_to_pppl_fit), 'r') as hf:
+        # Load the coefficients of the polynomial fit (in log scale) for the boron evaporation rate in
+        # (atoms/cm^2/s)
+        model_popt = np.array(hf['/model/popt'])
+
+        lb_ppoly_c = np.array(hf['/model/lb_ppoly/c'])
+        lb_ppoly_x = np.array(hf['/model/lb_ppoly/x'])
+        ub_ppoly_c = np.array(hf['/model/ub_ppoly/c'])
+        ub_ppoly_x = np.array(hf['/model/ub_ppoly/x'])
+
+    ppoly_lb = PPoly(lb_ppoly_c, lb_ppoly_x)
+    ppoly_ub = PPoly(ub_ppoly_c, ub_ppoly_x)
+    def evaporation_rate_model(temperature: Union[np.ndarray, float]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        The evaporation rate in atoms/cm^2/s
+
+        Parameters
+        ----------
+        temperature: np.ndarray
+            The temperature in Kelvin
+
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray, np.ndarray]
+            The evaporation rate in atoms/cm^2/s
+            the lower and upper bounds of the evaporation rate
+        """
+        if isinstance(temperature, float) or isinstance(temperature, int):
+            temperature = np.array([temperature])
+        rate = np.exp(model_poly(temperature, model_popt))
+        lb = np.exp(ppoly_lb(temperature))
+        ub = np.exp(ppoly_ub(temperature))
+        return rate, lb, ub
+
+    return evaporation_rate_model
 
 if __name__ == '__main__':
     main(
         sublimation_rate_csv_list=SUBLIMATION_RATE_CSV_LIST, target_temperature=TARGET_TEMPERATURE,
         pisces_a_d_flux_mean=PISCES_A_D_FLUX_MEAN, pisces_y_d=PISCES_Y_D
     )
+
+    """
+    The model can be later loaded from the hdf5
+    """
+    model_evaporation = load_model(path_to_pppl_fit='boron_evaporation_model.hdf5')
+    evaporation_rate, upper_bound, lower_bound = model_evaporation(temperature=2000)
+    print(f'Evaporation rate: {evaporation_rate} 95% confidence interval: [{upper_bound}, {lower_bound}] B/cm^2/s')
 
 

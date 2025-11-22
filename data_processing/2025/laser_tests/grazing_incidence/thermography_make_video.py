@@ -38,11 +38,12 @@ MAKE_MOVIE = True # If true, make an animation and save it as an mp4 movie
 """ Uncomment for grazing incidence tests """
 REFERENCE_ROD_DIAMETER = 1.27 # cm
 MEASURED_ELLIPSE_RADII = [85.37, 155.85] # minor and major radius in pixels The major radius should be vertical
-# BEAM_CENTER = [1006, 416] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
-BEAM_CENTER = [1000, 436] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
+BEAM_CENTER = [1006, 416] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
+# BEAM_CENTER = [1000, 436] # The beam center in pixels (measured in imageJ), used to draw a circular mask around it
 BEAM_DIAMETER = 448 # The beam diameter in pixels.
 REFLECTIONS_FRAME_REF = 59 # The number of the frame containing strong spurious reflections but no particles
 FLARE_CENTER = [625, 608] # The center of the 468 px diameter circle around which we want to avoid the flare
+PLOT_FRAME = 77
 
 """ Uncomment for normal incidence """
 # REFERENCE_ROD_DIAMETER = 1.0 # cm
@@ -54,7 +55,7 @@ FLARE_CENTER = [625, 608] # The center of the 468 px diameter circle around whic
 
 
 
-STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0905_080PCT_2025-09-11_1/LCT_R5N16-0905_080PCT_2025-09-11_1_temperature_stack.tif'
+STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0912_100PCT_2025-09-15_1/LCT_R5N16-0912_100PCT_2025-09-15_1_temperature_stack.tif'
 # STACK_FILE = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0914_060PCT_2025-09-15_1/LCT_R5N16-0914_060PCT_2025-09-15_1_temperature_stack.tif'
 COLOR_MAP = 'viridis'
 
