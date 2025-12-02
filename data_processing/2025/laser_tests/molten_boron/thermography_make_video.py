@@ -55,7 +55,7 @@ PLOT_FRAME = 77
 
 
 
-STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_POLYBORON-16_040PCT_2025-11-24_1/LCT_POLYBORON-16_040PCT_2025-11-24_1_temperature.tiff'
+STACK_FILE =  r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_POLYBORON-20_030PCT_2025-12-01_1/LCT_POLYBORON-20_030PCT_2025-12-01_1_temperature.tiff'
 # STACK_FILE = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/thermal_images/LCT_R5N16-0914_060PCT_2025-09-15_1/LCT_R5N16-0914_060PCT_2025-09-15_1_temperature_stack.tif'
 COLOR_MAP = 'jet'
 

@@ -17,7 +17,7 @@ from tqdm import tqdm
 CALIBRATION_PATH = '../calibration/CALIBRATION_20231010_boron'
 DEPOSITION_RATE = 0.  # nm/s
 ABSORPTION_COEFFICIENT = 1E-3
-INFO_CSV = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/MOLTEN_BORON/LCT_POLYBORON-16_040PCT_2025-11-24_1.csv'
+INFO_CSV = r'/Users/erickmartinez/Library/CloudStorage/OneDrive-Personal/Documents/ucsd/Research/Data/2025/laser_tests/MOLTEN_BORON/LCT_POLYBORON-20_030PCT_2025-12-01_1.csv'
 LN10 = np.log(10.)
 
 # Set number of workers (use None for auto-detect, or specify a number)
