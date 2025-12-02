@@ -96,7 +96,9 @@ class LaserProcedure(Procedure):
     def startup(self):
         log.info('***  Startup ****')
         self.__camera: Camera = Camera()
+        self.__camera.set_logger(logging.getLogger(__name__))
         self.__mx200 = MX200()  # address=MX200_COM, keep_alive=True)
+        self.__mx200.set_logger(logging.getLogger(__name__))
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
 
@@ -206,7 +208,7 @@ class LaserProcedure(Procedure):
 
         log.info("Setting up Triggers")
         try:
-            esp32 = ESP32Trigger()
+            esp32 = ESP32Trigger(logger=logging.getLogger(__name__))
         except SerialException as e:
             log.error("Error initializing ESP32 trigger")
             raise e

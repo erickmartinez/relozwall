@@ -88,6 +88,7 @@ class Camera:
         system = PySpin.System.GetInstance()
         # Get current library version
         version = system.GetLibraryVersion()
+        self._log = logging.getLogger('Camera')
         self.log('Library version: %d.%d.%d.%d' % (version.major, version.minor, version.type, version.build))
         self._system: PySpin.System = PySpin.System.GetInstance()
         self._cam_list: PySpin.CameraList = self._system.GetCameras()
@@ -105,6 +106,7 @@ class Camera:
             self._cam.ChunkEnable.SetValue(True)
             self._cam.ChunkSelector.SetValue(PySpin.ChunkSelector_Timestamp)
             self._cam.ChunkEnable.SetValue(True)
+            self.pixel_format = PySpin.PixelFormat_Mono8
         except PySpin.SpinnakerException as ex:
             self.log(f'Error: {ex}')
             raise Exception(f'Error: {ex}')
@@ -186,6 +188,18 @@ class Camera:
         delay_to_set = max(9, delay_to_set)
         delay_to_set = min(self._cam.TriggerDelay.GetMax(), delay_to_set)
         self._cam.TriggerDelay.SetValue(delay_to_set)
+
+    @property
+    def pixel_format(self):
+        return self._cam.PixelFormat.GetValue()
+
+    @pixel_format.setter
+    def pixel_format(self, pixel_format):
+        try:
+            self._cam.PixelFormat.SetValue(pixel_format)
+        except PySpin.SpinnakerException as ex:
+            self.log(f'Error setting pixel format {pixel_format}', level=logging.ERROR)
+            self.log(f'Trace: {ex}')
 
     def print_device_info(self):
         self.log('*** DEVICE INFORMATION ***\n')
@@ -630,15 +644,16 @@ class Camera:
                             self.log(
                                 'Grabbed image 1/1, width = %d, height = %d' % (width, height))
 
-                        # Convert image to Mono8
-                        image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
+                        # Convert image to Mono8 <- Already set camera to Mono8 in constructor
+                        # image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
 
                         # Create a unique filename
                         filename = '%s-%d.jpg' % (image_prefix, i+1)
                         full_filename = os.path.join(self._path_to_images, filename)
 
                         # Save image
-                        image_converted.Save(full_filename)
+                        # image_converted.Save(full_filename)
+                        image_result.SaveAs(full_filename)
 
                         self.log('Image saved at %s' % full_filename)
 
@@ -656,6 +671,7 @@ class Camera:
                 self._timestamps = []
                 self._image_stack = []
                 tif_file_name = os.path.join(self._path_to_images, image_prefix + '.tiff')
+                self.log('Capturing images...', level=logging.INFO)
                 with tifffile.TiffWriter(str(tif_file_name), imagej=False) as tif:
                     for i in range(self._number_of_images):
                         try:
@@ -673,7 +689,6 @@ class Camera:
                                 chunk_data = image_result.GetChunkData()
                                 # frame_id = chunk_data.GetFrameID()
                                 timestamp = chunk_data.GetTimestamp()
-                                self._timestamps.append(timestamp)
                                 # Print image information
                                 if self.debug:
                                     width = image_result.GetWidth()
@@ -682,8 +697,8 @@ class Camera:
                                         'Grabbed Image %d/%d, width = %d, height = %d' % (
                                         i+1, self._number_of_images, width, height))
 
-                                # Convert image to Mono8
-                                image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
+                                # Convert image to Mono8 <- No need, already set to Mono8 in constructor
+                                # image_converted = processor.Convert(image_result, PySpin.PixelFormat_Mono8)
 
                                 # Create a unique filename
                                 # filename = '%s-%d.jpg' % (image_prefix, i+1)
@@ -693,25 +708,23 @@ class Camera:
                                 # Save image
                                 # image_converted.Save(full_filename)
 
-                                image_array = image_converted.GetNDArray()
+                                image_array = image_result.GetNDArray()
                                 # self._image_stack.append(image_array.copy())
                                 tif.write(
                                     image_array.copy(), contiguous=True, photometric='minisblack',
-                                    metadata={
-                                        'timestamp': timestamp,
-                                    }
                                 )
+                                self._timestamps.append(timestamp)
 
                                 # if self.debug:
                                 # self.log('(%d/%d) Image saved at %s' % (i+1, self._number_of_images, filename) )
-                                self.log(f'Saved image {i+1:>03d}/{self._number_of_images:>03d}')
+                                # self.log(f'Saved image {i+1:>03d}/{self._number_of_images:>03d}')
 
                                 # Release image
                                 image_result.Release()
                                 # self.log(f'Released image {i}')
                                 i += 1
                         except PySpin.SpinnakerException as ex:
-                            self.log(f'Error acquiring image {i+1}/{self._number_of_images}: {ex}', logging.ERROR)
+                            self.log(f'Error acquiring image {i+1}/{self._number_of_images}:{ex}', logging.ERROR)
                             self.__busy = False
                             # return False
                             # break
@@ -756,6 +769,7 @@ class Camera:
 
     def compress_tiff_stack(self, full_filename):
         if os.path.exists(full_filename):
+
             data = tifffile.imread(full_filename)
             tifffile.imwrite(full_filename, data, compression='zlib', compressionargs={'level': 9})
 
@@ -767,7 +781,8 @@ class Camera:
         with open(metadata_file, 'w') as f:
             json.dump({
                 't (s)': time_stamps.tolist(),
-                'TIMESTAMPS': time_stamps.tolist(),
+                'TIMESTAMPS': self._timestamps,
+                'image_index': [i for i in range(self._number_of_images)],
             }, f, indent=2)
 
 

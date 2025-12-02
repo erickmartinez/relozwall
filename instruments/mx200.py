@@ -6,7 +6,6 @@ import serial
 from time import sleep
 import re
 from serial import SerialTimeoutException
-
 from serial import SerialException
 
 PATTERN = re.compile(r'(\d{2})\=(.*)')
@@ -19,7 +18,7 @@ class MX200(BaseSerial):
 
     __timeout = 0.05
     __delay = 0.01
-    _log: logging.Logger = None
+    _logger: logging.Logger = None
 
     units_mapping = {
         'PA': 'Pascal',
@@ -29,14 +28,14 @@ class MX200(BaseSerial):
         'MT': 'mTorr'
     }
 
-    def __init__(self):
+    def __init__(self, logger: logging.Logger = None):
         super().__init__(name='MX200')
         self._serial_settings = {
             "baudrate": 115200,
             "bytesize": serial.EIGHTBITS,
             "parity": serial.PARITY_NONE,
             "stopbits": serial.STOPBITS_ONE,
-            "xonxoff": True,
+            "xonxoff": False,
             "rtscts": False,
             "dsrdtr": False,
             "exclusive": None,
@@ -50,20 +49,23 @@ class MX200(BaseSerial):
             valid_id_specific='406714'
         )
 
-        self.auto_connect()
+        if logger is None:
+            self._log = logging.getLogger(__name__)
+            self._log.addHandler(logging.NullHandler())
+            # create console handler and set level to debug
+            has_console_handler = False
+            if len(self._log.handlers) > 0:
+                for h in self._log.handlers:
+                    if isinstance(h, logging.StreamHandler):
+                        has_console_handler = True
+            if not has_console_handler:
+                ch = logging.StreamHandler()
+                ch.setLevel(logging.DEBUG)
+                self._log.addHandler(ch)
+        else:
+            self.set_logger(logger)
 
-        self._log = logging.getLogger(__name__)
-        self._log.addHandler(logging.NullHandler())
-        # create console handler and set level to debug
-        has_console_handler = False
-        if len(self._log.handlers) > 0:
-            for h in self._log.handlers:
-                if isinstance(h, logging.StreamHandler):
-                    has_console_handler = True
-        if not has_console_handler:
-            ch = logging.StreamHandler()
-            ch.setLevel(logging.DEBUG)
-            self._log.addHandler(ch)
+        self.auto_connect()
 
         self._ppsee_pattern = re.compile(r"\d{5}")
         self._previous_pressures = {1: '', 2: ''}
@@ -75,8 +77,8 @@ class MX200(BaseSerial):
         response = self.query('SN')
         return response
 
-    def set_logger(self, log: logging.Logger):
-        self._log = log
+    # def set_logger(self, log: logging.Logger):
+    #     self._log = log
 
     @property
     def timeout(self):
@@ -111,7 +113,7 @@ class MX200(BaseSerial):
     @property
     def pressures(self) -> dict:
         response: str = self.query("S1")
-        time.sleep(self.__delay)
+        # time.sleep(self.__delay)
         pressures_str = response.split()
         if len(pressures_str) == 0:
             return None
@@ -136,7 +138,7 @@ class MX200(BaseSerial):
             # pressure = self.query(q)
             try:
                 self._serial.write(f"{q}\r".encode('utf-8'))
-                time.sleep(self.__delay)
+                # time.sleep(self.__delay)
                 pressure = self._serial.read(7).decode('utf-8').rstrip("\r\n")
                 if self._ppsee_pattern.match(pressure) is not None:
                     pressure = self.ppsee(pressure)
@@ -264,12 +266,18 @@ class MX200(BaseSerial):
             self.__delay = value
 
     def write(self, q: str):
-        self._serial.write("{0}\r".format(q).encode('utf-8'))
-        sleep(self.__delay)
+        if not self._serial or not self._serial.is_open:
+            raise serial.SerialException("Attempted write on closed port")
+        try:
+            self._serial.write(f'{q}\r'.encode('utf-8'))
+        except serial.SerialTimeoutException:
+            self.log("Write timeout", level=logging.ERROR)
 
     def query(self, q: str) -> str:
-        self._serial.write("{0}\r".format(q).encode('utf-8'))
-        sleep(self.__delay)
-        line = self._serial.readline()
-        sleep(self.__delay)
-        return line.decode('utf-8').rstrip("\r\n").rstrip(" ")
+        self.write(q)
+        try:
+            line = self._serial.readline()
+            return line.decode('utf-8').strip()
+        except UnicodeDecodeError:
+            self.log("Decode error in query response", level=logging.WARNING)
+            return ""
