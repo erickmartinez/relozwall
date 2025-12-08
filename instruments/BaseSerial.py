@@ -186,6 +186,11 @@ class BaseSerial:
     def flush_input(self):
         self._serial.reset_input_buffer()
 
+    def flush_all(self):
+        """Flush both input and output buffers"""
+        self.flush_input()
+        self.flush_output()
+
 
     def log(self, msg: str, level: int = logging.INFO):
         if self._logger is not None:
