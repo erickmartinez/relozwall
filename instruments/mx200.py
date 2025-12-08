@@ -16,7 +16,7 @@ class MX200(BaseSerial):
     Represents the Televac MX200 Controller
     """
 
-    __timeout = 0.05
+    __timeout = 0.1
     __delay = 0.01
     _logger: logging.Logger = None
 
@@ -50,25 +50,25 @@ class MX200(BaseSerial):
         )
 
         if logger is None:
-            self._log = logging.getLogger(__name__)
-            self._log.addHandler(logging.NullHandler())
+            self._logger = logging.getLogger(__name__)
+            self._logger.addHandler(logging.NullHandler())
             # create console handler and set level to debug
             has_console_handler = False
-            if len(self._log.handlers) > 0:
-                for h in self._log.handlers:
+            if len(self._logger.handlers) > 0:
+                for h in self._logger.handlers:
                     if isinstance(h, logging.StreamHandler):
                         has_console_handler = True
             if not has_console_handler:
                 ch = logging.StreamHandler()
                 ch.setLevel(logging.DEBUG)
-                self._log.addHandler(ch)
+                self._logger.addHandler(ch)
         else:
             self.set_logger(logger)
 
         self.auto_connect()
 
         self._ppsee_pattern = re.compile(r"\d{5}")
-        self._previous_pressures = {1: '', 2: ''}
+        self._previous_pressures = {1: 720, 2: 720}
         for i in [1, 2]:
             while type(self._previous_pressures[i]) != float:
                 self._previous_pressures[i] = self.pressure(i)
@@ -76,9 +76,6 @@ class MX200(BaseSerial):
     def id_validation_query(self) -> str:
         response = self.query('SN')
         return response
-
-    # def set_logger(self, log: logging.Logger):
-    #     self._log = log
 
     @property
     def timeout(self):
@@ -100,7 +97,7 @@ class MX200(BaseSerial):
         self.timeout = 0.1
         check_id = self.query('SN')
         self.delay = old_delay
-        self.delay = old_timeout
+        self.timeout = old_timeout
         if check_id != '406714':
             if attempt <= 3:
                 attempt += 1
@@ -113,7 +110,6 @@ class MX200(BaseSerial):
     @property
     def pressures(self) -> dict:
         response: str = self.query("S1")
-        # time.sleep(self.__delay)
         pressures_str = response.split()
         if len(pressures_str) == 0:
             return None
@@ -137,8 +133,7 @@ class MX200(BaseSerial):
             q = 'S1{0:02d}'.format(gauge_number)
             # pressure = self.query(q)
             try:
-                self._serial.write(f"{q}\r".encode('utf-8'))
-                # time.sleep(self.__delay)
+                self.write(q)
                 pressure = self._serial.read(7).decode('utf-8').rstrip("\r\n")
                 if self._ppsee_pattern.match(pressure) is not None:
                     pressure = self.ppsee(pressure)
@@ -148,7 +143,7 @@ class MX200(BaseSerial):
                     pressure = self._previous_pressures[gauge_number]
                     return pressure
             except SerialTimeoutException as e:
-                self._log.error(f"MX200: Serial timeout error: {e}")
+                self._logger.error(f"MX200: Serial timeout error: {e}")
                 self.flush_input()
                 self.flush_output()
                 return self._previous_pressures[gauge_number]
@@ -168,18 +163,19 @@ class MX200(BaseSerial):
     def units(self, value: str):
         self.set_units(value)
 
-    def set_units(self, value: str, attempts=0):
+    def set_units(self, value: str, attempts=3):
         if value in self.units_mapping:
             q = f"W1{value.upper()}"
-            self._serial.write(f'{q}\r'.encode('utf-8'))
-            time.sleep(2.0)
-            # r = self._serial.read(4).decode('utf-8').rstrip('\r\n')
-            # time.sleep(self.__delay)
-            r = self.query('R1')
-            if r != value:
-                self._log.warning(f'Units {value} could not be set. Query \'{q}\' returned \'{r}\'')
-                if attempts < 3:
-                    self.set_units(value, attempts + 1)
+            for attempt in range(attempts):
+                self.write(q)
+                time.sleep(2.0)
+                current_units = self.query('R1')
+                if current_units == value:
+                    self.log(f"MX200: Units successfully set to {value}", level=logging.INFO)
+                    return
+                self.log(f"Attempt {attempt + 1}: Failed to set units. Got {current_units}, expected {value}",
+                         level=logging.WARNING)
+        self.log(f"Failed to set units to {value} after 3 attempts.", level=logging.ERROR)
 
     @property
     def sensor_types(self) -> dict:
@@ -201,12 +197,12 @@ class MX200(BaseSerial):
     def read_calibration(self, channel: int, adjustment_point: int) -> int:
         adjustment_point = int(adjustment_point)
         channel = int(channel)
-        if 2 < channel < 1:
-            raise Warning(f"Channel '{channel}' is not available.")
+        if channel not in [1,2]:
+            raise Warning(f"Got channel: '{channel}'. Channel must be 1 or 2.")
         if 1 <= adjustment_point <= 5:
             query: str = f"RC{adjustment_point}{str(channel).zfill(2)}"
             result = self.query(q=query)
-            self._log.debug(result)
+            self._logger.debug(result)
             return self.baa(result)
         else:
             raise Warning(f"Invalid adjustment point: {adjustment_point}.")
@@ -220,7 +216,7 @@ class MX200(BaseSerial):
             raise Warning(f"Invalid adjustment point: {adjustment_point}.")
         baa = self.integer2baa(set_point)
         query = f"WC{adjustment_point}{str(channel).zfill(2)}{baa}"
-        self._log.debug(query)
+        self._logger.debug(query)
         self.write(q=query)
         # r = self.query(q=query)
         # if re.match(r"\d{5}", r):

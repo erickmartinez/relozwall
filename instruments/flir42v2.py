@@ -675,7 +675,7 @@ class Camera:
             # with the unit being used in GetNextImage
             # fast_timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 1000)
             # fast_timeout = (int) (self._cam.ExposureTime.GetValue() / 1000 + (1000.0 / self.frame_rate)*2)
-            fast_timeout = int((1000.0 / self.frame_rate)*1.5)
+            timeout = int((1000.0 / self.frame_rate)*1.5)
 
             self.execute_trigger()
             self.__busy = True
@@ -685,7 +685,6 @@ class Camera:
                 try:
                     if self._cam.ExposureTime.GetAccessMode() == PySpin.RW or self._cam.ExposureTime.GetAccessMode() == PySpin.RO:
                         # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency with the unit being used in GetNextImage
-                        timeout = fast_timeout
                         self.log(f'Acquisition timeout: {timeout}')
                     image_result = self._cam.GetNextImage(timeout)
 
@@ -728,10 +727,10 @@ class Camera:
 
                 if self._use_threading:
                     # Threaded acquisition
-                    self._acquire_images_threaded(tif_file_name, fast_timeout, image_prefix)
+                    self._acquire_images_threaded(tif_file_name, timeout, image_prefix)
                 else:
                     # Original non-threaded acquisition
-                    self._acquire_images_direct(tif_file_name, fast_timeout, image_prefix)
+                    self._acquire_images_direct(tif_file_name, timeout, image_prefix)
                 self.compress_tiff_stack(tif_file_name)
                 self.save_time_stamp_metadata(tif_file_name)
 
@@ -748,8 +747,12 @@ class Camera:
         """Original direct write method (no threading)"""
         with tifffile.TiffWriter(str(tif_file_name), imagej=False) as tif:
             for i in range(self._number_of_images):
+                if i == 0:
+                    current_timeout = 5000
+                else:
+                    current_timeout = timeout
                 try:
-                    image_result = self._cam.GetNextImage(timeout)
+                    image_result = self._cam.GetNextImage(current_timeout)
 
                     if image_result.IsIncomplete():
                         self.log('Image incomplete with image status %d...' %
@@ -780,7 +783,7 @@ class Camera:
         """Threaded acquisition - separate grab and write"""
         # Calculate queue size based on expected buffer needs
         # At 200fps for 1 second = 200 frames * 1.5MB = ~300MB in queue
-        queue_size = min(500, self._number_of_images)
+        queue_size = min(1000, self._number_of_images)
         self._frame_queue = Queue(maxsize=queue_size)
         self._stop_writer = Event()
 
@@ -799,8 +802,12 @@ class Camera:
         # Acquisition loop - just grab and queue
         dropped_frames = 0
         for i in range(self._number_of_images):
+            if i == 0:
+                current_timeout = 5000
+            else:
+                current_timeout = timeout
             try:
-                image_result = self._cam.GetNextImage(timeout)
+                image_result = self._cam.GetNextImage(current_timeout)
 
                 if image_result.IsIncomplete():
                     self.log('Image incomplete with image status %d...' %

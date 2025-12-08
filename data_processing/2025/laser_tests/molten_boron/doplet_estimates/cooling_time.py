@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import constants
-from astropy import units as u
+# from astropy import units as u
 
 PRESSURE = 200 # mTorr
 KINETIC_DIAMETER_AR = 0.34 # nm
@@ -128,7 +128,7 @@ def estimate_heat_to_reach_temperature(
 
 
 if __name__ == "__main__":
-    boron_source_volume = 1. # cm^3
+    boron_source_volume = 0.1 # cm^3
     droplet_diameter_mm = 1.
     exposed_source_surface_area_cm = 1 # cm2
 
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     crucible_mass_g = 0. # <- Consider boron in BN crucible laser sourced aimed at boron
     # crucible_area_cm = 13. # cm2 # < tungsten crucible
     crucible_area_cm = 0. # <- Consider boron in BN crucible laser sourced aimed at boron
-    heat_source_power = 1000. # W
+    heat_source_power = 460. # W
     heat_source_efficiency = 0.9
     # heat_conduction_losses_supports_and_base = 300. # W
     heat_conduction_losses_supports_and_base = 100.  # W < BN crucible, laser heating

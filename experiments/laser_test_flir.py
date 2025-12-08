@@ -98,7 +98,7 @@ class LaserProcedure(Procedure):
         self.__camera: Camera = Camera()
         self.__camera.set_logger(logging.getLogger(__name__))
         self.__camera.use_threading = True
-        self.__mx200 = MX200(logger=logging.getLogger(__name__))  # address=MX200_COM, keep_alive=True)
+        self.__mx200 = MX200(logger=logging.getLogger(__name__))
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
 
