@@ -23,9 +23,9 @@ from instruments.esp32 import ESP32Trigger
 from instruments.esp32 import DualTCLoggerTCP
 from instruments.mx200 import MX200
 from instruments.IPG import YLR3000, LaserException
-from instruments.tektronix import TBS2000
+# from instruments.tektronix import TBS2000
 from instruments.inhibitor import WindowsInhibitor
-from instruments.flir42 import Camera, TriggerType
+from instruments.flir42v2 import Camera, TriggerType
 import PySpin
 from scipy import interpolate
 import threading
@@ -97,8 +97,8 @@ class LaserProcedure(Procedure):
         log.info('***  Startup ****')
         self.__camera: Camera = Camera()
         self.__camera.set_logger(logging.getLogger(__name__))
-        self.__mx200 = MX200()  # address=MX200_COM, keep_alive=True)
-        self.__mx200.set_logger(logging.getLogger(__name__))
+        self.__camera.use_threading = True
+        self.__mx200 = MX200(logger=logging.getLogger(__name__))  # address=MX200_COM, keep_alive=True)
         log.info("Setting up Lasers")
         self.__ylr = YLR3000(IP=IP_LASER)
 

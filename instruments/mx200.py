@@ -148,8 +148,9 @@ class MX200(BaseSerial):
                     pressure = self._previous_pressures[gauge_number]
                     return pressure
             except SerialTimeoutException as e:
-                self._log.error(f"Serial timeout error: {e}")
-                self._serial.flush()
+                self._log.error(f"MX200: Serial timeout error: {e}")
+                self.flush_input()
+                self.flush_output()
                 return self._previous_pressures[gauge_number]
         else:
             msg = "Invalid gauge number ({0:d}). Valid gauges are 1-2.".format(gauge_number)

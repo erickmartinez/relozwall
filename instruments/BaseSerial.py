@@ -74,7 +74,7 @@ class BaseSerial:
             self.flush_input()
             reply = self._id_validation_query()
             if reply == self._valid_id_specific:
-                self.log(f"Found '{self._valid_id_specific}' at port '{port}'", level=logging.INFO)
+                self.log(f"Found '{self.name}' (id:{self._valid_id_specific}) at port '{port}'", level=logging.INFO)
                 return True
             else:
                 self.log(f"Device at {port} replied '{reply}', expected '{self._valid_id_specific}'",

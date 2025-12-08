@@ -370,16 +370,16 @@ class Camera:
         # Set stream buffer Count Mode to manual
         stream_buffer_count_mode = PySpin.CEnumerationPtr(s_node_map.GetNode('StreamBufferCountMode'))
         if not read_writeable(stream_buffer_count_mode):
-            print('Unable to set Buffer Count Mode (node retrieval). Aborting...\n')
+            self.log('Unable to set Buffer Count Mode (node retrieval). Aborting...', level=logging.WARNING)
             return False
 
         stream_buffer_count_mode_manual = PySpin.CEnumEntryPtr(stream_buffer_count_mode.GetEntryByName('Manual'))
         if not PySpin.IsReadable(stream_buffer_count_mode_manual):
-            print('Unable to set Buffer Count Mode entry (Entry retrieval). Aborting...\n')
+            self.log('Unable to set Buffer Count Mode entry (Entry retrieval). Aborting...\n', level=logging.WARNING)
             return False
 
         stream_buffer_count_mode.SetIntValue(stream_buffer_count_mode_manual.GetValue())
-        print('Stream Buffer Count Mode set to manual...')
+        self.log('Stream Buffer Count Mode set to manual...', level=logging.DEBUG)
 
         # Retrieve and modify Stream Buffer Count
         buffer_count = PySpin.CIntegerPtr(s_node_map.GetNode('StreamBufferCountManual'))
@@ -674,7 +674,8 @@ class Camera:
             # The exposure time is retrieved in µs so it needs to be converted to ms to keep consistency
             # with the unit being used in GetNextImage
             # fast_timeout = (int)(self._cam.ExposureTime.GetValue() / 1000 + 1000)
-            fast_timeout = (int) (self._cam.ExposureTime.GetValue() / 1000 + (1000.0 / self.frame_rate)*2)
+            # fast_timeout = (int) (self._cam.ExposureTime.GetValue() / 1000 + (1000.0 / self.frame_rate)*2)
+            fast_timeout = int((1000.0 / self.frame_rate)*1.5)
 
             self.execute_trigger()
             self.__busy = True
@@ -767,7 +768,7 @@ class Camera:
                         )
                         self._timestamps.append(timestamp)
 
-                        self.log(f'Saved image {i + 1:>03d}/{self._number_of_images:>03d}')
+                        # self.log(f'Saved image {i + 1:>03d}/{self._number_of_images:>03d}')
 
                     image_result.Release()
 
@@ -873,7 +874,7 @@ class Camera:
 
     def save_time_stamp_metadata(self, full_filename):
         metadata_file = str(full_filename).replace('.tiff', '_metadata.json')
-        print(f'Writing metadata to {metadata_file}')
+        self.log(f'Writing metadata to {metadata_file}', level=logging.INFO)
         time_stamps = np.array([float(ti)*1E-9 for ti in self._timestamps])
         time_stamps -= time_stamps[0]
         with open(metadata_file, 'w') as f:
